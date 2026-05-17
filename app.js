@@ -4863,3 +4863,80 @@ document.addEventListener('click', function(e) {
         }
     }
 });
+
+
+// =========================================================================
+// --- CANLI SINIF (PEERJS) AĞ MOTORU ---
+// =========================================================================
+
+let myPeer = null;
+let myConnection = null;
+let isConnected = false;
+
+// 1. Akılda kalıcı 4 haneli rastgele bir Oda Kodu oluştur (Örn: 4815)
+const myRoomCode = Math.floor(1000 + Math.random() * 9000).toString();
+
+// 2. PeerJS'i bu 4 haneli özel kod ile başlat
+myPeer = new Peer(myRoomCode);
+
+// 3. Sistem sunucuya başarıyla bağlandığında kodumuzu HTML panele yazdır
+myPeer.on('open', function(id) {
+    const idSaha = document.getElementById('my-peer-id');
+    if(idSaha) idSaha.innerText = id;
+    console.log("PeerJS Hazır. Oda Kodunuz:", id);
+});
+
+// 4. TAHTA ROLÜ: Başka bir cihaz (Tablet) bize bağlandığında
+myPeer.on('connection', function(conn) {
+    myConnection = conn;
+    setupConnectionEvents();
+});
+
+// 5. TABLET ROLÜ: Biz butona basıp Tahtanın koduna bağlandığımızda
+document.getElementById('connect-btn').addEventListener('click', () => {
+    const targetCode = document.getElementById('connect-input').value.trim();
+    if(targetCode.length === 4) {
+        document.getElementById('connection-status').innerText = "Bağlanıyor ⏳";
+        myConnection = myPeer.connect(targetCode);
+        setupConnectionEvents();
+    } else {
+        alert("Lütfen 4 haneli Oda Kodunu girin.");
+    }
+});
+
+// 6. Bağlantının Durumunu ve Veri Akışını Yöneten Merkezi Fonksiyon
+function setupConnectionEvents() {
+    // Bağlantı başarıyla açılırsa
+    myConnection.on('open', function() {
+        isConnected = true;
+        const statusEl = document.getElementById('connection-status');
+        statusEl.innerText = "BAĞLANDI 🟢";
+        statusEl.style.color = "#00ffcc";
+        document.getElementById('connect-input').style.display = "none";
+        document.getElementById('connect-btn').style.display = "none";
+        console.log("Başarılı: İki cihaz birbirine kenetlendi!");
+    });
+
+    // KARŞIDAN BİR VERİ (Çizim, Kutu, Silgi komutu) GELDİĞİNDE
+    myConnection.on('data', function(data) {
+        console.log("Karşıdan gelen paket:", data);
+        // İkinci aşamada gelen çizimleri burada ekrana basacağız!
+    });
+
+    // Bağlantı koparsa veya karşı taraf sekmeyi kapatırsa
+    myConnection.on('close', function() {
+        isConnected = false;
+        const statusEl = document.getElementById('connection-status');
+        statusEl.innerText = "Bağlantı Koptu 🔴";
+        statusEl.style.color = "#ff4444";
+        document.getElementById('connect-input').style.display = "block";
+        document.getElementById('connect-btn').style.display = "block";
+    });
+}
+
+// 7. KARŞI TARAFA VERİ FIRLATMA FONKSİYONU (Genel Kullanım İçin)
+window.sendNetworkData = function(dataPackage) {
+    if (isConnected && myConnection) {
+        myConnection.send(dataPackage);
+    }
+};
