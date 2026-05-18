@@ -3229,6 +3229,17 @@ canvas.addEventListener('pointerup', (e) => {
             
             if (!window.boxCopies) window.boxCopies = [];
             window.boxCopies.push(newImgStroke);
+
+// --- CANLI SINIF FIRLATICI: KESTİĞİN KUTUYU VE MASKEYİ TAHTAYA GÖNDER! ---
+            if (typeof window.sendNetworkData === 'function') {
+                // Önce arkadaki deliği kapatan maskeyi gönder
+                window.sendNetworkData({ type: 'yeni_cizim', stroke: maskStroke });
+                
+                // Sonra kestiğin yüksek çözünürlüklü parçayı gönder
+                window.sendNetworkData({ type: 'yeni_cizim', stroke: newImgStroke });
+            }
+            // ------------------------------------------------------------------------
+
             
             if (typeof setActiveTool === 'function') setActiveTool('move');
             else currentTool = 'move';
@@ -4915,12 +4926,44 @@ function setupConnectionEvents() {
         document.getElementById('connect-input').style.display = "none";
         document.getElementById('connect-btn').style.display = "none";
         console.log("Başarılı: İki cihaz birbirine kenetlendi!");
+// YENİ: Bağlandıktan 2 saniye sonra paneli otomatik küçült!
+        setTimeout(() => {
+            document.getElementById('network-close-btn').click();
+        }, 2000);
+
     });
 
-    // KARŞIDAN BİR VERİ (Çizim, Kutu, Silgi komutu) GELDİĞİNDE
+   // KARŞIDAN BİR VERİ GELDİĞİNDE (AKILLI KESİM VE ÇİZİM YAKALAYICI)
     myConnection.on('data', function(data) {
-        console.log("Karşıdan gelen paket:", data);
-        // İkinci aşamada gelen çizimleri burada ekrana basacağız!
+        if (!data || !data.type) return;
+
+        // EĞER GELEN PAKET YENİ BİR ÇİZİM VEYA KUTU KOPYASIYSA
+        if (data.type === 'yeni_cizim') {
+            const stroke = data.stroke;
+            
+            // 1. Gelen şey kestiğimiz bir resim/kutu ise (Resmi yeniden canlandırmamız lazım)
+            if (stroke.type === 'image' && stroke.imgData) {
+                const tempImg = new Image();
+                tempImg.src = stroke.imgData;
+                tempImg.onload = () => {
+                    stroke.imgObj = tempImg; // Resmi objeye dönüştür
+                    if (typeof window.drawnStrokes !== 'undefined') {
+                        window.drawnStrokes.push(stroke); // Ana listeye ekle
+                    }
+                    if (typeof window.boxCopies !== 'undefined') {
+                        window.boxCopies.push(stroke); // Kopya hafızasına ekle
+                    }
+                    if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes(); // Tahtayı Yenile!
+                };
+            } 
+            // 2. Gelen şey maske (delik yaması) veya normal bir kalem çizgisi ise
+            else {
+                if (typeof window.drawnStrokes !== 'undefined') {
+                    window.drawnStrokes.push(stroke);
+                }
+                if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes(); // Tahtayı Yenile!
+            }
+        }
     });
 
     // Bağlantı koparsa veya karşı taraf sekmeyi kapatırsa
@@ -4940,3 +4983,14 @@ window.sendNetworkData = function(dataPackage) {
         myConnection.send(dataPackage);
     }
 };
+
+// --- PANEL GİZLE/GÖSTER MANTIĞI ---
+document.getElementById('network-close-btn').addEventListener('click', () => {
+    document.getElementById('network-panel').style.display = 'none';
+    document.getElementById('network-mini-btn').style.display = 'block';
+});
+
+document.getElementById('network-mini-btn').addEventListener('click', () => {
+    document.getElementById('network-mini-btn').style.display = 'none';
+    document.getElementById('network-panel').style.display = 'block';
+});
