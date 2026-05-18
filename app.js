@@ -4995,23 +4995,34 @@ document.getElementById('network-mini-btn').addEventListener('click', () => {
     document.getElementById('network-panel').style.display = 'block';
 });
 
-// --- CANLI SINIF PANELI GİZLE/GÖSTER MOTORU ---
-setTimeout(() => { 
-    const closeBtn = document.getElementById('network-close-btn');
-    const miniBtn = document.getElementById('network-mini-btn');
-    const panel = document.getElementById('network-panel');
+// =========================================================
+// --- CANLI SINIF PANELI GİZLE/GÖSTER MOTORU (AKILLI) ---
+// =========================================================
+const closeBtn = document.getElementById('network-close-btn');
+const miniBtn = document.getElementById('network-mini-btn');
+const panel = document.getElementById('network-panel');
 
-    if (closeBtn && miniBtn && panel) {
-        // 1. Çarpıya (X) basınca paneli gizle, minik ikonu göster
-        closeBtn.addEventListener('click', () => {
-            panel.style.display = 'none';
-            miniBtn.style.display = 'block';
-        });
+if (closeBtn && miniBtn && panel) {
+    // 1. Çarpıya (X) basınca paneli gizle, minik ikonu göster
+    closeBtn.addEventListener('click', () => {
+        panel.style.display = 'none';
+        miniBtn.style.display = 'block';
+    });
 
-        // 2. Minik ikona (📡 Sınıf) basınca paneli geri aç
-        miniBtn.addEventListener('click', () => {
-            miniBtn.style.display = 'none';
-            panel.style.display = 'block';
+    // 2. Minik ikona (📡 Sınıf) basınca paneli geri aç
+    miniBtn.addEventListener('click', () => {
+        miniBtn.style.display = 'none';
+        panel.style.display = 'block';
+    });
+
+    // 3. DİL SEÇİLDİĞİ ANDA OTOMATİK KÜÇÜLTME MANTIĞI
+    // HTML'deki tüm dil butonlarını bul (.lang-btn)
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            // Kullanıcı bir dile tıkladıktan yarım saniye sonra paneli otomatik kapat
+            setTimeout(() => {
+                closeBtn.click();
+            }, 500); 
         });
-    }
-}, 1000); // Sayfa yüklendikten 1 saniye sonra butonları bulup aktif eder
+    });
+}

@@ -35,9 +35,7 @@
 </div>
 
 <div id="network-panel" style="position: fixed; bottom: 30px; right: 15px; background: rgba(13, 13, 43, 0.9); color: white; padding: 15px; border-radius: 12px; z-index: 40000; font-family: 'Fredoka', sans-serif; box-shadow: 0 4px 15px rgba(0,0,0,0.5); border: 2px solid #00ffcc; transition: all 0.3s ease;">
-    
     <div id="network-close-btn" style="position: absolute; top: 5px; right: 10px; cursor: pointer; font-size: 16px; color: #ff4444; font-weight: bold;">✕</div>
-
     <div style="font-size: 14px; margin-bottom: 10px; color: #fff;">Oda Kodun: <span id="my-peer-id" style="color: #00ffcc; font-weight: bold; font-size: 20px; letter-spacing: 2px;">...</span></div>
     <div style="display: flex; gap: 8px;">
         <input type="text" id="connect-input" placeholder="Kodu Gir" style="padding: 8px; border-radius: 6px; border: none; width: 100px; font-weight: bold; text-align: center; outline: none;">
@@ -45,6 +43,49 @@
     </div>
     <div id="connection-status" style="font-size: 13px; margin-top: 10px; color: #ffeb3b; text-align: center; font-weight: 600;">Bağlantı Bekleniyor...</div>
 </div>
+
+<script>
+    // =========================================================
+    // --- CANLI SINIF PANELI BEKÇİ MOTORU (KESİN ÇÖZÜM) ---
+    // =========================================================
+    document.addEventListener('DOMContentLoaded', () => {
+        const cBtn = document.getElementById('network-close-btn');
+        const mBtn = document.getElementById('network-mini-btn');
+        const pnl = document.getElementById('network-panel');
+
+        function kucult() {
+            pnl.style.display = 'none';
+            mBtn.style.display = 'block';
+            sessionStorage.setItem('sinifDurumu', 'kapali');
+        }
+
+        function ac() {
+            mBtn.style.display = 'none';
+            pnl.style.display = 'block';
+            sessionStorage.setItem('sinifDurumu', 'acik');
+        }
+
+        // Butonlara görevlerini ata
+        cBtn.onclick = kucult;
+        mBtn.onclick = ac;
+
+        // BEKÇİ: Dil ekranını izle. Kapandığı an paneli küçült.
+        const bekci = setInterval(() => {
+            const overlay = document.getElementById('language-overlay');
+            // Eğer dil seçim ekranı kapandıysa (display none olduysa)
+            if (overlay && overlay.style.display === 'none') {
+                kucult();
+                clearInterval(bekci); // İşlem tamam, bekçiyi durdur.
+            }
+        }, 300); // 300 milisaniyede bir kontrol et
+
+        // Sayfa yenilendiğinde hafızayı kontrol et
+        if (sessionStorage.getItem('sinifDurumu') === 'kapali') {
+            kucult();
+        }
+    });
+</script>
+
 
 <div id="language-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 20000; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: 'Fredoka', sans-serif; overflow-y: auto; padding: 20px;">
     <h2 style="color: white; margin-bottom: 20px; text-align: center;">Dil Seçiniz / Select Language</h2>
