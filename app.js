@@ -4994,3 +4994,24 @@ document.getElementById('network-mini-btn').addEventListener('click', () => {
     document.getElementById('network-mini-btn').style.display = 'none';
     document.getElementById('network-panel').style.display = 'block';
 });
+
+// --- CANLI SINIF PANELI GİZLE/GÖSTER MOTORU ---
+setTimeout(() => { 
+    const closeBtn = document.getElementById('network-close-btn');
+    const miniBtn = document.getElementById('network-mini-btn');
+    const panel = document.getElementById('network-panel');
+
+    if (closeBtn && miniBtn && panel) {
+        // 1. Çarpıya (X) basınca paneli gizle, minik ikonu göster
+        closeBtn.addEventListener('click', () => {
+            panel.style.display = 'none';
+            miniBtn.style.display = 'block';
+        });
+
+        // 2. Minik ikona (📡 Sınıf) basınca paneli geri aç
+        miniBtn.addEventListener('click', () => {
+            miniBtn.style.display = 'none';
+            panel.style.display = 'block';
+        });
+    }
+}, 1000); // Sayfa yüklendikten 1 saniye sonra butonları bulup aktif eder
