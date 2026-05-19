@@ -4996,7 +4996,9 @@ document.getElementById('connect-btn').addEventListener('click', () => {
     }
 });
 
-// 6. Bağlantının Durumunu ve Veri Akışını Yöneten Merkezi Fonksiyon (GÜNCELLENDİ)
+// =========================================================
+// 6. Bağlantının Durumunu ve Veri Akışını Yöneten Merkezi Fonksiyon (FİNAL V3)
+// =========================================================
 function setupConnectionEvents() {
     
     // --- YAMA 1: Bağlantı Aktivasyonunu Güvenceye Al ---
@@ -5018,40 +5020,38 @@ function setupConnectionEvents() {
             const closeBtn = document.getElementById('network-close-btn');
             if (closeBtn) closeBtn.click();
         }, 2000);
+
+        // --- YENİ: Tablet bağlanır bağlanmaz mevcut dilini PC'ye söyler ---
+        if (typeof currentLang !== 'undefined' && currentLang) {
+            window.sendNetworkData({ type: 'dil_secimi', lang: currentLang });
+        }
     };
 
-    // Eğer PeerJS bağlantıyı biz dinlemeden önce açtıysa direkt çalıştır
     if (myConnection.open) {
         baglantiyiAktifEt();
     } else {
         myConnection.on('open', baglantiyiAktifEt);
     }
 
-    // --- YAMA 2: Çizim Referans Kopmalarını Engelle ---
+    // --- YAMA 2: VERİ KARŞILAMA MERKEZİ ---
     myConnection.on('data', function(data) {
         if (!data || !data.type) return;
 
         // 1. YENİ ÇİZİM GELDİĞİNDE
         if (data.type === 'yeni_cizim') {
             const stroke = data.stroke;
-            
             if (stroke.type === 'image' && stroke.imgData) {
                 const tempImg = new Image();
                 tempImg.src = stroke.imgData;
                 tempImg.onload = () => {
                     stroke.imgObj = tempImg;
-                    
-                    // KRİTİK: Yerel çizim dizisine güvenli ekleme
                     if (typeof drawnStrokes !== 'undefined') drawnStrokes.push(stroke);
                     else window.drawnStrokes.push(stroke);
-                    
                     if (window.redrawAllStrokes) window.redrawAllStrokes();
                 };
             } else {
-                // KRİTİK: Yerel çizim dizisine güvenli ekleme
                 if (typeof drawnStrokes !== 'undefined') drawnStrokes.push(stroke);
                 else window.drawnStrokes.push(stroke);
-                
                 if (window.redrawAllStrokes) window.redrawAllStrokes();
             }
         }
@@ -5065,19 +5065,36 @@ function setupConnectionEvents() {
 
         // 3. HEPSİNİ SİL GELDİĞİNDE
         if (data.type === 'hepsini_sil') {
-            // KRİTİK: Diziyi yeniden oluşturma, içini boşalt ki referansı kopmasın!
             if (typeof drawnStrokes !== 'undefined') drawnStrokes.length = 0; 
             else window.drawnStrokes.length = 0;
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
-    });
 
-// 4. KARŞI TARAFTAN DİL SEÇİMİ EMRİ GELDİĞİNDE (PC tarafı için)
-    if (data.type === 'dil_secimi') {
-        if (typeof setLanguage === 'function') {
-            setLanguage(data.lang);
+        // 4. KARŞI TARAFTAN DİL SEÇİMİ EMRİ GELDİĞİNDE
+        if (data.type === 'dil_secimi') {
+            if (typeof setLanguage === 'function') {
+                setLanguage(data.lang); // PC menüyü otomatik kapatır
+            }
         }
-    }
+
+        // 5. YENİ: FİZİKSEL ARAÇLARIN KONUMU GELDİĞİNDE (Cetvel, Pergel vb.)
+        if (data.type === 'arac_senkron') {
+            const el = document.querySelector(data.selector);
+            if (el) {
+                el.style.display = data.display;
+                el.style.left = data.left;
+                el.style.top = data.top;
+                el.style.transform = data.transform;
+            }
+            
+            // Araçların sol paneldeki buton ışıklarını da tahtada yak/söndür
+            if (data.arac === 'ruler' && typeof rulerButton !== 'undefined') rulerButton.classList.toggle('active', data.display !== 'none');
+            if (data.arac === 'gonye' && typeof gonyeButton !== 'undefined') gonyeButton.classList.toggle('active', data.display !== 'none');
+            if (data.arac === 'aciolcer' && typeof aciolcerButton !== 'undefined') aciolcerButton.classList.toggle('active', data.display !== 'none');
+            if (data.arac === 'pergel' && typeof pergelButton !== 'undefined') pergelButton.classList.toggle('active', data.display !== 'none');
+        }
+
+    }); // <-- DİKKAT: Veri karşılama bloğu burada kapanır!
 
     // Bağlantı koparsa
     myConnection.on('close', function() {
@@ -5095,52 +5112,76 @@ function setupConnectionEvents() {
     });
 }
 
-// 7. KARŞI TARAFA VERİ FIRLATMA FONKSİYONU (Genel Kullanım İçin)
+// =========================================================
+// 7. KARŞI TARAFA VERİ FIRLATMA FONKSİYONU
+// =========================================================
 window.sendNetworkData = function(dataPackage) {
     if (isConnected && myConnection) {
         myConnection.send(dataPackage);
     }
 };
 
-// --- PANEL GİZLE/GÖSTER MANTIĞI ---
-document.getElementById('network-close-btn').addEventListener('click', () => {
-    document.getElementById('network-panel').style.display = 'none';
-    document.getElementById('network-mini-btn').style.display = 'block';
-});
-
-document.getElementById('network-mini-btn').addEventListener('click', () => {
-    document.getElementById('network-mini-btn').style.display = 'none';
-    document.getElementById('network-panel').style.display = 'block';
-});
-
 // =========================================================
-// --- CANLI SINIF PANELI GİZLE/GÖSTER MOTORU (AKILLI) ---
+// --- PANEL GİZLE/GÖSTER MANTIĞI ---
 // =========================================================
 const closeBtn = document.getElementById('network-close-btn');
 const miniBtn = document.getElementById('network-mini-btn');
 const panel = document.getElementById('network-panel');
 
 if (closeBtn && miniBtn && panel) {
-    // 1. Çarpıya (X) basınca paneli gizle, minik ikonu göster
     closeBtn.addEventListener('click', () => {
         panel.style.display = 'none';
         miniBtn.style.display = 'block';
     });
 
-    // 2. Minik ikona (📡 Sınıf) basınca paneli geri aç
     miniBtn.addEventListener('click', () => {
         miniBtn.style.display = 'none';
         panel.style.display = 'block';
     });
 
-    // 3. DİL SEÇİLDİĞİ ANDA OTOMATİK KÜÇÜLTME MANTIĞI
-    // HTML'deki tüm dil butonlarını bul (.lang-btn)
     document.querySelectorAll('.lang-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            // Kullanıcı bir dile tıkladıktan yarım saniye sonra paneli otomatik kapat
-            setTimeout(() => {
-                closeBtn.click();
-            }, 500); 
+            setTimeout(() => { closeBtn.click(); }, 500); 
         });
     });
 }
+
+// =========================================================
+// YENİ: FİZİKSEL ARAÇLAR İÇİN GİZLİ SENKRONİZASYON RADARI
+// =========================================================
+let sonAracDurumlari = {};
+
+window.araclariAgaGonder = function() {
+    if (typeof isConnected === 'undefined' || !isConnected || !myConnection) return;
+    
+    const araclar = [
+        { id: 'ruler', selector: '.ruler-container' },
+        { id: 'gonye', selector: '.gonye-container' },
+        { id: 'aciolcer', selector: '.aciolcer-container' },
+        { id: 'pergel', selector: '#compass-container' }
+    ];
+
+    araclar.forEach(arac => {
+        const el = document.querySelector(arac.selector);
+        if (el) {
+            const durum = el.style.display + el.style.left + el.style.top + el.style.transform;
+            
+            if (sonAracDurumlari[arac.id] !== durum) {
+                sonAracDurumlari[arac.id] = durum;
+                
+                window.sendNetworkData({
+                    type: 'arac_senkron',
+                    arac: arac.id,
+                    selector: arac.selector,
+                    display: el.style.display,
+                    left: el.style.left,
+                    top: el.style.top,
+                    transform: el.style.transform
+                });
+            }
+        }
+    });
+};
+
+// Saniyede 25 kez araçların hareket edip etmediğini kontrol eder
+setInterval(window.araclariAgaGonder, 40);
