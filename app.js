@@ -4716,13 +4716,16 @@ function resizeCanvas() {
     if (window.redrawAllStrokes) window.redrawAllStrokes();
 }
 
+// ================================================================
+// DİL SEÇİMİ VE AĞA FIRLATMA MOTORU (KESİN ÇÖZÜM)
+// ================================================================
 function dilButonlariniHazirla() {
     document.querySelectorAll('.lang-btn').forEach(btn => {
         const langMatch = btn.getAttribute('onclick')?.match(/'([^']+)'/);
         const targetLang = langMatch ? langMatch[1] : btn.dataset.lang;
 
         if (targetLang) {
-            btn.onclick = null;
+            btn.onclick = null; // Eski hatalı yapıyı temizle
             btn.removeAttribute('onclick');
 
             let isTriggered = false;
@@ -4733,24 +4736,30 @@ function dilButonlariniHazirla() {
                 if (e.cancelable) e.preventDefault();
                 e.stopPropagation();
                 
-                // 1. Kendi ekranındaki dili ayarla ve menüyü kapat
+                console.log("Tablet dil seçti:", targetLang);
+
+                // 1. Kendi ekranında dili ayarla (Tabletin menüsünü kapatır)
                 setLanguage(targetLang);
                 
-                // 2. YENİ: Karşı tarafa (PC'ye) dil seçildi komutunu gönder
-                if (typeof isConnected !== 'undefined' && isConnected && typeof sendNetworkData !== 'undefined') {
-                    sendNetworkData({ type: 'dil_secimi', lang: targetLang });
+                // 2. EĞER PC'YE BAĞLIYSAK, BİREBİR AYNI KOMUTU PC'YE FIRLAT!
+                if (typeof isConnected !== 'undefined' && isConnected) {
+                    console.log("Dil komutu PC'ye fırlatılıyor...");
+                    if (typeof window.sendNetworkData === 'function') {
+                        window.sendNetworkData({ type: 'dil_secimi', lang: targetLang });
+                    }
                 }
                 
+                // Çift tıklama koruması
                 setTimeout(() => { isTriggered = false; }, 500);
             };
 
+            // Tüm cihaz tipleri (PC, Tablet, Tahta) için dinleyiciler
             btn.addEventListener('pointerdown', handleSelect);
             btn.addEventListener('touchstart', handleSelect, { passive: false });
             btn.addEventListener('click', handleSelect);
         }
     });
 }
-
 
 // Akıllı tahta tarayıcılarının gecikme/hız problemlerine karşı garanti tetikleyici
 if (document.readyState === 'loading') {
