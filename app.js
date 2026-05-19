@@ -5030,10 +5030,8 @@ function setupConnectionEvents() {
             if (closeBtn) closeBtn.click();
         }, 2000);
 
-        // --- YENİ: Tablet bağlanır bağlanmaz mevcut dilini PC'ye söyler ---
-        if (typeof currentLang !== 'undefined' && currentLang) {
-            window.sendNetworkData({ type: 'dil_secimi', lang: currentLang });
-        }
+        // NOT: Otomatik dil fırlatma kodu buradan SİLİNDİ! 
+        // Artık sadece butona basınca dilButonlariniHazirla üzerinden fırlatılacak.
     };
 
     if (myConnection.open) {
