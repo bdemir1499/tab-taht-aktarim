@@ -4716,49 +4716,41 @@ function resizeCanvas() {
     if (window.redrawAllStrokes) window.redrawAllStrokes();
 }
 
-// ================================================================
-// DİL SEÇİMİ KESİN ÇÖZÜM (PC, TABLET VE AKILLI TAHTA İÇİN)
-// ================================================================
 function dilButonlariniHazirla() {
     document.querySelectorAll('.lang-btn').forEach(btn => {
-        // Hangi dil olduğunu HTML'den güvenle al
         const langMatch = btn.getAttribute('onclick')?.match(/'([^']+)'/);
         const targetLang = langMatch ? langMatch[1] : btn.dataset.lang;
 
         if (targetLang) {
-            // HTML içindeki eski onclick çakışmasını temizle
             btn.onclick = null;
             btn.removeAttribute('onclick');
 
-            // Çift tıklamayı ve donmayı önleyen kilit sistemi
             let isTriggered = false;
             const handleSelect = (e) => {
                 if (isTriggered) return; 
-                isTriggered = true; // İlk dokunuşta kilitle
+                isTriggered = true; 
                 
-                // Tarayıcının varsayılan kaydırma/tıklama davranışını durdur
                 if (e.cancelable) e.preventDefault();
                 e.stopPropagation();
                 
-                console.log("Dil seçildi:", targetLang);
-                // Dili ayarla ve ekranı geç
+                // 1. Kendi ekranındaki dili ayarla ve menüyü kapat
                 setLanguage(targetLang);
                 
-                // Yarım saniye sonra kilidi aç (yanlışlıkla çift basmayı engeller)
+                // 2. YENİ: Karşı tarafa (PC'ye) dil seçildi komutunu gönder
+                if (typeof isConnected !== 'undefined' && isConnected && typeof sendNetworkData !== 'undefined') {
+                    sendNetworkData({ type: 'dil_secimi', lang: targetLang });
+                }
+                
                 setTimeout(() => { isTriggered = false; }, 500);
             };
 
-            // 1. Akıllı tahta kalemleri ve yeni nesil ekranlar için (KRİTİK)
             btn.addEventListener('pointerdown', handleSelect);
-            
-            // 2. Mobil cihazlar ve parmak dokunuşları için
             btn.addEventListener('touchstart', handleSelect, { passive: false });
-            
-            // 3. PC (Mouse) için
             btn.addEventListener('click', handleSelect);
         }
     });
 }
+
 
 // Akıllı tahta tarayıcılarının gecikme/hız problemlerine karşı garanti tetikleyici
 if (document.readyState === 'loading') {
@@ -5079,6 +5071,13 @@ function setupConnectionEvents() {
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
     });
+
+// 4. KARŞI TARAFTAN DİL SEÇİMİ EMRİ GELDİĞİNDE (PC tarafı için)
+    if (data.type === 'dil_secimi') {
+        if (typeof setLanguage === 'function') {
+            setLanguage(data.lang);
+        }
+    }
 
     // Bağlantı koparsa
     myConnection.on('close', function() {
