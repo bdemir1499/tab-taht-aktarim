@@ -4717,7 +4717,7 @@ function resizeCanvas() {
 }
 
 // ================================================================
-// DİL SEÇİMİ VE AĞA FIRLATMA MOTORU (KESİN ÇÖZÜM)
+// DİL SEÇİMİ VE AĞA FIRLATMA MOTORU
 // ================================================================
 function dilButonlariniHazirla() {
     document.querySelectorAll('.lang-btn').forEach(btn => {
@@ -4725,7 +4725,7 @@ function dilButonlariniHazirla() {
         const targetLang = langMatch ? langMatch[1] : btn.dataset.lang;
 
         if (targetLang) {
-            btn.onclick = null; // Eski hatalı yapıyı temizle
+            btn.onclick = null;
             btn.removeAttribute('onclick');
 
             let isTriggered = false;
@@ -4736,30 +4736,24 @@ function dilButonlariniHazirla() {
                 if (e.cancelable) e.preventDefault();
                 e.stopPropagation();
                 
-                console.log("Tablet dil seçti:", targetLang);
-
-                // 1. Kendi ekranında dili ayarla (Tabletin menüsünü kapatır)
+                // 1. Tabletin (Tıklanan cihazın) ekranını aç
                 setLanguage(targetLang);
                 
-                // 2. EĞER PC'YE BAĞLIYSAK, BİREBİR AYNI KOMUTU PC'YE FIRLAT!
-                if (typeof isConnected !== 'undefined' && isConnected) {
-                    console.log("Dil komutu PC'ye fırlatılıyor...");
-                    if (typeof window.sendNetworkData === 'function') {
-                        window.sendNetworkData({ type: 'dil_secimi', lang: targetLang });
-                    }
+                // 2. Karşı cihaza (PC/Tahtaya) "Aynı dili seç ve ekranı aç" emri gönder!
+                if (typeof isConnected !== 'undefined' && isConnected && typeof sendNetworkData !== 'undefined') {
+                    sendNetworkData({ type: 'dil_secimi', lang: targetLang });
                 }
                 
-                // Çift tıklama koruması
                 setTimeout(() => { isTriggered = false; }, 500);
             };
 
-            // Tüm cihaz tipleri (PC, Tablet, Tahta) için dinleyiciler
             btn.addEventListener('pointerdown', handleSelect);
             btn.addEventListener('touchstart', handleSelect, { passive: false });
             btn.addEventListener('click', handleSelect);
         }
     });
 }
+
 
 // Akıllı tahta tarayıcılarının gecikme/hız problemlerine karşı garanti tetikleyici
 if (document.readyState === 'loading') {
@@ -4937,6 +4931,7 @@ window.temizleLassoVeKopyalar = function() {
         }
     }
 };
+
 // --- OTOMATİK TETİKLEYİCİ (GÖZLEMCİ) - GÜNCELLENMİŞ ---
 document.addEventListener('click', function(e) {
     let element = e.target.closest('button, div, a, i'); 
@@ -5006,11 +5001,10 @@ document.getElementById('connect-btn').addEventListener('click', () => {
 });
 
 // =========================================================
-// 6. Bağlantının Durumunu ve Veri Akışını Yöneten Merkezi Fonksiyon (FİNAL V3)
+// 6. Bağlantının Durumunu ve Veri Akışını Yöneten Merkezi Fonksiyon
 // =========================================================
 function setupConnectionEvents() {
     
-    // --- YAMA 1: Bağlantı Aktivasyonunu Güvenceye Al ---
     const baglantiyiAktifEt = () => {
         isConnected = true;
         const statusEl = document.getElementById('connection-status');
@@ -5019,32 +5013,30 @@ function setupConnectionEvents() {
             statusEl.style.color = "#00ffcc";
         }
         
-        const connectInput = document.getElementById('connect-input');
-        const connectBtn = document.getElementById('connect-btn');
-        if (connectInput) connectInput.style.display = "none";
-        if (connectBtn) connectBtn.style.display = "none";
+        // --- HAYALET TIKLAMA KORUMASI ---
+        // Panel anında kaybolursa alttaki dil butonuna yanlışlıkla basılır.
+        // Bu yüzden gizleme işlemini parmak kalkana kadar (500ms) bekletiyoruz!
+        setTimeout(() => {
+            const connectInput = document.getElementById('connect-input');
+            const connectBtn = document.getElementById('connect-btn');
+            if (connectInput) connectInput.style.display = "none";
+            if (connectBtn) connectBtn.style.display = "none";
+        }, 500);
 
         // Paneli 2 saniye sonra otomatik küçült
         setTimeout(() => {
             const closeBtn = document.getElementById('network-close-btn');
             if (closeBtn) closeBtn.click();
         }, 2000);
-
-        // NOT: Otomatik dil fırlatma kodu buradan SİLİNDİ! 
-        // Artık sadece butona basınca dilButonlariniHazirla üzerinden fırlatılacak.
     };
 
-    if (myConnection.open) {
-        baglantiyiAktifEt();
-    } else {
-        myConnection.on('open', baglantiyiAktifEt);
-    }
+    if (myConnection.open) baglantiyiAktifEt();
+    else myConnection.on('open', baglantiyiAktifEt);
 
-    // --- YAMA 2: VERİ KARŞILAMA MERKEZİ ---
+    // --- VERİ KARŞILAMA MERKEZİ ---
     myConnection.on('data', function(data) {
         if (!data || !data.type) return;
 
-        // 1. YENİ ÇİZİM GELDİĞİNDE
         if (data.type === 'yeni_cizim') {
             const stroke = data.stroke;
             if (stroke.type === 'image' && stroke.imgData) {
@@ -5063,28 +5055,26 @@ function setupConnectionEvents() {
             }
         }
 
-        // 2. GERİ AL GELDİĞİNDE
         if (data.type === 'geri_al') {
             if (typeof drawnStrokes !== 'undefined') drawnStrokes.pop();
             else window.drawnStrokes.pop();
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
 
-        // 3. HEPSİNİ SİL GELDİĞİNDE
         if (data.type === 'hepsini_sil') {
             if (typeof drawnStrokes !== 'undefined') drawnStrokes.length = 0; 
             else window.drawnStrokes.length = 0;
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
 
-        // 4. KARŞI TARAFTAN DİL SEÇİMİ EMRİ GELDİĞİNDE
+        // --- PC'NİN UZAKTAN KUMANDA İLE DİL DEĞİŞTİRMESİ ---
         if (data.type === 'dil_secimi') {
             if (typeof setLanguage === 'function') {
-                setLanguage(data.lang); // PC menüyü otomatik kapatır
+                setLanguage(data.lang); 
             }
         }
 
-        // 5. YENİ: FİZİKSEL ARAÇLARIN KONUMU GELDİĞİNDE (Cetvel, Pergel vb.)
+        // --- FİZİKSEL ARAÇLARIN KONUMU GELDİĞİNDE (Cetvel, Pergel vb.) ---
         if (data.type === 'arac_senkron') {
             const el = document.querySelector(data.selector);
             if (el) {
@@ -5093,17 +5083,13 @@ function setupConnectionEvents() {
                 el.style.top = data.top;
                 el.style.transform = data.transform;
             }
-            
-            // Araçların sol paneldeki buton ışıklarını da tahtada yak/söndür
             if (data.arac === 'ruler' && typeof rulerButton !== 'undefined') rulerButton.classList.toggle('active', data.display !== 'none');
             if (data.arac === 'gonye' && typeof gonyeButton !== 'undefined') gonyeButton.classList.toggle('active', data.display !== 'none');
             if (data.arac === 'aciolcer' && typeof aciolcerButton !== 'undefined') aciolcerButton.classList.toggle('active', data.display !== 'none');
             if (data.arac === 'pergel' && typeof pergelButton !== 'undefined') pergelButton.classList.toggle('active', data.display !== 'none');
         }
+    });
 
-    }); // <-- DİKKAT: Veri karşılama bloğu burada kapanır!
-
-    // Bağlantı koparsa
     myConnection.on('close', function() {
         isConnected = false;
         const statusEl = document.getElementById('connection-status');
@@ -5111,13 +5097,13 @@ function setupConnectionEvents() {
             statusEl.innerText = "Bağlantı Koptu 🔴";
             statusEl.style.color = "#ff4444";
         }
-        
         const connectInput = document.getElementById('connect-input');
         const connectBtn = document.getElementById('connect-btn');
         if (connectInput) connectInput.style.display = "block";
         if (connectBtn) connectBtn.style.display = "block";
     });
 }
+
 
 // =========================================================
 // 7. KARŞI TARAFA VERİ FIRLATMA FONKSİYONU
