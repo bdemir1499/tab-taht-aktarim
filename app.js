@@ -2043,18 +2043,22 @@ if (uploadButton && fileInput) {
             const fileReader = new FileReader();
             fileReader.onload = async function() {
                 const typedarray = new Uint8Array(this.result);
+                
+                // --- 1. AĞA FIRLAT (PDF DOSYASI) ---
+                if (typeof isConnected !== 'undefined' && isConnected) {
+                    // this.result ham ArrayBuffer'dır, PeerJS bunu çok hızlı gönderir
+                    window.sendNetworkData({ type: 'pdf_yukle', pdfData: this.result });
+                }
+                
                 try {
                     currentPDF = await pdfjsLib.getDocument(typedarray).promise;
                     totalPDFPages = currentPDF.numPages;
                     currentPDFPage = 1; 
 
-                    // Kırmızı kapatma butonunu buradan SİLDİK. Sadece sayfaları değiştirme panelini açıyoruz:
                     if (pdfControls) pdfControls.classList.remove('hidden');
 
-                    // Sayfayı ekrana çiz (Buton işlem bitince addNewImageToCanvas içinde açılacak)
                     renderPDFPage(currentPDFPage);
 
-                    // --- YENİ: SAYFA SEÇİM PENCERESİNİ AÇ (ÇEVİRİLİ) ---
                     setTimeout(() => {
                         let t = translations[currentLang];
                         let soruMetni = t.pdf_soru.replace('{0}', totalPDFPages);
@@ -2065,6 +2069,11 @@ if (uploadButton && fileInput) {
                             if (hedefSayfa > 0 && hedefSayfa <= totalPDFPages) {
                                 currentPDFPage = hedefSayfa;
                                 renderPDFPage(currentPDFPage);
+                                
+                                // --- SAYFA DEĞİŞİMİNİ AĞA FIRLAT ---
+                                if (typeof isConnected !== 'undefined' && isConnected) {
+                                    window.sendNetworkData({ type: 'pdf_sayfa_degis', sayfa: currentPDFPage });
+                                }
                             }
                         }
                     }, 500);
@@ -2076,23 +2085,30 @@ if (uploadButton && fileInput) {
             fileReader.readAsArrayBuffer(file);
         }
 
-
         // --- DURUM B: RESİM DOSYASI ---
         else if (file.type.startsWith('image/')) {
             const reader = new FileReader();
             reader.onload = (event) => {
+                const imgData = event.target.result;
+                
+                // --- 2. AĞA FIRLAT (RESİM DOSYASI) ---
+                if (typeof isConnected !== 'undefined' && isConnected) {
+                    window.sendNetworkData({ type: 'resim_yukle', imgData: imgData });
+                }
+
                 const img = new Image();
                 img.onload = () => {
-                    // Resim hazır olduğunda kanvasa ekle (Buton da burada açılacak)
                     addNewImageToCanvas(img, false);
                 };
-                img.src = event.target.result;
+                img.src = imgData;
             };
             reader.readAsDataURL(file);
         }        
-        e.target.value = ''; // Aynı dosyayı tekrar seçebilmek için temizle
+        e.target.value = ''; 
     };
 }
+
+
 function addToCanvasAsObject(img) {
     let startWidth = 400;
     if (img.width < 400) startWidth = img.width;
@@ -5087,6 +5103,49 @@ function setupConnectionEvents() {
                     if (window.redrawAllStrokes) window.redrawAllStrokes();
                 }
             }
+        }
+
+// --- 1. AĞDAN PDF GELDİĞİNDE ---
+        if (data.type === 'pdf_yukle') {
+            const typedarray = new Uint8Array(data.pdfData);
+            
+            // Promise yapısını kullanarak PDF'i açıyoruz
+            if (typeof pdfjsLib !== 'undefined') {
+                pdfjsLib.getDocument(typedarray).promise.then(pdf => {
+                    window.currentPDF = pdf;
+                    window.totalPDFPages = pdf.numPages;
+                    window.currentPDFPage = 1;
+                    
+                    if (typeof pdfControls !== 'undefined' && pdfControls) {
+                        pdfControls.classList.remove('hidden');
+                    }
+                    if (typeof renderPDFPage === 'function') {
+                        renderPDFPage(window.currentPDFPage);
+                    }
+                }).catch(err => {
+                    console.error("PC'de ağdan gelen PDF açılamadı:", err);
+                });
+            }
+        }
+
+        // --- 2. AĞDAN PDF SAYFA DEĞİŞİMİ GELDİĞİNDE ---
+        if (data.type === 'pdf_sayfa_degis') {
+            window.currentPDFPage = data.sayfa;
+            if (typeof renderPDFPage === 'function') {
+                renderPDFPage(window.currentPDFPage);
+            }
+        }
+
+        // --- 3. AĞDAN RESİM GELDİĞİNDE ---
+        if (data.type === 'resim_yukle') {
+            const img = new Image();
+            img.onload = () => {
+                // Tablette addNewImageToCanvas(img, false) yapmıştık, aynısını yapıyoruz
+                if (typeof addNewImageToCanvas === 'function') {
+                    addNewImageToCanvas(img, false);
+                }
+            };
+            img.src = data.imgData;
         }
 
         // --- GERİ AL VE HEPSİNİ SİL ---
