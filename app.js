@@ -5121,6 +5121,7 @@ function setupConnectionEvents() {
         }
         // ----------------------------------------------------
 
+
         if (!data || !data.type) return;
 
         // --- ID İLE SİLME (ZOMBİ ÇİZİM KORUMASI) ---
