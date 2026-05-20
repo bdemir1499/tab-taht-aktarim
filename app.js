@@ -5048,7 +5048,6 @@ document.getElementById('connect-btn').addEventListener('click', () => {
         setupConnectionEvents();
     } else {
 
-console.log("DEBUG: Bağlantı kontrolü çalıştı, hedef uzunluk:", targetCode.length);
         alert("Lütfen 5 haneli Oda Kodunu girin."); // Uyarımızı da güncelledik
     }
 });
