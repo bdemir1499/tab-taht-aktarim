@@ -5089,14 +5089,20 @@ function setupConnectionEvents() {
     // --- VERİ KARŞILAMA MERKEZİ ---
     myConnection.on('data', function(data) {
 
-// --- GÜVENLİK KİLİDİ: ANAHTAR KONTROLÜ ---
-        if (data.secretKey !== MY_SECRET_KEY) {
-            console.warn("Yabancı erişim engellendi! Şifre hatalı.");
-            myConnection.close(); // Kapıyı yüzüne kapat
-            return; // Veriyi asla işleme
-        }
-        // ------------------------------------------
-        if (!data || !data.type) return;
+// --- VERİ KARŞILAMA MERKEZİ ---
+myConnection.on('data', function(data) {
+
+    // --- YENİ GÜVENLİK KİLİDİ: DİNAMİK ŞİFRE KONTROLÜ ---
+    if (data.password !== window.sessionPassword) {
+        console.warn("🔴 Yabancı erişim engellendi! Şifre hatalı.");
+        myConnection.close(); // Bağlantıyı kopar
+        return; // Veriyi asla işleme
+    }
+    // ----------------------------------------------------
+
+    if (!data || !data.type) return;
+    
+    // ... (geri kalan kodlar olduğu gibi kalacak)        if (!data || !data.type) return;
 
         // --- ID İLE SİLME (ZOMBİ ÇİZİM KORUMASI) ---
         if (data.type === 'sil_objeyi') {
@@ -5247,15 +5253,14 @@ function setupConnectionEvents() {
 window.sendNetworkData = function(dataPackage) {
     if (isConnected && myConnection) {
         
-        // --- GÜVENLİK İMZASI ---
-        // Gönderdiğin her paketin içine şifremizi otomatik gömüyoruz
-        dataPackage.secretKey = MY_SECRET_KEY;
+        // --- YENİ GÜVENLİK İMZASI ---
+        // Sabit anahtar yerine öğretmenin o an girdiği dinamik şifreyi gömüyoruz
+        dataPackage.password = window.sessionPassword;
         
         // Artık paket güvenli, yola çıkabilir!
         myConnection.send(dataPackage);
     }
 };
-
 
 // =========================================================
 // --- PANEL GİZLE/GÖSTER MANTIĞI ---
