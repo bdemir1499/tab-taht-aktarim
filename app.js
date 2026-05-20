@@ -5089,20 +5089,15 @@ function setupConnectionEvents() {
     // --- VERİ KARŞILAMA MERKEZİ ---
     myConnection.on('data', function(data) {
 
-// --- VERİ KARŞILAMA MERKEZİ ---
-myConnection.on('data', function(data) {
+        // --- YENİ GÜVENLİK KİLİDİ: DİNAMİK ŞİFRE KONTROLÜ ---
+        if (data.password !== window.sessionPassword) {
+            console.warn("🔴 Yabancı erişim engellendi! Şifre hatalı.");
+            myConnection.close(); // Bağlantıyı kopar
+            return; // Veriyi asla işleme
+        }
+        // ----------------------------------------------------
 
-    // --- YENİ GÜVENLİK KİLİDİ: DİNAMİK ŞİFRE KONTROLÜ ---
-    if (data.password !== window.sessionPassword) {
-        console.warn("🔴 Yabancı erişim engellendi! Şifre hatalı.");
-        myConnection.close(); // Bağlantıyı kopar
-        return; // Veriyi asla işleme
-    }
-    // ----------------------------------------------------
-
-    if (!data || !data.type) return;
-    
-    // ... (geri kalan kodlar olduğu gibi kalacak)        if (!data || !data.type) return;
+        if (!data || !data.type) return;
 
         // --- ID İLE SİLME (ZOMBİ ÇİZİM KORUMASI) ---
         if (data.type === 'sil_objeyi') {
