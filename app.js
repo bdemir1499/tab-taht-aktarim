@@ -3140,6 +3140,9 @@ if (isPhysicalTool) {
 
         // Eğer bir obje oluştuysa sisteme işle ve tahtaya gönder
         if (strokeObj) {
+            // --- ID EKLEME ---
+            strokeObj.id = Date.now() + Math.random(); 
+            
             drawnStrokes.push(strokeObj);
 
             // --- CANLI SINIF FIRLATICI ---
@@ -3149,7 +3152,6 @@ if (isPhysicalTool) {
                     stroke: strokeObj 
                 });
             }
-            // ----------------------------
         }
     }
 
@@ -3258,6 +3260,9 @@ if (currentTool === 'snapshot' && snapshotStart && currentMousePos) {
             imgObj: null 
         };
         
+// --- ID EKLEME ---
+        newImgStroke.id = Date.now() + Math.random()
+
         const tempImg = new Image();
         tempImg.src = finalImage;
         tempImg.onload = () => {
@@ -3321,6 +3326,9 @@ if (isDrawingRectangle && rectStartPoint && finalPos) {
             showAngleLabels: false // Tıklayınca açılması için başlangıçta kapalı
         };
 
+// --- ID EKLEME ---
+        rectangleStroke.id = Date.now() + Math.random();
+
         // 3. TABLETİN KENDİ HAFIZASINA KAYDET
         drawnStrokes.push(rectangleStroke);
 
@@ -3361,7 +3369,8 @@ if (currentTool === 'pen') {
             
             // --- A) Eğer dönen şekil bir Dizi ise (Üçgen, Yamuk vb. çoklu çizgiler) ---
             if (Array.isArray(correctedShape)) {
-                drawnStrokes.push(...correctedShape); // Tabletine ekle
+                correctedShape.forEach(s => s.id = Date.now() + Math.random()); // HER BİRİNE ID VER
+                drawnStrokes.push(...correctedShape);
                 
                 // TAHTAYA TÜM ÇİZGİLERİ GÖNDER
                 if (typeof isConnected !== 'undefined' && isConnected) {
@@ -3372,7 +3381,8 @@ if (currentTool === 'pen') {
             } 
             // --- B) Eğer dönen şekil Tekil bir obje ise (Çember veya Dikdörtgen) ---
             else {
-                drawnStrokes.push(correctedShape); // Tabletine ekle
+                correctedShape.id = Date.now() + Math.random(); // ID VER
+                drawnStrokes.push(correctedShape);
                 
                 // TAHTAYA ŞEKLİ GÖNDER
                 if (typeof isConnected !== 'undefined' && isConnected) {
@@ -4871,13 +4881,21 @@ function akilliSilgi(e, isDown) {
                  }
             }
 
-            // Eğer objeye dokunulduysa hafızadan at
-            if (vuruldu) {
-                drawnStrokes.splice(i, 1);
-                silindiMi = true;
-            }
-        }
+            // akilliSilgi fonksiyonu içindeki o bölümü şu şekilde değiştir:
+if (vuruldu) {
+    // Sildiğimiz objenin bir ID'si yoksa, anlık bir tane oluşturuyoruz
+    if (!s.id) s.id = Date.now() + Math.random(); 
+    
+    drawnStrokes.splice(i, 1);
+    silindiMi = true;
+    
+    // YENİ: Objenin kendisini değil, sadece "ID" bilgisini gönderiyoruz
+    if (typeof isConnected !== 'undefined' && isConnected) {
+        window.sendNetworkData({ type: 'sil_objeyi', strokeId: s.id });
     }
+}
+        } // For döngüsünün sonu
+    } // If (typeof drawnStrokes) sonu
 
     if (silindiMi && window.redrawAllStrokes) {
         window.redrawAllStrokes(); 
@@ -5037,23 +5055,47 @@ function setupConnectionEvents() {
     myConnection.on('data', function(data) {
         if (!data || !data.type) return;
 
-        if (data.type === 'yeni_cizim') {
-            const stroke = data.stroke;
+// PC tarafındaki silme emrini karşılayan blok:
+if (data.type === 'sil_objeyi') {
+    // Listeyi tara, gelen ID ile eşleşeni sil
+    window.drawnStrokes = window.drawnStrokes.filter(s => {
+        // Eğer objenin ID'si yoksa (eski çizimler), kontrol etmeden tutmaya devam et
+        if (!s.id) return true; 
+        return s.id !== data.strokeId;
+    });
+    
+    if (window.redrawAllStrokes) window.redrawAllStrokes();
+}
+
+        // 1. YENİ ÇİZİM GELDİĞİNDE
+    if (data.type === 'yeni_cizim') {
+        const stroke = data.stroke;
+        // PC'de çizimi yapmadan önce, o çizimin zaten olup olmadığını kontrol et
+        // Bu, silinenlerin geri gelmesini %90 engeller
+        const zatenVarMi = window.drawnStrokes.some(s => s === stroke);
+        if (!zatenVarMi) {
             if (stroke.type === 'image' && stroke.imgData) {
                 const tempImg = new Image();
                 tempImg.src = stroke.imgData;
                 tempImg.onload = () => {
                     stroke.imgObj = tempImg;
-                    if (typeof drawnStrokes !== 'undefined') drawnStrokes.push(stroke);
-                    else window.drawnStrokes.push(stroke);
+                    window.drawnStrokes.push(stroke);
                     if (window.redrawAllStrokes) window.redrawAllStrokes();
                 };
             } else {
-                if (typeof drawnStrokes !== 'undefined') drawnStrokes.push(stroke);
-                else window.drawnStrokes.push(stroke);
+                window.drawnStrokes.push(stroke);
                 if (window.redrawAllStrokes) window.redrawAllStrokes();
             }
         }
+    }
+
+    // 2. SİLME KOMUTLARI (Güçlendirilmiş)
+    if (data.type === 'sil_objeyi') {
+        // Tablet hangi objeyi sildiyse, PC'de de tam olarak o objeyi bul ve at
+        window.drawnStrokes = window.drawnStrokes.filter(s => s !== data.stroke);
+        if (window.redrawAllStrokes) window.redrawAllStrokes();
+    }
+});
 
         if (data.type === 'geri_al') {
             if (typeof drawnStrokes !== 'undefined') drawnStrokes.pop();
