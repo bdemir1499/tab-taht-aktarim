@@ -5020,20 +5020,41 @@ let myPeer = null;
 let myConnection = null;
 let isConnected = false;
 
-// 1. Karışmayan 5 haneli rastgele bir Oda Kodu oluştur (Örn: a7Xm9)
+// 1. Karışmayan 5 haneli rastgele bir Oda Kodu oluştur
 const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'; 
 let myRoomCode = '';
 for (let i = 0; i < 5; i++) {
     myRoomCode += chars.charAt(Math.floor(Math.random() * chars.length));
 }
 
-// 2. PeerJS'i bu 5 haneli özel kod ile başlat
-myPeer = new Peer(myRoomCode);
+// --- PEERJS BAŞLANGIÇ VE CİHAZ MODU AYARI ---
+const isTablet = window.location.href.includes("tablet");
+
+if (isTablet) {
+    myPeer = new Peer(); 
+} else {
+    myPeer = new Peer(myRoomCode);
+    window.sessionPassword = Math.floor(1000 + Math.random() * 9000).toString();
+}
+
 // 3. Sistem sunucuya başarıyla bağlandığında kodumuzu HTML panele yazdır
 myPeer.on('open', function(id) {
     const idSaha = document.getElementById('my-peer-id');
-    if(idSaha) idSaha.innerText = id;
-    console.log("PeerJS Hazır. Oda Kodunuz:", id);
+    const pinSaha = document.getElementById('my-pin-code');
+
+    if (!isTablet) {
+        // PC (Tahta) ise kimliği ve PIN'i yaz
+        if(idSaha) idSaha.innerText = id;
+        if(pinSaha) pinSaha.innerText = window.sessionPassword;
+        console.log("PeerJS Hazır. Oda Kodunuz:", id, "| Şifreniz:", window.sessionPassword);
+    } else {
+        // Tablet ise paneldeki oda kodu yazan kısmı gizle
+        const panel = document.getElementById('network-panel');
+        if(panel) {
+            const kodDiv = document.getElementById('my-peer-id')?.parentElement;
+            if(kodDiv) kodDiv.style.display = 'none';
+        }
+    }
 });
 
 // 4. TAHTA ROLÜ: Başka bir cihaz (Tablet) bize bağlandığında
@@ -5042,16 +5063,19 @@ myPeer.on('connection', function(conn) {
     setupConnectionEvents();
 });
 
-// 5. TABLET ROLÜ: Biz butona basıp Tahtanın koduna bağlandığımızda
+// 5. TABLET ROLÜ: Bağlanma butonu
 document.getElementById('connect-btn').addEventListener('click', () => {
     const targetCode = document.getElementById('connect-input').value.trim();
-    if(targetCode.length === 5) { // 4'ü 5 yaptık
+    const passwordInput = document.getElementById('session-pass-input').value.trim();
+
+    if (targetCode.length === 5 && passwordInput.length > 0) {
+        window.sessionPassword = passwordInput; 
         document.getElementById('connection-status').innerText = "Bağlanıyor ⏳";
+        
         myConnection = myPeer.connect(targetCode);
         setupConnectionEvents();
     } else {
-
-        alert("Lütfen 5 haneli Oda Kodunu girin."); // Uyarımızı da güncelledik
+        alert("Bağlantı reddedildi! Lütfen hem 5 haneli Oda Kodunu hem de Tahta Şifresini eksiksiz girin.");
     }
 });
 
