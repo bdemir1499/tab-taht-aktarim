@@ -5017,12 +5017,15 @@ let myPeer = null;
 let myConnection = null;
 let isConnected = false;
 
-// 1. Akılda kalıcı 4 haneli rastgele bir Oda Kodu oluştur (Örn: 4815)
-const myRoomCode = Math.floor(1000 + Math.random() * 9000).toString();
+// 1. Karışmayan 5 haneli rastgele bir Oda Kodu oluştur (Örn: a7Xm9)
+const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'; 
+let myRoomCode = '';
+for (let i = 0; i < 5; i++) {
+    myRoomCode += chars.charAt(Math.floor(Math.random() * chars.length));
+}
 
-// 2. PeerJS'i bu 4 haneli özel kod ile başlat
+// 2. PeerJS'i bu 5 haneli özel kod ile başlat
 myPeer = new Peer(myRoomCode);
-
 // 3. Sistem sunucuya başarıyla bağlandığında kodumuzu HTML panele yazdır
 myPeer.on('open', function(id) {
     const idSaha = document.getElementById('my-peer-id');
