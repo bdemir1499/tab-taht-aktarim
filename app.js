@@ -2042,16 +2042,24 @@ if (uploadButton && fileInput) {
         if (file.type === 'application/pdf') {
             const fileReader = new FileReader();
             fileReader.onload = async function() {
-                const typedarray = new Uint8Array(this.result);
+                // 1. AĞA GÖNDERMEK İÇİN (Base64 Metni Olarak)
+                const base64String = this.result; 
                 
-                // --- 1. AĞA FIRLAT (PDF DOSYASI) ---
                 if (typeof isConnected !== 'undefined' && isConnected) {
-                    // this.result ham ArrayBuffer'dır, PeerJS bunu çok hızlı gönderir
-                    window.sendNetworkData({ type: 'pdf_yukle', pdfData: this.result });
+                    window.sendNetworkData({ type: 'pdf_yukle', pdfData: base64String });
                 }
                 
+                // 2. TABLET EKRANI İÇİN (PDF.js'in anladığı formata geri çeviriyoruz)
+                const base64Data = base64String.split(',')[1];
+                const binaryString = window.atob(base64Data);
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+
                 try {
-                    currentPDF = await pdfjsLib.getDocument(typedarray).promise;
+                    currentPDF = await pdfjsLib.getDocument(bytes).promise;
                     totalPDFPages = currentPDF.numPages;
                     currentPDFPage = 1; 
 
@@ -2060,8 +2068,8 @@ if (uploadButton && fileInput) {
                     renderPDFPage(currentPDFPage);
 
                     setTimeout(() => {
-                        let t = translations[currentLang];
-                        let soruMetni = t.pdf_soru.replace('{0}', totalPDFPages);
+                        let t = typeof translations !== 'undefined' ? translations[currentLang] : { pdf_soru: "Sayfa (1-{0}):" };
+                        let soruMetni = (t.pdf_soru || "Sayfa (1-{0}):").replace('{0}', totalPDFPages);
                         
                         const sayfaGrisi = prompt(soruMetni, "1");
                         if (sayfaGrisi !== null) {
@@ -2070,7 +2078,6 @@ if (uploadButton && fileInput) {
                                 currentPDFPage = hedefSayfa;
                                 renderPDFPage(currentPDFPage);
                                 
-                                // --- SAYFA DEĞİŞİMİNİ AĞA FIRLAT ---
                                 if (typeof isConnected !== 'undefined' && isConnected) {
                                     window.sendNetworkData({ type: 'pdf_sayfa_degis', sayfa: currentPDFPage });
                                 }
@@ -2082,7 +2089,8 @@ if (uploadButton && fileInput) {
                     console.error("PDF açılırken hata oluştu:", error);
                 }
             };
-            fileReader.readAsArrayBuffer(file);
+            // KRİTİK DEĞİŞİKLİK: ArrayBuffer yerine DataURL olarak okuyoruz ki ağda kaybolmasın
+            fileReader.readAsDataURL(file); 
         }
 
         // --- DURUM B: RESİM DOSYASI ---
@@ -5107,38 +5115,38 @@ function setupConnectionEvents() {
 
 // --- 1. AĞDAN PDF GELDİĞİNDE ---
         if (data.type === 'pdf_yukle') {
-            console.log("🟢 BİLGİ: Tablet'ten PC'ye PDF verisi ulaştı!"); 
+            console.log("🟢 BİLGİ: Tablet'ten PC'ye PDF ulaştı! Çözümleniyor..."); 
             try {
-                const typedarray = new Uint8Array(data.pdfData);
+                // Gelen metin (Base64) verisini PDF.js'in okuyabileceği formata çeviriyoruz
+                const base64Data = data.pdfData.split(',')[1];
+                const binaryString = window.atob(base64Data);
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+
                 if (typeof pdfjsLib !== 'undefined') {
-                    pdfjsLib.getDocument(typedarray).promise.then(pdf => {
-                        console.log("🟢 BİLGİ: PDF PC'de başarıyla çözüldü. Toplam Sayfa:", pdf.numPages);
+                    pdfjsLib.getDocument(bytes).promise.then(pdf => {
+                        console.log("🟢 BİLGİ: PDF PC'de başarıyla çözüldü.");
                         window.currentPDF = pdf;
                         window.totalPDFPages = pdf.numPages;
                         window.currentPDFPage = 1;
                         
-                        const pdfControls = document.getElementById('pdf-controls'); // ID ile direkt arıyoruz
-                        if (pdfControls) {
-                            pdfControls.classList.remove('hidden');
-                        }
+                        const pdfControls = document.getElementById('pdf-controls');
+                        if (pdfControls) pdfControls.classList.remove('hidden');
                         
                         if (typeof renderPDFPage === 'function') {
                             renderPDFPage(window.currentPDFPage);
-                            console.log("🟢 BİLGİ: PDF ekrana çizildi!");
-                        } else {
-                            console.error("🔴 HATA: PC'de 'renderPDFPage' fonksiyonu bulunamadı! Bu yüzden ekrana çizilemiyor.");
                         }
                     }).catch(err => {
-                        console.error("🔴 HATA: PC'de PDF çözülürken hata oluştu:", err);
+                        console.error("🔴 HATA: PDF çözülürken hata oluştu:", err);
                     });
-                } else {
-                    console.error("🔴 HATA: PC'de 'pdfjsLib' bulunamadı! PC'nin HTML dosyasında PDF.js script tag'i eksik olabilir.");
                 }
             } catch (e) {
                 console.error("🔴 HATA: PDF verisi işlenirken sistem çöktü:", e);
             }
         }
-
         // --- 2. AĞDAN PDF SAYFA DEĞİŞİMİ GELDİĞİNDE ---
         if (data.type === 'pdf_sayfa_degis') {
             window.currentPDFPage = data.sayfa;
