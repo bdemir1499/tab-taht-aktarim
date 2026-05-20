@@ -5038,8 +5038,6 @@ function setupConnectionEvents() {
         }
         
         // --- HAYALET TIKLAMA KORUMASI ---
-        // Panel anında kaybolursa alttaki dil butonuna yanlışlıkla basılır.
-        // Bu yüzden gizleme işlemini parmak kalkana kadar (500ms) bekletiyoruz!
         setTimeout(() => {
             const connectInput = document.getElementById('connect-input');
             const connectBtn = document.getElementById('connect-btn');
@@ -5061,48 +5059,37 @@ function setupConnectionEvents() {
     myConnection.on('data', function(data) {
         if (!data || !data.type) return;
 
-// PC tarafındaki silme emrini karşılayan blok:
-if (data.type === 'sil_objeyi') {
-    // Listeyi tara, gelen ID ile eşleşeni sil
-    window.drawnStrokes = window.drawnStrokes.filter(s => {
-        // Eğer objenin ID'si yoksa (eski çizimler), kontrol etmeden tutmaya devam et
-        if (!s.id) return true; 
-        return s.id !== data.strokeId;
-    });
-    
-    if (window.redrawAllStrokes) window.redrawAllStrokes();
-}
+        // --- ID İLE SİLME (ZOMBİ ÇİZİM KORUMASI) ---
+        if (data.type === 'sil_objeyi') {
+            window.drawnStrokes = window.drawnStrokes.filter(s => {
+                if (!s.id) return true; 
+                return s.id !== data.strokeId;
+            });
+            if (window.redrawAllStrokes) window.redrawAllStrokes();
+        }
 
-        // 1. YENİ ÇİZİM GELDİĞİNDE
-    if (data.type === 'yeni_cizim') {
-        const stroke = data.stroke;
-        // PC'de çizimi yapmadan önce, o çizimin zaten olup olmadığını kontrol et
-        // Bu, silinenlerin geri gelmesini %90 engeller
-        const zatenVarMi = window.drawnStrokes.some(s => s === stroke);
-        if (!zatenVarMi) {
-            if (stroke.type === 'image' && stroke.imgData) {
-                const tempImg = new Image();
-                tempImg.src = stroke.imgData;
-                tempImg.onload = () => {
-                    stroke.imgObj = tempImg;
+        // --- YENİ ÇİZİM GELDİĞİNDE ---
+        if (data.type === 'yeni_cizim') {
+            const stroke = data.stroke;
+            // ID üzerinden zaten var mı kontrolü
+            const zatenVarMi = window.drawnStrokes.some(s => s.id && s.id === stroke.id);
+            if (!zatenVarMi) {
+                if (stroke.type === 'image' && stroke.imgData) {
+                    const tempImg = new Image();
+                    tempImg.src = stroke.imgData;
+                    tempImg.onload = () => {
+                        stroke.imgObj = tempImg;
+                        window.drawnStrokes.push(stroke);
+                        if (window.redrawAllStrokes) window.redrawAllStrokes();
+                    };
+                } else {
                     window.drawnStrokes.push(stroke);
                     if (window.redrawAllStrokes) window.redrawAllStrokes();
-                };
-            } else {
-                window.drawnStrokes.push(stroke);
-                if (window.redrawAllStrokes) window.redrawAllStrokes();
+                }
             }
         }
-    }
 
-    // 2. SİLME KOMUTLARI (Güçlendirilmiş)
-    if (data.type === 'sil_objeyi') {
-        // Tablet hangi objeyi sildiyse, PC'de de tam olarak o objeyi bul ve at
-        window.drawnStrokes = window.drawnStrokes.filter(s => s !== data.stroke);
-        if (window.redrawAllStrokes) window.redrawAllStrokes();
-    }
-});
-
+        // --- GERİ AL VE HEPSİNİ SİL ---
         if (data.type === 'geri_al') {
             if (typeof drawnStrokes !== 'undefined') drawnStrokes.pop();
             else window.drawnStrokes.pop();
@@ -5122,7 +5109,7 @@ if (data.type === 'sil_objeyi') {
             }
         }
 
-        // --- FİZİKSEL ARAÇLARIN KONUMU GELDİĞİNDE (Cetvel, Pergel vb.) ---
+        // --- FİZİKSEL ARAÇLARIN KONUMU GELDİĞİNDE ---
         if (data.type === 'arac_senkron') {
             const el = document.querySelector(data.selector);
             if (el) {
@@ -5130,19 +5117,16 @@ if (data.type === 'sil_objeyi') {
                 el.style.left = data.left;
                 el.style.top = data.top;
                 el.style.transform = data.transform;
-
-// --- BOYUTLARI UYGULA ---
                 if (data.width) el.style.width = data.width;
                 if (data.height) el.style.height = data.height;
             }
 
-            }
             if (data.arac === 'ruler' && typeof rulerButton !== 'undefined') rulerButton.classList.toggle('active', data.display !== 'none');
             if (data.arac === 'gonye' && typeof gonyeButton !== 'undefined') gonyeButton.classList.toggle('active', data.display !== 'none');
             if (data.arac === 'aciolcer' && typeof aciolcerButton !== 'undefined') aciolcerButton.classList.toggle('active', data.display !== 'none');
             if (data.arac === 'pergel' && typeof pergelButton !== 'undefined') pergelButton.classList.toggle('active', data.display !== 'none');
         }
-    });
+    }); // data dinleyicisi burada düzgünce kapanıyor
 
     myConnection.on('close', function() {
         isConnected = false;
@@ -5157,8 +5141,6 @@ if (data.type === 'sil_objeyi') {
         if (connectBtn) connectBtn.style.display = "block";
     });
 }
-
-
 // =========================================================
 // 7. KARŞI TARAFA VERİ FIRLATMA FONKSİYONU
 // =========================================================
