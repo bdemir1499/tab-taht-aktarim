@@ -37,14 +37,17 @@
 <div id="network-panel" style="position: fixed; bottom: 30px; right: 15px; background: rgba(13, 13, 43, 0.9); color: white; padding: 15px; border-radius: 12px; z-index: 40000; font-family: 'Fredoka', sans-serif; box-shadow: 0 4px 15px rgba(0,0,0,0.5); border: 2px solid #00ffcc; transition: all 0.3s ease;">
     <div id="network-close-btn" style="position: absolute; top: 5px; right: 10px; cursor: pointer; font-size: 16px; color: #ff4444; font-weight: bold;">✕</div>
     <div style="font-size: 14px; margin-bottom: 10px; color: #fff;">Oda Kodun: <span id="my-peer-id" style="color: #00ffcc; font-weight: bold; font-size: 20px; letter-spacing: 2px;">...</span></div>
-    <div style="display: flex; gap: 8px;">
-        <input type="text" id="connect-input" maxlength="5" placeholder="Kodu Gir" style="padding: 8px; border-radius: 6px; border: none; width: 100px; font-weight: bold; text-align: center; outline: none;">
-
-        <button id="connect-btn" style="padding: 8px 15px; border-radius: 6px; border: none; background: #00ffcc; color: #000; font-weight: bold; cursor: pointer;">Bağlan</button>
+    
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; gap: 8px;">
+            <input type="text" id="connect-input" maxlength="5" placeholder="Oda Kodu" style="padding: 8px; border-radius: 6px; border: none; width: 100px; font-weight: bold; text-align: center; outline: none;">
+            <button id="connect-btn" style="padding: 8px 15px; border-radius: 6px; border: none; background: #00ffcc; color: #000; font-weight: bold; cursor: pointer; flex-grow: 1;">Bağlan</button>
+        </div>
+        <input type="password" id="session-pass-input" placeholder="Ders Şifresi Belirle..." style="padding: 8px; border-radius: 6px; border: none; width: 100%; box-sizing: border-box; font-weight: bold; text-align: center; outline: none; font-family: 'Fredoka', sans-serif;">
     </div>
+    
     <div id="connection-status" style="font-size: 13px; margin-top: 10px; color: #ffeb3b; text-align: center; font-weight: 600;">Bağlantı Bekleniyor...</div>
 </div>
-
 <script>
     // =========================================================
     // --- CANLI SINIF PANELI BEKÇİ MOTORU (KESİN ÇÖZÜM) ---
