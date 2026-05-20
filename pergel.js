@@ -371,13 +371,11 @@ window.PergelTool = {
         this.previewCtx.strokeStyle = "rgba(255, 0, 255, 0.7)"; this.previewCtx.lineWidth = 3; this.previewCtx.stroke();
     },
     
-   // --- 3. FİNAL ÇİZİM (CANLI REFERANS KULLANAN KISIM) ---
+   // --- 3. FİNAL ÇİZİM (CANLI REFERANS, ID VE AĞA AKTARIM) ---
     finalizeDraw: function() {
         if (!this.state.isDrawing) return;
 
-        // --- HARF YIĞILMASI / ÇİFT TIKLAMA HATASI ÇÖZÜMÜ ---
-        // Eğer pergelin tepesine sadece tıklandıysa (hiç döndürülüp çizim yapılmadıysa)
-        // boşuna harf atamasını ve görünmez çember çizmesini tamamen engeller!
+        // Harf yığılması ve boş tıklama koruması
         if (Math.abs(this.state.rotation - this.state.startAngle) < 0.5) {
             this.state.isDrawing = false;
             return;
@@ -397,9 +395,9 @@ window.PergelTool = {
             const centerLabel = window.nextPointChar;
             window.nextPointChar = window.advanceChar(centerLabel);
 
-            window.drawnStrokes.push({
+            // --- ID'Lİ VE GÜVENLİ PERGEL ÇİZİMİ ---
+            const strokeObj = {
                 type: 'arc',
-                // Esneme (Scale) çarpanı ile %100 nokta atışı koordinat
                 cx: (this.state.pivot.x - rect.left) * scaleX, 
                 cy: (this.state.pivot.y - rect.top) * scaleY, 
                 radius: this.state.radius * scaleAvg,
@@ -407,12 +405,22 @@ window.PergelTool = {
                 endAngle: this.state.rotation, 
                 color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
                 width: 3,
-                label: centerLabel 
-            });
+                label: centerLabel,
+                id: Date.now() + Math.random() // <--- ZOMBİ ÇİZİMLERİ BİTİREN KİMLİK
+            };
+
+            // 1. Tabletin kendi hafızasına ekle
+            window.drawnStrokes.push(strokeObj);
+
+            // 2. PC'ye (Tahtaya) gönder
+            if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                window.sendNetworkData({ type: 'yeni_cizim', stroke: strokeObj });
+            }
             
             window.redrawAllStrokes(); 
         }
     }
-};
+}; // PergelTool nesnesinin kapanışı
 
+window.PergelTool.init();
 window.PergelTool.init();

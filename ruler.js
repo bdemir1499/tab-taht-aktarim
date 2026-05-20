@@ -468,15 +468,25 @@ window.RulerTool = {
         const midPoint = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
 
         if (window.drawnStrokes && window.redrawAllStrokes) {
-            window.drawnStrokes.push({
+            // 1. Çizim objesini oluştur ve ID ata
+            const strokeObj = {
                 type: 'straightLine', 
                 p1: p1,
                 p2: p2,
                 color: window.isToolThemeBlack ? '#000000' : window.currentLineColor, 
                 width: 3,
                 lengthLabel: cmText, 
-                lengthLabelPos: midPoint 
-            });
+                lengthLabelPos: midPoint,
+                id: Date.now() + Math.random() // <--- İŞTE KESİN ÇÖZÜM: ID Eklendi
+            };
+
+            // 2. Tabletin kendi listesine ekle
+            window.drawnStrokes.push(strokeObj);
+
+            // 3. PC'ye (Tahtaya) gönder
+            if (typeof window.sendNetworkData === 'function') {
+                window.sendNetworkData({ type: 'yeni_cizim', stroke: strokeObj });
+            }
             window.redrawAllStrokes(); 
         }
     }

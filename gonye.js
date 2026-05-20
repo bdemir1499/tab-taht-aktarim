@@ -435,7 +435,8 @@ window.GonyeTool = {
         if (window.drawnStrokes && window.redrawAllStrokes) {
             const label1 = window.nextPointChar; window.nextPointChar = window.advanceChar(label1);
             const label2 = window.nextPointChar; window.nextPointChar = window.advanceChar(label2);
-            window.drawnStrokes.push({
+            // --- ID'Lİ VE GÜVENLİ ÇİZİM OBJESİ ---
+            const strokeObj = {
                 type: 'segment', 
                 p1, 
                 p2, 
@@ -444,8 +445,17 @@ window.GonyeTool = {
                 label1, 
                 label2, 
                 lengthLabel: cmText, 
-                lengthLabelPos: midPoint
-            });
+                lengthLabelPos: midPoint,
+                id: Date.now() + Math.random() // <--- İŞTE BU KISIM ZOMBİ ÇİZİMLERİ BİTİRİR
+            };
+            
+            // 1. Tabletin hafızasına ekle
+            window.drawnStrokes.push(strokeObj);
+            
+            // 2. PC'ye (Tahtaya) gönder
+            if (typeof window.sendNetworkData === 'function') {
+                window.sendNetworkData({ type: 'yeni_cizim', stroke: strokeObj });
+            }
             window.redrawAllStrokes(); 
         }
     }

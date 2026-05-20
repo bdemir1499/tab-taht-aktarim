@@ -3087,11 +3087,17 @@ if (isPhysicalTool) {
     if (currentTool === 'aciolcer' && window.AciolcerTool && window.AciolcerTool.finalizeDraw) window.AciolcerTool.finalizeDraw();
     if (currentTool === 'pergel' && window.PergelTool && window.PergelTool.finalizeDraw) window.PergelTool.finalizeDraw();
 
-    // 2. TAHTAYA GÖNDER: Araçların oluşturduğu son çizgiyi/çemberi yakala ve fırlat
+    // 2. TAHTAYA GÖNDER: Araçların oluşturduğu son çizgiyi yakala ve fırlat
     setTimeout(() => {
         const lastS = drawnStrokes[drawnStrokes.length - 1];
-        if (typeof isConnected !== 'undefined' && isConnected && lastS) {
-            window.sendNetworkData({ type: 'yeni_cizim', stroke: lastS });
+        
+        if (lastS) {
+            // --- ID EKLEME (Zombi çizimleri engellemek için şart!) ---
+            if (!lastS.id) lastS.id = Date.now() + Math.random();
+            
+            if (typeof isConnected !== 'undefined' && isConnected) {
+                window.sendNetworkData({ type: 'yeni_cizim', stroke: lastS });
+            }
         }
     }, 50); // Çizimin hafızaya girmesi için 50ms bekle
 
@@ -5124,6 +5130,12 @@ if (data.type === 'sil_objeyi') {
                 el.style.left = data.left;
                 el.style.top = data.top;
                 el.style.transform = data.transform;
+
+// --- BOYUTLARI UYGULA ---
+                if (data.width) el.style.width = data.width;
+                if (data.height) el.style.height = data.height;
+            }
+
             }
             if (data.arac === 'ruler' && typeof rulerButton !== 'undefined') rulerButton.classList.toggle('active', data.display !== 'none');
             if (data.arac === 'gonye' && typeof gonyeButton !== 'undefined') gonyeButton.classList.toggle('active', data.display !== 'none');
@@ -5193,13 +5205,15 @@ window.araclariAgaGonder = function() {
         { id: 'ruler', selector: '.ruler-container' },
         { id: 'gonye', selector: '.gonye-container' },
         { id: 'aciolcer', selector: '.aciolcer-container' },
-        { id: 'pergel', selector: '#compass-container' }
+        { id: 'pergel', selector: '#compass-container' },
+        { id: 'yuzen-kopya', selector: '.yuzen-kopya-container' } // Snapshot kopyalarını da ekle
     ];
 
     araclar.forEach(arac => {
         const el = document.querySelector(arac.selector);
         if (el) {
-            const durum = el.style.display + el.style.left + el.style.top + el.style.transform;
+            // GENİŞLİK VE YÜKSEKLİĞİ DE EKLEDİK
+            const durum = el.style.display + el.style.left + el.style.top + el.style.transform + el.style.width + el.style.height;
             
             if (sonAracDurumlari[arac.id] !== durum) {
                 sonAracDurumlari[arac.id] = durum;
@@ -5211,12 +5225,13 @@ window.araclariAgaGonder = function() {
                     display: el.style.display,
                     left: el.style.left,
                     top: el.style.top,
-                    transform: el.style.transform
+                    transform: el.style.transform,
+                    width: el.style.width,    // BOYUT GÖNDERİMİ
+                    height: el.style.height   // BOYUT GÖNDERİMİ
                 });
             }
         }
     });
 };
-
 // Saniyede 25 kez araçların hareket edip etmediğini kontrol eder
 setInterval(window.araclariAgaGonder, 40);
