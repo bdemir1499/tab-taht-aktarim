@@ -5107,24 +5107,35 @@ function setupConnectionEvents() {
 
 // --- 1. AĞDAN PDF GELDİĞİNDE ---
         if (data.type === 'pdf_yukle') {
-            const typedarray = new Uint8Array(data.pdfData);
-            
-            // Promise yapısını kullanarak PDF'i açıyoruz
-            if (typeof pdfjsLib !== 'undefined') {
-                pdfjsLib.getDocument(typedarray).promise.then(pdf => {
-                    window.currentPDF = pdf;
-                    window.totalPDFPages = pdf.numPages;
-                    window.currentPDFPage = 1;
-                    
-                    if (typeof pdfControls !== 'undefined' && pdfControls) {
-                        pdfControls.classList.remove('hidden');
-                    }
-                    if (typeof renderPDFPage === 'function') {
-                        renderPDFPage(window.currentPDFPage);
-                    }
-                }).catch(err => {
-                    console.error("PC'de ağdan gelen PDF açılamadı:", err);
-                });
+            console.log("🟢 BİLGİ: Tablet'ten PC'ye PDF verisi ulaştı!"); 
+            try {
+                const typedarray = new Uint8Array(data.pdfData);
+                if (typeof pdfjsLib !== 'undefined') {
+                    pdfjsLib.getDocument(typedarray).promise.then(pdf => {
+                        console.log("🟢 BİLGİ: PDF PC'de başarıyla çözüldü. Toplam Sayfa:", pdf.numPages);
+                        window.currentPDF = pdf;
+                        window.totalPDFPages = pdf.numPages;
+                        window.currentPDFPage = 1;
+                        
+                        const pdfControls = document.getElementById('pdf-controls'); // ID ile direkt arıyoruz
+                        if (pdfControls) {
+                            pdfControls.classList.remove('hidden');
+                        }
+                        
+                        if (typeof renderPDFPage === 'function') {
+                            renderPDFPage(window.currentPDFPage);
+                            console.log("🟢 BİLGİ: PDF ekrana çizildi!");
+                        } else {
+                            console.error("🔴 HATA: PC'de 'renderPDFPage' fonksiyonu bulunamadı! Bu yüzden ekrana çizilemiyor.");
+                        }
+                    }).catch(err => {
+                        console.error("🔴 HATA: PC'de PDF çözülürken hata oluştu:", err);
+                    });
+                } else {
+                    console.error("🔴 HATA: PC'de 'pdfjsLib' bulunamadı! PC'nin HTML dosyasında PDF.js script tag'i eksik olabilir.");
+                }
+            } catch (e) {
+                console.error("🔴 HATA: PDF verisi işlenirken sistem çöktü:", e);
             }
         }
 
@@ -5138,13 +5149,17 @@ function setupConnectionEvents() {
 
         // --- 3. AĞDAN RESİM GELDİĞİNDE ---
         if (data.type === 'resim_yukle') {
+            console.log("🟢 BİLGİ: Tablet'ten PC'ye Resim verisi ulaştı!");
             const img = new Image();
             img.onload = () => {
-                // Tablette addNewImageToCanvas(img, false) yapmıştık, aynısını yapıyoruz
                 if (typeof addNewImageToCanvas === 'function') {
                     addNewImageToCanvas(img, false);
+                    console.log("🟢 BİLGİ: Resim başarıyla PC ekranına eklendi.");
+                } else {
+                    console.error("🔴 HATA: PC'de 'addNewImageToCanvas' fonksiyonu bulunamadı!");
                 }
             };
+            img.onerror = () => console.error("🔴 HATA: Gelen resim verisi bozuk veya okunamıyor.");
             img.src = data.imgData;
         }
 
