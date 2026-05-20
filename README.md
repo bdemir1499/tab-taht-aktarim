@@ -1,5 +1,5 @@
 # 📐 Geometri Araç Seti (v2.2)
-
+13 farklı dilde erişim ve kullanım.
 Bu yazılım, bir öğretmen tarafından derslerde etkileşimli geometri eğitimini desteklemek amacıyla gönüllü olarak geliştirilmiştir.
 
 ## ℹ️ Hakkında
