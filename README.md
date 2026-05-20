@@ -1,4 +1,20 @@
 # GEOMETRI-ARAC-SETI-2.2
+# Geometri Araç Seti
+
+Bu yazılım, bir öğretmen tarafından derslerde etkileşimli geometri eğitimini desteklemek amacıyla gönüllü olarak geliştirilmiştir.
+
+## Hakkında
+Bu proje, dijital araçlarla geometriyi öğretmeyi kolaylaştırmak için tasarlanmış, **P2P (Peer-to-Peer)** tabanlı bir eğitim setidir. Kullanıcıların (öğretmenlerin) kendi sınıflarında araçları tahta ile tablet arasında senkronize etmelerini sağlar.
+
+## ⚠️ Önemli Not (Sorumluluk Reddi)
+- **Bağımsızlık:** Bu yazılım, herhangi bir resmi kurum veya kuruluşla organik bir bağ içermez; tamamen kişisel bir hobi projesidir.
+- **Veri Gizliliği:** Bu uygulama **hiçbir kişisel veri toplamaz, depolamaz ve sunuculara yüklemez.** Tüm işlemler kullanıcıların kendi cihazları arasında (yerel/özel ağda) gerçekleşir.
+- **Kullanım:** Yazılım "olduğu gibi" sunulmuştur. Kullanımdan doğabilecek teknik veya diğer durumlardan geliştirici sorumlu tutulamaz.
+
+---
+
+## Disclaimer
+This software is an independent educational tool developed voluntarily by a teacher. It has no organic connection to any official institution. It does not collect, store, or upload any personal data to servers. It is provided "as is" under the MIT License.
 
 GEOMETRİ ARAÇ SETİ
 1.)	3D şekileri ve açınımlarını .izebilir,taşı butonuna basıp şekle tıklayınca yanında alan ve hacim hesaplamalarını görebilir,taşı butonuyla tutarak taşıyabilir,yanında oluşan yeşil butonla şekli ve açınımını döndürebilir, pembe butonla yeniden boyutlandırabilirsiniz.
