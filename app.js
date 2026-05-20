@@ -5042,12 +5042,14 @@ myPeer.on('connection', function(conn) {
 // 5. TABLET ROLÜ: Biz butona basıp Tahtanın koduna bağlandığımızda
 document.getElementById('connect-btn').addEventListener('click', () => {
     const targetCode = document.getElementById('connect-input').value.trim();
-    if(targetCode.length === 4) {
+    if(targetCode.length === 5) { // 4'ü 5 yaptık
         document.getElementById('connection-status').innerText = "Bağlanıyor ⏳";
         myConnection = myPeer.connect(targetCode);
         setupConnectionEvents();
     } else {
-        alert("Lütfen 4 haneli Oda Kodunu girin.");
+
+console.log("DEBUG: Bağlantı kontrolü çalıştı, hedef uzunluk:", targetCode.length);
+        alert("Lütfen 5 haneli Oda Kodunu girin."); // Uyarımızı da güncelledik
     }
 });
 
