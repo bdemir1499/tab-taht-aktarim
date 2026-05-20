@@ -1,4 +1,5 @@
-
+// Artık sabit bir MY_SECRET_KEY yok, öğretmen her ders şifreyi belirleyecek
+window.sessionPassword = "";
 
 // --- DİL SÖZLÜĞÜ ---
 let currentLang = 'tr'; // Varsayılan dil
