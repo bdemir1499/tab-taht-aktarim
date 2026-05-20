@@ -1,3 +1,5 @@
+
+
 // --- DİL SÖZLÜĞÜ ---
 let currentLang = 'tr'; // Varsayılan dil
 
@@ -5085,6 +5087,14 @@ function setupConnectionEvents() {
 
     // --- VERİ KARŞILAMA MERKEZİ ---
     myConnection.on('data', function(data) {
+
+// --- GÜVENLİK KİLİDİ: ANAHTAR KONTROLÜ ---
+        if (data.secretKey !== MY_SECRET_KEY) {
+            console.warn("Yabancı erişim engellendi! Şifre hatalı.");
+            myConnection.close(); // Kapıyı yüzüne kapat
+            return; // Veriyi asla işleme
+        }
+        // ------------------------------------------
         if (!data || !data.type) return;
 
         // --- ID İLE SİLME (ZOMBİ ÇİZİM KORUMASI) ---
@@ -5227,14 +5237,24 @@ function setupConnectionEvents() {
         if (connectBtn) connectBtn.style.display = "block";
     });
 }
+
+
+
 // =========================================================
-// 7. KARŞI TARAFA VERİ FIRLATMA FONKSİYONU
+// 7. GÜVENLİ VERİ FIRLATMA FONKSİYONU
 // =========================================================
 window.sendNetworkData = function(dataPackage) {
     if (isConnected && myConnection) {
+        
+        // --- GÜVENLİK İMZASI ---
+        // Gönderdiğin her paketin içine şifremizi otomatik gömüyoruz
+        dataPackage.secretKey = MY_SECRET_KEY;
+        
+        // Artık paket güvenli, yola çıkabilir!
         myConnection.send(dataPackage);
     }
 };
+
 
 // =========================================================
 // --- PANEL GİZLE/GÖSTER MANTIĞI ---
