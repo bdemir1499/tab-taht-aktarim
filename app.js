@@ -4915,25 +4915,20 @@ function akilliSilgi(e, isDown) {
             }
 
             // akilliSilgi fonksiyonu içindeki o bölümü şu şekilde değiştir:
-if (vuruldu) {
-    // Sildiğimiz objenin bir ID'si yoksa, anlık bir tane oluşturuyoruz
-    if (!s.id) s.id = Date.now() + Math.random(); 
-    
-    drawnStrokes.splice(i, 1);
-    silindiMi = true;
-    
-    // YENİ: Objenin kendisini değil, sadece "ID" bilgisini gönderiyoruz
-    if (typeof isConnected !== 'undefined' && isConnected) {
-        window.sendNetworkData({ type: 'sil_objeyi', strokeId: s.id });
-    }
-}
-        } // For döngüsünün sonu
-    } // If (typeof drawnStrokes) sonu
-
-    if (silindiMi && window.redrawAllStrokes) {
-        window.redrawAllStrokes(); 
-    }
-}
+// akilliSilgi fonksiyonu içindeki vuruldu bölümünü şu şekilde değiştir:
+        if (vuruldu) {
+            // Sildiğimiz objenin bir ID'si yoksa, anlık bir tane oluşturuyoruz
+            if (!s.id) s.id = Date.now() + Math.random(); 
+            
+            // DİKKAT: drawnStrokes yerine window.drawnStrokes kullanarak referans kopmasını önlüyoruz
+            window.drawnStrokes.splice(i, 1);
+            silindiMi = true;
+            
+            // YENİ: PC'ye hem uydurduğumuz ID'yi, hem de şeklin kaçıncı sırada (i) olduğunu yolluyoruz!
+            if (typeof isConnected !== 'undefined' && isConnected) {
+                window.sendNetworkData({ type: 'sil_objeyi', strokeId: s.id, index: i });
+            }
+        }
 
 // YENİ: e.stopImmediatePropagation() kodları SİLİNDİ!
 // Artık silgi objeleri arka planda sessizce silecek, imleç ve diğer efektler çalışmaya devam edecek.
@@ -5124,12 +5119,20 @@ function setupConnectionEvents() {
 
         if (!data || !data.type) return;
 
-        // --- ID İLE SİLME (ZOMBİ ÇİZİM KORUMASI) ---
+        // --- ID VE SIRA (INDEX) İLE SİLME (ZOMBİ KORUMASI) ---
         if (data.type === 'sil_objeyi') {
-            window.drawnStrokes = window.drawnStrokes.filter(s => {
-                if (!s.id) return true; 
-                return s.id !== data.strokeId;
-            });
+            // 1. Önce ID ile bulmayı dene
+            const zombiIndex = window.drawnStrokes.findIndex(s => s.id === data.strokeId);
+            
+            if (zombiIndex !== -1) {
+                window.drawnStrokes.splice(zombiIndex, 1); // ID ile bulduysa sil
+            } 
+            // 2. ID ile bulamazsa, tabletin gönderdiği sıra numarası (index) ile bul ve acıma!
+            else if (data.index !== undefined && window.drawnStrokes[data.index]) {
+                window.drawnStrokes.splice(data.index, 1);
+            }
+
+            // Ekranı temizleyip yeniden çiz
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
 
