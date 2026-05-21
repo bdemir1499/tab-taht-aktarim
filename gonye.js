@@ -386,6 +386,10 @@ window.GonyeTool = {
         this.drawCtx.strokeStyle = '#FFFFFF'; 
         this.drawCtx.lineWidth = 3; 
         this.drawCtx.stroke();
+// 👇👇👇 CANLI YAYIN KANCASI 👇👇👇
+        if (typeof window.broadcastPreview === 'function') {
+            window.broadcastPreview('gonye', { handleY: handleY });
+        }
     },
 
     // --- 3. FİNAL ÇİZİM (CANLI REFERANS KULLANAN KISIM) ---

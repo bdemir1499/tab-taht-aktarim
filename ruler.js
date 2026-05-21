@@ -418,6 +418,10 @@ window.RulerTool = {
         this.drawCtx.strokeStyle = '#FFFFFF'; 
         this.drawCtx.lineWidth = 3; 
         this.drawCtx.stroke();
+// 👇👇👇 İŞTE CANLI YAYIN KANCASI BURADA (En Sonda) 👇👇👇
+        if (typeof window.broadcastPreview === 'function') {
+            window.broadcastPreview('ruler', { handleX: handleX });
+        }
     },
 
     finalizeDraw: function() {

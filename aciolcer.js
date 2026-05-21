@@ -349,6 +349,10 @@ window.AciolcerTool = {
         this.drawHandleLabel.innerText = `${localAngleDeg.toFixed(0)}°`;
         this.redLine.style.transition = 'none';
         this.redLine.style.transform = `rotate(${-localAngleDeg}deg)`;
+// 👇👇👇 CANLI YAYIN KANCASI 👇👇👇
+        if (typeof window.broadcastPreview === 'function') {
+            window.broadcastPreview('aciolcer', { angle: localAngleDeg, cx: cx, cy: cy, currPosX: currPos.x, currPosY: currPos.y });
+        }
     },
 
    // --- 3. FİNAL ÇİZİM (CANLI REFERANS VE ID İLE AĞA AKTARIM) ---

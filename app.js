@@ -5085,6 +5085,12 @@ document.getElementById('connect-btn').addEventListener('click', () => {
 // 6. Bağlantının Durumunu ve Veri Akışını Yöneten Merkezi Fonksiyon
 // =========================================================
 function setupConnectionEvents() {
+
+if (window.PergelTool && typeof window.PergelTool.init === 'function') {
+        window.PergelTool.init();
+        // PC'de pergelin fiziksel bir kutusu olmasın, sadece çizim katmanı çalışsın
+        window.PergelTool.hide(); 
+    }
     
     const baglantiyiAktifEt = () => {
         isConnected = true;
@@ -5181,42 +5187,40 @@ function setupConnectionEvents() {
         }
 
        // 6. GELİŞMİŞ ARAÇLAR (BEYİN - STATE)
-if (data.type === 'arac_state_senkron') {
-    let toolObj = null, el = null;
-    if (data.arac === 'ruler') { toolObj = window.RulerTool; el = document.querySelector('.ruler-container'); }
-    if (data.arac === 'gonye') { toolObj = window.GonyeTool; el = document.querySelector('.gonye-container'); }
-    if (data.arac === 'aciolcer') { toolObj = window.AciolcerTool; el = document.querySelector('.aciolcer-container'); }
-    if (data.arac === 'pergel') { toolObj = window.PergelTool; el = document.getElementById('compass-container'); }
+        if (data.type === 'arac_state_senkron') {
+            let toolObj = null, el = null;
+            if (data.arac === 'ruler') { toolObj = window.RulerTool; el = document.querySelector('.ruler-container'); }
+            if (data.arac === 'gonye') { toolObj = window.GonyeTool; el = document.querySelector('.gonye-container'); }
+            if (data.arac === 'aciolcer') { toolObj = window.AciolcerTool; el = document.querySelector('.aciolcer-container'); }
+            if (data.arac === 'pergel') { toolObj = window.PergelTool; el = document.getElementById('compass-container'); }
 
-    if (toolObj && el) {
-        // Görünürlük
-        if (data.display === 'none') { data.arac === 'pergel' ? el.classList.add('hidden') : el.style.display = 'none'; }
-        else { data.arac === 'pergel' ? el.classList.remove('hidden') : el.style.display = (data.arac === 'ruler' || data.arac === 'gonye') ? 'flex' : 'block'; }
-        
-        // Boyutlar
-        if (data.width) el.style.width = data.width;
-        if (data.height) el.style.height = data.height;
-
-        // Beyin (State) Güncellemesi
-        if (data.state) {
-            Object.assign(toolObj.state, data.state);
-            
-            // Pergel Özel İşlemleri
-            if (data.arac === 'pergel') {
-                if (toolObj.state.isFlipped) { 
-                    toolObj.leftLeg.appendChild(toolObj.penTip); toolObj.leftLeg.appendChild(toolObj.penResizeHandle); 
-                    toolObj.rightLeg.appendChild(toolObj.needleTip); 
-                } else { 
-                    toolObj.leftLeg.appendChild(toolObj.needleTip); 
-                    toolObj.rightLeg.appendChild(toolObj.penTip); toolObj.rightLeg.appendChild(toolObj.penResizeHandle); 
+            if (toolObj) {
+                // Beyin (State) Güncellemesi
+                if (data.state) {
+                    Object.assign(toolObj.state, data.state);
+                    
+                    // PERGEL ÖZEL: Canlı Önizleme Çizimi
+                    if (data.arac === 'pergel') {
+                        if (toolObj.state.isDrawing) { 
+                            // PC'deki tuvali tabletle aynı boyuta getir
+                            toolObj.previewCanvas.style.display = 'block';
+                            toolObj.previewCanvas.width = window.innerWidth;
+                            toolObj.previewCanvas.height = window.innerHeight;
+                            toolObj.drawPreviewArc(); // YAYI ÇİZ!
+                        } else { 
+                            toolObj.previewCanvas.style.display = 'none'; 
+                            if(toolObj.previewCtx) toolObj.previewCtx.clearRect(0,0,toolObj.previewCanvas.width, toolObj.previewCanvas.height); 
+                        }
+                    }
                 }
                 
-                if (toolObj.state.isDrawing) { 
-                    toolObj.previewCanvas.style.display = 'block'; 
-                    toolObj.drawPreviewArc(); 
-                } else { 
-                    toolObj.previewCanvas.style.display = 'none'; 
-                    if(toolObj.previewCtx) toolObj.previewCtx.clearRect(0,0,toolObj.previewCanvas.width, toolObj.previewCanvas.height); 
+                // HTML kutusunu güncelle (Eğer el mevcutsa)
+                if (el) {
+                    if (data.display === 'none') { data.arac === 'pergel' ? el.classList.add('hidden') : el.style.display = 'none'; }
+                    else { data.arac === 'pergel' ? el.classList.remove('hidden') : el.style.display = (data.arac === 'ruler' || data.arac === 'gonye') ? 'flex' : 'block'; }
+                    if (data.width) el.style.width = data.width;
+                    if (data.height) el.style.height = data.height;
+                    if (typeof toolObj.updateTransform === 'function') toolObj.updateTransform();
                 }
             }
         }
@@ -5371,3 +5375,16 @@ window.addEventListener('load', () => {
         window.PergelTool.hide(); 
     }
 });
+
+// =========================================================
+// CANLI YAYIN (ÖNİZLEME) GÖNDERİCİSİ
+// =========================================================
+window.broadcastPreview = function(toolType, stateData) {
+    if (typeof window.sendNetworkData === 'function' && window.isConnected) {
+        window.sendNetworkData({
+            type: 'active_preview',
+            tool: toolType,
+            data: stateData
+        });
+    }
+};
