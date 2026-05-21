@@ -5123,30 +5123,24 @@ function setupConnectionEvents() {
         }
         // ----------------------------------------------------
 
-
         if (!data || !data.type) return;
 
         // --- ID VE SIRA (INDEX) İLE SİLME (ZOMBİ KORUMASI) ---
         if (data.type === 'sil_objeyi') {
-            // 1. Önce ID ile bulmayı dene
             const zombiIndex = window.drawnStrokes.findIndex(s => s.id === data.strokeId);
             
             if (zombiIndex !== -1) {
-                window.drawnStrokes.splice(zombiIndex, 1); // ID ile bulduysa sil
+                window.drawnStrokes.splice(zombiIndex, 1); 
             } 
-            // 2. ID ile bulamazsa, tabletin gönderdiği sıra numarası (index) ile bul ve acıma!
             else if (data.index !== undefined && window.drawnStrokes[data.index]) {
                 window.drawnStrokes.splice(data.index, 1);
             }
-
-            // Ekranı temizleyip yeniden çiz
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
 
         // --- YENİ ÇİZİM GELDİĞİNDE ---
         if (data.type === 'yeni_cizim') {
             const stroke = data.stroke;
-            // ID üzerinden zaten var mı kontrolü
             const zatenVarMi = window.drawnStrokes.some(s => s.id && s.id === stroke.id);
             if (!zatenVarMi) {
                 if (stroke.type === 'image' && stroke.imgData) {
@@ -5164,11 +5158,10 @@ function setupConnectionEvents() {
             }
         }
 
-// --- 1. AĞDAN PDF GELDİĞİNDE ---
+        // --- 1. AĞDAN PDF GELDİĞİNDE ---
         if (data.type === 'pdf_yukle') {
             console.log("🟢 BİLGİ: Tablet'ten PC'ye PDF ulaştı! Çözümleniyor..."); 
             try {
-                // Gelen metin (Base64) verisini PDF.js'in okuyabileceği formata çeviriyoruz
                 const base64Data = data.pdfData.split(',')[1];
                 const binaryString = window.atob(base64Data);
                 const len = binaryString.length;
@@ -5198,6 +5191,7 @@ function setupConnectionEvents() {
                 console.error("🔴 HATA: PDF verisi işlenirken sistem çöktü:", e);
             }
         }
+
         // --- 2. AĞDAN PDF SAYFA DEĞİŞİMİ GELDİĞİNDE ---
         if (data.type === 'pdf_sayfa_degis') {
             window.currentPDFPage = data.sayfa;
@@ -5242,79 +5236,70 @@ function setupConnectionEvents() {
             }
         }
 
-        // --- FİZİKSEL ARAÇLARIN KONUMU VE BOYUTU GELDİĞİNDE ---
+        // --- 1. BASİT DOM ARAÇLARI İÇİN KARŞILAMA (Yüzen kopyalar) ---
         if (data.type === 'arac_senkron') {
-            
-            // PERGEL KORUMASI: Seçici uyuşmazlığını düzeltme
-            let selector = data.selector;
-            if (data.arac === 'pergel') {
-                selector = '#compass-container'; 
-            }
-
-            const el = document.querySelector(selector);
-            
+            const el = document.querySelector(data.selector);
             if (el) {
-                // Görünürlük ve Konum Güncellemesi
                 el.style.display = data.display;
                 el.style.left = data.left;
                 el.style.top = data.top;
-                
-                // --- CAN ALICI NOKTA: PC TARAFINDA HAFIZA (STATE) GÜNCELLEMESİ ---
-                
-                // 1. CETVEL: Hem görsel genişliği hem de hafızadaki genişliği güncelle
-                if (data.arac === 'ruler') {
-                    if (data.width) {
-                        el.style.width = data.width;
-                        if (window.RulerTool) {
-                            window.RulerTool.state.width = parseFloat(data.width);
-                            window.RulerTool.updateMarkings(); 
-                        }
-                    }
-                    el.style.transform = data.transform;
-                }
-                
-                // 2. AÇIÖLÇER: Radius (Yarıçap) değerini hafızadan çekip güncelle
-                else if (data.arac === 'aciolcer') {
-                    if (data.width) {
-                        const newRadius = parseFloat(data.width) / 2;
-                        el.style.setProperty('--width-px', data.width);
-                        el.style.setProperty('--radius-px', `${newRadius}px`);
-                        
-                        if (window.AciolcerTool) {
-                            window.AciolcerTool.state.radius = newRadius;
-                            window.AciolcerTool.createLabels(); 
-                        }
-                    }
-                    el.style.transform = data.transform;
+                el.style.transform = data.transform;
+                if (data.width) el.style.width = data.width;
+                if (data.height) el.style.height = data.height;
+            }
+        }
+
+        // --- 2. GELİŞMİŞ FİZİKSEL ARAÇLAR İÇİN "BEYİN" (STATE) KARŞILAMA ---
+        if (data.type === 'arac_state_senkron') {
+            let toolObj = null;
+            let el = null;
+            
+            if (data.arac === 'ruler') { toolObj = window.RulerTool; el = document.querySelector('.ruler-container'); }
+            if (data.arac === 'gonye') { toolObj = window.GonyeTool; el = document.querySelector('.gonye-container'); }
+            if (data.arac === 'aciolcer') { toolObj = window.AciolcerTool; el = document.querySelector('.aciolcer-container'); }
+            if (data.arac === 'pergel') { toolObj = window.PergelTool; el = document.getElementById('compass-container'); }
+
+            if (toolObj && el) {
+                // 1. Görünürlüğü (Kapat/Aç) Senkronize Et
+                if (data.display === 'none') {
+                    if (data.arac === 'pergel') el.classList.add('hidden');
+                    else el.style.display = 'none';
+                } else {
+                    if (data.arac === 'pergel') el.classList.remove('hidden');
+                    else el.style.display = (data.arac === 'ruler' || data.arac === 'gonye') ? 'flex' : 'block';
                 }
 
-                // 3. GÖNYE: Boyut ve Dönme (Rotation) Güncellemesi
-                else if (data.arac === 'gonye') {
-                    if (data.width && data.height) {
-                        el.style.width = data.width;
-                        el.style.height = data.height;
-                        if (window.GonyeTool) {
-                            window.GonyeTool.state.width = parseFloat(data.width);
-                            window.GonyeTool.state.height = parseFloat(data.height);
-                            window.GonyeTool.updateMarkings(); // PC'de yeni sayı ve çizgileri üret!
+                // 2. MATEMATİKSEL HAFIZAYI (STATE) KOPYALA VE CANLANDIR!
+                if (data.state && data.display !== 'none') {
+                    
+                    // Tabletin gönderdiği hafızayı, PC'nin hafızasının üzerine yaz
+                    Object.assign(toolObj.state, data.state);
+                    
+                    // Pergelin TERS DÖNME (Flip) durumunu HTML'de de uygula
+                    if (data.arac === 'pergel') {
+                        if (toolObj.state.isFlipped) {
+                            toolObj.leftLeg.appendChild(toolObj.penTip); toolObj.leftLeg.appendChild(toolObj.penResizeHandle);
+                            toolObj.rightLeg.appendChild(toolObj.needleTip);
+                        } else {
+                            toolObj.leftLeg.appendChild(toolObj.needleTip);
+                            toolObj.rightLeg.appendChild(toolObj.penTip); toolObj.rightLeg.appendChild(toolObj.penResizeHandle);
                         }
                     }
-                    el.style.transform = data.transform; // Gönyenin döndürülmesini PC'ye uygula
-                }
 
-                // 4. PERGEL: Pergelin açısal dönüşümlerini ve görünümünü ayarla
-                else if (data.arac === 'pergel') {
-                    if (data.width) el.style.width = data.width;
-                    if (data.height) el.style.height = data.height;
+                    // PC'de aracın motorlarını kendi kendine tetikle (Sihir burada)
+                    if (typeof toolObj.updateTransform === 'function') toolObj.updateTransform();
+                    if (typeof toolObj.updateMarkings === 'function') toolObj.updateMarkings();
+                    if (typeof toolObj.createLabels === 'function') toolObj.createLabels();
                 }
             }
 
-            // Butonların aktiflik durumlarını (ışıklarını) senkronize et
+            // Menü butonlarının aktiflik ışıklarını yak/söndür
             if (data.arac === 'ruler' && typeof rulerButton !== 'undefined') rulerButton.classList.toggle('active', data.display !== 'none');
             if (data.arac === 'gonye' && typeof gonyeButton !== 'undefined') gonyeButton.classList.toggle('active', data.display !== 'none');
             if (data.arac === 'aciolcer' && typeof aciolcerButton !== 'undefined') aciolcerButton.classList.toggle('active', data.display !== 'none');
             if (data.arac === 'pergel' && typeof pergelButton !== 'undefined') pergelButton.classList.toggle('active', data.display !== 'none');
         }
+    }); // <--- İŞTE BU PARANTEZ EKSİKTİ! BURADA EKLENDİ VE KAPATILDI.
 
     myConnection.on('close', function() {
         isConnected = false;
@@ -5373,30 +5358,57 @@ if (closeBtn && miniBtn && panel) {
 }
 
 // =========================================================
-// YENİ: FİZİKSEL ARAÇLAR İÇİN GİZLİ SENKRONİZASYON RADARI
+// YENİ: FİZİKSEL ARAÇLAR İÇİN "BEYİN KOPYALAYAN" (STATE) RADAR
 // =========================================================
 let sonAracDurumlari = {};
 
 window.araclariAgaGonder = function() {
     if (typeof isConnected === 'undefined' || !isConnected || !myConnection) return;
     
-    const araclar = [
-        { id: 'ruler', selector: '.ruler-container' },
-        { id: 'gonye', selector: '.gonye-container' },
-        { id: 'aciolcer', selector: '.aciolcer-container' },
-        { id: 'pergel', selector: '#compass-container' },
-        { id: 'yuzen-kopya', selector: '.yuzen-kopya-container' } // Snapshot kopyalarını da ekle
+    // 1. GELİŞMİŞ ARAÇLAR (Kendi Hafızası/State'i Olanlar)
+    const gelismisAraclar = [
+        { id: 'ruler', obj: window.RulerTool, selector: '.ruler-container' },
+        { id: 'gonye', obj: window.GonyeTool, selector: '.gonye-container' },
+        { id: 'aciolcer', obj: window.AciolcerTool, selector: '.aciolcer-container' },
+        { id: 'pergel', obj: window.PergelTool, selector: '#compass-container' }
     ];
 
-    araclar.forEach(arac => {
-        const el = document.querySelector(arac.selector);
-        if (el) {
-            // GENİŞLİK VE YÜKSEKLİĞİ DE EKLEDİK
-            const durum = el.style.display + el.style.left + el.style.top + el.style.transform + el.style.width + el.style.height;
+    gelismisAraclar.forEach(arac => {
+        if (arac.obj && arac.obj.state) {
+            const el = document.querySelector(arac.selector);
+            let isVisible = 'none';
+            if (el) {
+                isVisible = (el.style.display !== 'none' && !el.classList.contains('hidden')) ? 'block' : 'none';
+            }
             
+            // Aracın tüm matematiksel hafızasını (x, y, radius, angle, width vb.) metne çevir
+            const stateStr = JSON.stringify(arac.obj.state);
+            const durum = isVisible + stateStr;
+
             if (sonAracDurumlari[arac.id] !== durum) {
                 sonAracDurumlari[arac.id] = durum;
-                
+
+                window.sendNetworkData({
+                    type: 'arac_state_senkron', // YENİ TİP
+                    arac: arac.id,
+                    display: isVisible,
+                    state: arac.obj.state // KABUĞU DEĞİL BEYNİ (STATE) GÖNDERİYORUZ
+                });
+            }
+        }
+    });
+
+    // 2. BASİT DOM ARAÇLARI (Yüzen Kopyalar / Snapshotlar için eski usul DOM taraması)
+    const basitAraclar = [
+        { id: 'yuzen-kopya', selector: '.yuzen-kopya-container' } 
+    ];
+
+    basitAraclar.forEach(arac => {
+        const el = document.querySelector(arac.selector);
+        if (el) {
+            const durum = el.style.display + el.style.left + el.style.top + el.style.transform + el.style.width + el.style.height;
+            if (sonAracDurumlari[arac.id] !== durum) {
+                sonAracDurumlari[arac.id] = durum;
                 window.sendNetworkData({
                     type: 'arac_senkron',
                     arac: arac.id,
@@ -5405,8 +5417,8 @@ window.araclariAgaGonder = function() {
                     left: el.style.left,
                     top: el.style.top,
                     transform: el.style.transform,
-                    width: el.style.width || window.getComputedStyle(el).width, // Boyutu zorla al
-                    height: el.style.height || window.getComputedStyle(el).height // Boyutu zorla al
+                    width: el.style.width,
+                    height: el.style.height
                 });
             }
         }
