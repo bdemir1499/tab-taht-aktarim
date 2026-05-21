@@ -248,6 +248,16 @@ window.PergelTool = {
                 this.state.previousDrawAngle = current_raw_angle; 
                 this.updateTransform();
                 this.drawPreviewArc(); 
+// 👇👇 EKLENECEK KISIM 👇👇
+    // Çizim yaparken PC'ye sürekli güncel state'i gönder
+    if (typeof window.sendNetworkData === 'function' && window.isConnected) {
+        window.sendNetworkData({
+            type: 'arac_state_senkron',
+            arac: 'pergel',
+            state: this.state, // Güncel açı ve radius değerlerini PC'ye gönder
+            display: 'block'
+        });
+    }
                 break;
         }
     },

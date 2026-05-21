@@ -5180,36 +5180,54 @@ function setupConnectionEvents() {
             }
         }
 
-        // 6. GELİŞMİŞ ARAÇLAR (BEYİN - STATE)
-        if (data.type === 'arac_state_senkron') {
-            let toolObj = null, el = null;
-            if (data.arac === 'ruler') { toolObj = window.RulerTool; el = document.querySelector('.ruler-container'); }
-            if (data.arac === 'gonye') { toolObj = window.GonyeTool; el = document.querySelector('.gonye-container'); }
-            if (data.arac === 'aciolcer') { toolObj = window.AciolcerTool; el = document.querySelector('.aciolcer-container'); }
-            if (data.arac === 'pergel') { toolObj = window.PergelTool; el = document.getElementById('compass-container'); }
+       // 6. GELİŞMİŞ ARAÇLAR (BEYİN - STATE)
+if (data.type === 'arac_state_senkron') {
+    let toolObj = null, el = null;
+    if (data.arac === 'ruler') { toolObj = window.RulerTool; el = document.querySelector('.ruler-container'); }
+    if (data.arac === 'gonye') { toolObj = window.GonyeTool; el = document.querySelector('.gonye-container'); }
+    if (data.arac === 'aciolcer') { toolObj = window.AciolcerTool; el = document.querySelector('.aciolcer-container'); }
+    if (data.arac === 'pergel') { toolObj = window.PergelTool; el = document.getElementById('compass-container'); }
 
-            if (toolObj && el) {
-                if (data.display === 'none') { data.arac === 'pergel' ? el.classList.add('hidden') : el.style.display = 'none'; }
-                else { data.arac === 'pergel' ? el.classList.remove('hidden') : el.style.display = (data.arac === 'ruler' || data.arac === 'gonye') ? 'flex' : 'block'; }
+    if (toolObj && el) {
+        // Görünürlük
+        if (data.display === 'none') { data.arac === 'pergel' ? el.classList.add('hidden') : el.style.display = 'none'; }
+        else { data.arac === 'pergel' ? el.classList.remove('hidden') : el.style.display = (data.arac === 'ruler' || data.arac === 'gonye') ? 'flex' : 'block'; }
+        
+        // Boyutlar
+        if (data.width) el.style.width = data.width;
+        if (data.height) el.style.height = data.height;
+
+        // Beyin (State) Güncellemesi
+        if (data.state) {
+            Object.assign(toolObj.state, data.state);
+            
+            // Pergel Özel İşlemleri
+            if (data.arac === 'pergel') {
+                if (toolObj.state.isFlipped) { 
+                    toolObj.leftLeg.appendChild(toolObj.penTip); toolObj.leftLeg.appendChild(toolObj.penResizeHandle); 
+                    toolObj.rightLeg.appendChild(toolObj.needleTip); 
+                } else { 
+                    toolObj.leftLeg.appendChild(toolObj.needleTip); 
+                    toolObj.rightLeg.appendChild(toolObj.penTip); toolObj.rightLeg.appendChild(toolObj.penResizeHandle); 
+                }
                 
-                if (data.width) el.style.width = data.width;
-                if (data.height) el.style.height = data.height;
-
-                if (data.state) {
-                    Object.assign(toolObj.state, data.state);
-                    // Pergel özel (Flip ve Çizim)
-                    if (data.arac === 'pergel') {
-                        if (toolObj.state.isFlipped) { toolObj.leftLeg.appendChild(toolObj.penTip); toolObj.leftLeg.appendChild(toolObj.penResizeHandle); toolObj.rightLeg.appendChild(toolObj.needleTip); }
-                        else { toolObj.leftLeg.appendChild(toolObj.needleTip); toolObj.rightLeg.appendChild(toolObj.penTip); toolObj.rightLeg.appendChild(toolObj.penResizeHandle); }
-                        if (toolObj.state.isDrawing) { toolObj.previewCanvas.style.display = 'block'; toolObj.drawPreviewArc(); }
-                        else { toolObj.previewCanvas.style.display = 'none'; toolObj.previewCtx.clearRect(0,0,toolObj.previewCanvas.width, toolObj.previewCanvas.height); }
-                    }
-                    if (toolObj.updateTransform) toolObj.updateTransform();
-                    if (toolObj.updateMarkings) toolObj.updateMarkings();
-                    if (toolObj.createLabels) toolObj.createLabels();
+                if (toolObj.state.isDrawing) { 
+                    toolObj.previewCanvas.style.display = 'block'; 
+                    toolObj.drawPreviewArc(); 
+                } else { 
+                    toolObj.previewCanvas.style.display = 'none'; 
+                    if(toolObj.previewCtx) toolObj.previewCtx.clearRect(0,0,toolObj.previewCanvas.width, toolObj.previewCanvas.height); 
                 }
             }
         }
+
+        // --- GÜNCELLEME KOMUTLARI (İŞTE EKSİK OLANLAR) ---
+        if (typeof toolObj.updateTransform === 'function') toolObj.updateTransform();
+        if (typeof toolObj.updateMarkings === 'function') toolObj.updateMarkings();
+        if (typeof toolObj.createLabels === 'function') toolObj.createLabels();
+
+    } // END if(toolObj && el)
+} // END if(arac_state_senkron)
     }); // <--- Bu parantez ile kapattık.
 
     myConnection.on('close', function() {
@@ -5343,3 +5361,13 @@ window.araclariAgaGonder = function() {
 };
 // Saniyede 25 kez araçların hareket edip etmediğini kontrol eder
 setInterval(window.araclariAgaGonder, 40);
+
+// PC (Tahta) ekranı için araçları başlat
+window.addEventListener('load', () => {
+    if (window.PergelTool && typeof window.PergelTool.init === 'function') {
+        window.PergelTool.init();
+        // PC'de pergelin çizim yapmasına gerek yok, sadece önizlemeyi izleyecek
+        // Bu yüzden PC tarafında araçları "gizli" (hidden) başlatabiliriz
+        window.PergelTool.hide(); 
+    }
+});
