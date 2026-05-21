@@ -5248,7 +5248,7 @@ function setupConnectionEvents() {
             // PERGEL KORUMASI: Seçici uyuşmazlığını düzeltme
             let selector = data.selector;
             if (data.arac === 'pergel') {
-                selector = '#compass-container'; // ID tam olarak bu olmalı
+                selector = '#compass-container'; 
             }
 
             const el = document.querySelector(selector);
@@ -5267,7 +5267,7 @@ function setupConnectionEvents() {
                         el.style.width = data.width;
                         if (window.RulerTool) {
                             window.RulerTool.state.width = parseFloat(data.width);
-                            window.RulerTool.updateMarkings(); // PC'de yeni sayı etiketlerini üret!
+                            window.RulerTool.updateMarkings(); 
                         }
                     }
                     el.style.transform = data.transform;
@@ -5275,7 +5275,6 @@ function setupConnectionEvents() {
                 
                 // 2. AÇIÖLÇER: Radius (Yarıçap) değerini hafızadan çekip güncelle
                 else if (data.arac === 'aciolcer') {
-                    // Açıölçer genişliğini kullanarak radius değerini bul (genişliğin yarısı)
                     if (data.width) {
                         const newRadius = parseFloat(data.width) / 2;
                         el.style.setProperty('--width-px', data.width);
@@ -5283,33 +5282,39 @@ function setupConnectionEvents() {
                         
                         if (window.AciolcerTool) {
                             window.AciolcerTool.state.radius = newRadius;
-                            window.AciolcerTool.createLabels(); // PC'de iç çizgileri ve dereceleri yeniden çiz!
+                            window.AciolcerTool.createLabels(); 
                         }
                     }
                     el.style.transform = data.transform;
                 }
 
-                // 3. PERGEL: Pergelin açısal dönüşümlerini ve görünümünü ayarla
+                // 3. GÖNYE: Boyut ve Dönme (Rotation) Güncellemesi
+                else if (data.arac === 'gonye') {
+                    if (data.width && data.height) {
+                        el.style.width = data.width;
+                        el.style.height = data.height;
+                        if (window.GonyeTool) {
+                            window.GonyeTool.state.width = parseFloat(data.width);
+                            window.GonyeTool.state.height = parseFloat(data.height);
+                            window.GonyeTool.updateMarkings(); // PC'de yeni sayı ve çizgileri üret!
+                        }
+                    }
+                    el.style.transform = data.transform; // Gönyenin döndürülmesini PC'ye uygula
+                }
+
+                // 4. PERGEL: Pergelin açısal dönüşümlerini ve görünümünü ayarla
                 else if (data.arac === 'pergel') {
-                    // Pergel transform kullanmıyor, CSS değişkenleri kullanıyor
                     if (data.width) el.style.width = data.width;
                     if (data.height) el.style.height = data.height;
-                    
-                    if (window.PergelTool) {
-                        // Tabletten gelen transform veya css değişkenlerini PC'ye uygula
-                        // (Pergelin radar gönderiminde açısal değişkenleri eklemediysen bile 
-                        // en azından PC'de artık kutu olarak görünecektir).
-                    }
                 }
             }
 
-            // Butonların ışıklarını senkronize et
+            // Butonların aktiflik durumlarını (ışıklarını) senkronize et
             if (data.arac === 'ruler' && typeof rulerButton !== 'undefined') rulerButton.classList.toggle('active', data.display !== 'none');
             if (data.arac === 'gonye' && typeof gonyeButton !== 'undefined') gonyeButton.classList.toggle('active', data.display !== 'none');
             if (data.arac === 'aciolcer' && typeof aciolcerButton !== 'undefined') aciolcerButton.classList.toggle('active', data.display !== 'none');
             if (data.arac === 'pergel' && typeof pergelButton !== 'undefined') pergelButton.classList.toggle('active', data.display !== 'none');
         }
-    }); // data dinleyicisi burada düzgünce kapanıyor
 
     myConnection.on('close', function() {
         isConnected = false;
