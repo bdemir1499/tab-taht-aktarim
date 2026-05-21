@@ -5220,19 +5220,15 @@ if (window.PergelTool && typeof window.PergelTool.init === 'function') {
                     else { data.arac === 'pergel' ? el.classList.remove('hidden') : el.style.display = (data.arac === 'ruler' || data.arac === 'gonye') ? 'flex' : 'block'; }
                     if (data.width) el.style.width = data.width;
                     if (data.height) el.style.height = data.height;
-                    if (typeof toolObj.updateTransform === 'function') toolObj.updateTransform();
                 }
-            }
-        }
 
-        // --- GÜNCELLEME KOMUTLARI (İŞTE EKSİK OLANLAR) ---
-        if (typeof toolObj.updateTransform === 'function') toolObj.updateTransform();
-        if (typeof toolObj.updateMarkings === 'function') toolObj.updateMarkings();
-        if (typeof toolObj.createLabels === 'function') toolObj.createLabels();
-
-    } // END if(toolObj && el)
-} // END if(arac_state_senkron)
-    }); // <--- Bu parantez ile kapattık.
+                // --- GÜNCELLEME KOMUTLARI (toolObj bloğunun İÇİNDE olmalı) ---
+                if (typeof toolObj.updateTransform === 'function') toolObj.updateTransform();
+                if (typeof toolObj.updateMarkings === 'function') toolObj.updateMarkings();
+                if (typeof toolObj.createLabels === 'function') toolObj.createLabels();
+            } 
+        } 
+    }); // <--- Veri dinleyicisini kapatan ANA parantez. (Eğer altında başka data.type eklemediysen tam olarak burada bitmeli)
 
     myConnection.on('close', function() {
         isConnected = false;
