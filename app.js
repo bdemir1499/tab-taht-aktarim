@@ -5121,7 +5121,7 @@ function setupConnectionEvents() {
 
         if (!data || !data.type) return;
 
-        // [SİLME VE ÇİZİM İŞLEMLERİ...]
+        // 1. ZOMBİ KORUMASI (SİLME)
         if (data.type === 'sil_objeyi') {
             const zombiIndex = window.drawnStrokes.findIndex(s => s.id === data.strokeId);
             if (zombiIndex !== -1) window.drawnStrokes.splice(zombiIndex, 1);
@@ -5129,6 +5129,7 @@ function setupConnectionEvents() {
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
 
+        // 2. YENİ ÇİZİM
         if (data.type === 'yeni_cizim') {
             const stroke = data.stroke;
             if (!window.drawnStrokes.some(s => s.id && s.id === stroke.id)) {
@@ -5143,12 +5144,32 @@ function setupConnectionEvents() {
             }
         }
 
-        // [PDF, RESİM, GERİ AL İŞLEMLERİ...]
-        if (data.type === 'pdf_yukle') { /* PDF kodu... */ }
+        // 3. PDF VE MEDYA
+        if (data.type === 'pdf_yukle') { 
+            /* ... (PDF kodun aynı kalsın) ... */ 
+        }
+        if (data.type === 'pdf_sayfa_degis') {
+            window.currentPDFPage = data.sayfa;
+            if (typeof renderPDFPage === 'function') renderPDFPage(window.currentPDFPage);
+        }
+        if (data.type === 'resim_yukle') {
+            const img = new Image();
+            img.onload = () => { if (typeof addNewImageToCanvas === 'function') addNewImageToCanvas(img, false); };
+            img.src = data.imgData;
+        }
+
+        // 4. ARAÇLAR VE DİL
         if (data.type === 'geri_al') { window.drawnStrokes.pop(); if (window.redrawAllStrokes) window.redrawAllStrokes(); }
         if (data.type === 'hepsini_sil') { window.drawnStrokes.length = 0; if (window.redrawAllStrokes) window.redrawAllStrokes(); }
 
-        // --- 1. BASİT DOM ARAÇLARI ---
+        // --- İŞTE EKSİK OLAN KISIM: DİL SEÇİMİ VE EKRAN GEÇİŞİ ---
+        if (data.type === 'dil_secimi') {
+            if (typeof setLanguage === 'function') setLanguage(data.lang);
+            // Eğer dil seçimi ile ekranı değiştiriyorsan tetikleyiciyi burada çağır:
+            if (typeof showDrawingScreen === 'function') showDrawingScreen(); 
+        }
+
+        // 5. BASİT ARAÇLAR (Kopyalar)
         if (data.type === 'arac_senkron') {
             const el = document.querySelector(data.selector);
             if (el) {
@@ -5159,7 +5180,7 @@ function setupConnectionEvents() {
             }
         }
 
-        // --- 2. GELİŞMİŞ ARAÇLAR (STATE-BEYİN) ---
+        // 6. GELİŞMİŞ ARAÇLAR (BEYİN - STATE)
         if (data.type === 'arac_state_senkron') {
             let toolObj = null, el = null;
             if (data.arac === 'ruler') { toolObj = window.RulerTool; el = document.querySelector('.ruler-container'); }
@@ -5176,9 +5197,10 @@ function setupConnectionEvents() {
 
                 if (data.state) {
                     Object.assign(toolObj.state, data.state);
+                    // Pergel özel (Flip ve Çizim)
                     if (data.arac === 'pergel') {
-                        if (toolObj.state.isFlipped) { toolObj.leftLeg.appendChild(toolObj.penTip); toolObj.rightLeg.appendChild(toolObj.needleTip); }
-                        else { toolObj.leftLeg.appendChild(toolObj.needleTip); toolObj.rightLeg.appendChild(toolObj.penTip); }
+                        if (toolObj.state.isFlipped) { toolObj.leftLeg.appendChild(toolObj.penTip); toolObj.leftLeg.appendChild(toolObj.penResizeHandle); toolObj.rightLeg.appendChild(toolObj.needleTip); }
+                        else { toolObj.leftLeg.appendChild(toolObj.needleTip); toolObj.rightLeg.appendChild(toolObj.penTip); toolObj.rightLeg.appendChild(toolObj.penResizeHandle); }
                         if (toolObj.state.isDrawing) { toolObj.previewCanvas.style.display = 'block'; toolObj.drawPreviewArc(); }
                         else { toolObj.previewCanvas.style.display = 'none'; toolObj.previewCtx.clearRect(0,0,toolObj.previewCanvas.width, toolObj.previewCanvas.height); }
                     }
@@ -5188,7 +5210,7 @@ function setupConnectionEvents() {
                 }
             }
         }
-    }); // <--- İŞTE BU PARANTEZ data DİNLEYİCİSİNİ KAPATIYOR.
+    }); // <--- Bu parantez ile kapattık.
 
     myConnection.on('close', function() {
         isConnected = false;
