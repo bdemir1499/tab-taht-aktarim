@@ -4834,8 +4834,8 @@ if (kanvasSabitleyici) {
     }, { passive: false });
 }
 
-// // =========================================================================
-// KUSURSUZ AKILLI NESNE SİLGİSİ v2 (DİKDÖRTGEN VE İMLEÇ DESTEKLİ)
+// =========================================================================
+// KUSURSUZ AKILLI NESNE SİLGİSİ v2 (ZOMBİ KORUMALI VE EKSİKSİZ)
 // =========================================================================
 const canvasElm = document.getElementById('drawing-canvas');
 
@@ -4858,7 +4858,7 @@ function akilliSilgi(e, isDown) {
         ey = e.clientY - rect.top;
     }
 
-    const eR = 25; // Silgi alanını biraz daha genişlettik (daha rahat siler)
+    const eR = 25; 
     let silindiMi = false;
 
     const distToSeg = (p, v, w) => {
@@ -4872,7 +4872,7 @@ function akilliSilgi(e, isDown) {
     if (typeof drawnStrokes !== 'undefined') {
         for (let i = drawnStrokes.length - 1; i >= 0; i--) {
             const s = drawnStrokes[i];
-            if (s.isBackground) continue; // PDF/Arkaplan silinmez
+            if (s.isBackground) continue; 
 
             let vuruldu = false;
 
@@ -4885,11 +4885,11 @@ function akilliSilgi(e, isDown) {
                     if (Math.hypot(s.path[0].x - ex, s.path[0].y - ey) < eR + 5) vuruldu = true;
                 }
             } 
-            // 2. Kutu ve Serbest Kesimler (Snapshot/Image)
+            // 2. Kutu ve Serbest Kesimler
             else if (s.type === 'image') {
                  if (ex >= (s.x||0) && ex <= (s.x||0) + (s.width||0) && ey >= (s.y||0) && ey <= (s.y||0) + (s.height||0)) vuruldu = true;
             } 
-            // 3. Çokgenler (Üçgen, Beşgen, Altıgen)
+            // 3. Çokgenler
             else if (s.type === 'polygon' && s.center) {
                  if (Math.hypot(s.center.x - ex, s.center.y - ey) <= (s.radius||0) + eR) vuruldu = true;
             } 
@@ -4901,41 +4901,48 @@ function akilliSilgi(e, isDown) {
             else if (s.p1 && s.p2) {
                  if (distToSeg({x: ex, y: ey}, s.p1, s.p2) < eR + 10) vuruldu = true;
             }
-            // 6. YENİ: DİKDÖRTGEN DESTEĞİ
+            // 6. DİKDÖRTGEN DESTEĞİ
             else if (s.type === 'rectangle' || s.type === 'rect') {
                  let rx = s.x !== undefined ? s.x : Math.min(s.startPoint?.x||0, s.endPoint?.x||0);
                  let ry = s.y !== undefined ? s.y : Math.min(s.startPoint?.y||0, s.endPoint?.y||0);
                  let rw = s.width !== undefined ? s.width : Math.abs((s.startPoint?.x||0) - (s.endPoint?.x||0));
                  let rh = s.height !== undefined ? s.height : Math.abs((s.startPoint?.y||0) - (s.endPoint?.y||0));
                  
-                 // Silgi dikdörtgenin sınırları içindeyse veya çizgisine değdiyse sil
                  if (ex >= rx - eR && ex <= rx + rw + eR && ey >= ry - eR && ey <= ry + rh + eR) {
                      vuruldu = true;
                  }
             }
 
-            // akilliSilgi fonksiyonu içindeki o bölümü şu şekilde değiştir:
-// akilliSilgi fonksiyonu içindeki vuruldu bölümünü şu şekilde değiştir:
-        if (vuruldu) {
-            // Sildiğimiz objenin bir ID'si yoksa, anlık bir tane oluşturuyoruz
-            if (!s.id) s.id = Date.now() + Math.random(); 
-            
-            // DİKKAT: drawnStrokes yerine window.drawnStrokes kullanarak referans kopmasını önlüyoruz
-            window.drawnStrokes.splice(i, 1);
-            silindiMi = true;
-            
-            // YENİ: PC'ye hem uydurduğumuz ID'yi, hem de şeklin kaçıncı sırada (i) olduğunu yolluyoruz!
-            if (typeof isConnected !== 'undefined' && isConnected) {
-                window.sendNetworkData({ type: 'sil_objeyi', strokeId: s.id, index: i });
+            // VURULDUYSA SİL VE AĞA GÖNDER
+            if (vuruldu) {
+                if (!s.id) s.id = Date.now() + Math.random(); 
+                window.drawnStrokes.splice(i, 1);
+                silindiMi = true;
+                
+                if (typeof isConnected !== 'undefined' && isConnected) {
+                    window.sendNetworkData({ type: 'sil_objeyi', strokeId: s.id, index: i });
+                }
             }
-        }
+        } 
+    } 
 
-// YENİ: e.stopImmediatePropagation() kodları SİLİNDİ!
-// Artık silgi objeleri arka planda sessizce silecek, imleç ve diğer efektler çalışmaya devam edecek.
+    if (silindiMi && window.redrawAllStrokes) {
+        window.redrawAllStrokes(); 
+    }
+} // AKILLI SİLGİ FONKSİYONU BURADA TEMİZCE KAPANDI
+
+// --- SİLGİ OLAY DİNLEYİCİLERİ (Artık Güvende) ---
 if (canvasElm) {
     canvasElm.addEventListener('pointerdown', (e) => akilliSilgi(e, true));
     canvasElm.addEventListener('pointermove', (e) => akilliSilgi(e, false));
     canvasElm.addEventListener('touchmove', (e) => akilliSilgi(e, false), {passive: true});
+    
+    // Fare veya parmak kanvas alanından çıkarsa silgi imlecini zorla kapat
+    canvasElm.addEventListener('pointerleave', () => {
+        if (typeof eraserPreview !== 'undefined' && eraserPreview) {
+            eraserPreview.style.display = 'none';
+        }
+    });
 }
 // =========================================================================
 
