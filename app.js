@@ -5400,8 +5400,8 @@ window.araclariAgaGonder = function() {
                     left: el.style.left,
                     top: el.style.top,
                     transform: el.style.transform,
-                    width: el.style.width,    // BOYUT GÖNDERİMİ
-                    height: el.style.height   // BOYUT GÖNDERİMİ
+                    width: el.style.width || window.getComputedStyle(el).width, // Boyutu zorla al
+                    height: el.style.height || window.getComputedStyle(el).height // Boyutu zorla al
                 });
             }
         }
