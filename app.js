@@ -2737,6 +2737,14 @@ canvas.addEventListener('pointermove', (e) => {
                     bg.height = newH;
                 });
                 redrawAllStrokes();
+// --- BURAYA EKLE: ZOMM VERİSİNİ PC'YE FIRLAT ---
+                window.sendNetworkData({
+                    type: 'zoom_senkron',
+                    x: bgStrokes[0].x, 
+                    y: bgStrokes[0].y, 
+                    width: bgStrokes[0].width, 
+                    height: bgStrokes[0].height
+                });
             }
         }
         lastDist = currentDist; 
@@ -2755,6 +2763,8 @@ canvas.addEventListener('pointermove', (e) => {
         const angle = Math.atan2(pos.y - cY, pos.x - cX);
         selectedItem.rotation = (angle * 180 / Math.PI) + 90;
 window.sendNetworkData({ type: 'arac_senkron', selector: '.yuzen-kopya-container', transform: `rotate(${selectedItem.rotation}deg)` });
+// --- BURAYA EKLE ---
+        window.sendNetworkData({ type: 'sekil_guncelle', stroke: selectedItem });
         if (window.redrawAllStrokes) window.redrawAllStrokes();
         return;
     }
@@ -2769,6 +2779,8 @@ window.sendNetworkData({ type: 'arac_senkron', selector: '.yuzen-kopya-container
         selectedItem.x = cX - selectedItem.width / 2;
         selectedItem.y = cY - selectedItem.height / 2;
 window.sendNetworkData({ type: 'arac_senkron', selector: '.yuzen-kopya-container', width: selectedItem.width + 'px', height: selectedItem.height + 'px' });
+// --- BURAYA EKLE ---
+        window.sendNetworkData({ type: 'sekil_guncelle', stroke: selectedItem });
         if (window.redrawAllStrokes) window.redrawAllStrokes();
         return;
     }
@@ -2884,6 +2896,9 @@ window.sendNetworkData({
             width: (selectedItem.width || 0) + 'px',
             height: (selectedItem.height || 0) + 'px'
         });
+
+// --- BURAYA EKLE ---
+        window.sendNetworkData({ type: 'sekil_guncelle', stroke: selectedItem });
         return; 
     }
 
@@ -5139,19 +5154,28 @@ function setupConnectionEvents() {
             }
         }
 
-// 2. KOPYALARI VE TRANSFORMLARI (DÖNDÜRME/BOYUT) AKTAR
+// 2. KOPYALARI VE HAREKETLERİ AKTAR (DOM Butonları İçin Koruma Eklendi)
         if (data.type === 'arac_senkron') {
             const el = document.querySelector(data.selector);
             if (el) {
-                el.style.display = data.display; 
-                el.style.left = data.left; 
-                el.style.top = data.top;
-                el.style.transform = data.transform; // Döndürme ve ölçek burada işlenir
-                if (data.width) el.style.width = data.width;
-                if (data.height) el.style.height = data.height;
+                if (data.display !== undefined) el.style.display = data.display; 
+                if (data.left !== undefined) el.style.left = data.left; 
+                if (data.top !== undefined) el.style.top = data.top;
+                if (data.transform !== undefined) el.style.transform = data.transform; 
+                if (data.width !== undefined) el.style.width = data.width;
+                if (data.height !== undefined) el.style.height = data.height;
             }
         }
 
+        // --- YENİ: CANVAS ÜZERİNDEKİ ŞEKLİ GÜNCELLEME ---
+        if (data.type === 'sekil_guncelle') {
+            if (!data.stroke || !data.stroke.id) return;
+            const index = window.drawnStrokes.findIndex(s => s.id === data.stroke.id);
+            if (index !== -1) {
+                window.drawnStrokes[index] = data.stroke; // Eski şekli yeni koordinatlarıyla ez
+                if (window.redrawAllStrokes) window.redrawAllStrokes();
+            }
+        }
         if (data.type === 'sil_objeyi') {
             const zombiIndex = window.drawnStrokes.findIndex(s => s.id === data.strokeId);
             if (zombiIndex !== -1) window.drawnStrokes.splice(zombiIndex, 1);
@@ -5292,7 +5316,7 @@ function setupConnectionEvents() {
             }
         }
 
-// 5. ÇİZİM ÖNİZLEME (KALEM, DİKDÖRTGEN, ÇOKGEN)
+// 5. ÇİZİM ÖNİZLEME (KALEM, DİKDÖRTGEN, ÇOKGEN VE ÇİZGİLER)
             else if (arac === 'cizim_onizleme') {
                 const canvas = document.getElementById('drawing-canvas');
                 const ctx = canvas.getContext('2d');
@@ -5304,11 +5328,11 @@ function setupConnectionEvents() {
 
                 ctx.save();
                 ctx.strokeStyle = '#FF0000'; // Önizleme rengi
-                ctx.lineWidth = 2;
+                ctx.lineWidth = 3;
                 ctx.setLineDash([5, 5]); // Kesikli çizgi
 
                 // A) KALEM (PEN) ÖNİZLEMESİ
-                if (p.tool === 'pen' && p.path) {
+                if (p.tool === 'pen' && p.path && p.path.length > 0) {
                     ctx.beginPath();
                     ctx.moveTo(p.path[0].x, p.path[0].y);
                     for (let i = 1; i < p.path.length; i++) {
@@ -5316,21 +5340,51 @@ function setupConnectionEvents() {
                     }
                     ctx.stroke();
                 }
-                // B) DİKDÖRTGEN ÖNİZLEMESİ
-                else if (p.tool === 'rectangle') {
+                // B) ÇİZGİ ÇEŞİTLERİ (DOĞRU, IŞIN, PARÇA)
+                else if (['straightLine', 'line', 'segment', 'ray'].includes(p.tool) && p.start && p.end) {
                     ctx.beginPath();
-                    ctx.rect(p.x, p.y, p.w, p.h);
+                    const dx = p.end.x - p.start.x;
+                    const dy = p.end.y - p.start.y;
+                    const devCarpan = 5000;
+                    
+                    if (p.tool === 'line') {
+                        // İki yöne sonsuz uzayan doğru
+                        ctx.moveTo(p.start.x - dx * devCarpan, p.start.y - dy * devCarpan);
+                        ctx.lineTo(p.start.x + dx * devCarpan, p.start.y + dy * devCarpan);
+                    } else if (p.tool === 'ray') {
+                        // Tek yöne sonsuz uzayan ışın
+                        ctx.moveTo(p.start.x, p.start.y);
+                        ctx.lineTo(p.start.x + dx * devCarpan, p.start.y + dy * devCarpan);
+                    } else {
+                        // Normal doğru parçası
+                        ctx.moveTo(p.start.x, p.start.y);
+                        ctx.lineTo(p.end.x, p.end.y);
+                    }
                     ctx.stroke();
                 }
-                // C) ÇOKGEN/ÇEMBER ÖNİZLEMESİ
-                else if (p.tool === 'polygon' || p.tool === 'arc') {
+                // C) DİKDÖRTGEN ÖNİZLEMESİ
+                else if (p.tool === 'rectangle' && p.start && p.end) {
                     ctx.beginPath();
-                    ctx.arc(p.cx, p.cy, p.radius, 0, Math.PI * 2);
+                    ctx.rect(
+                        Math.min(p.start.x, p.end.x), 
+                        Math.min(p.start.y, p.end.y), 
+                        Math.abs(p.end.x - p.start.x), 
+                        Math.abs(p.end.y - p.start.y)
+                    );
                     ctx.stroke();
                 }
+                // D) ÇOKGEN VE ÇEMBER ÖNİZLEMESİ
+                else if (p.start && p.end) {
+                    // Yarıçap tablette hesaplanıp gelmişse onu kullan, yoksa PC'de hesapla
+                    const radius = p.radius || Math.hypot(p.end.x - p.start.x, p.end.y - p.start.y);
+                    ctx.beginPath();
+                    // Çokgenlerin ve çemberlerin sınırlarını belirten geçici çember önizlemesi
+                    ctx.arc(p.start.x, p.start.y, radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                
                 ctx.restore();
-            }
-        
+            }        
         if (data.type === 'onizleme_bitir') {
             if (window.RulerTool && window.RulerTool.drawCtx) { window.RulerTool.drawHandleLabel.style.display = 'none'; window.RulerTool.drawCtx.clearRect(0,0, window.RulerTool.drawCanvas.width, window.RulerTool.drawCanvas.height); }
             if (window.GonyeTool && window.GonyeTool.drawCtx) { window.GonyeTool.drawHandleLabel.style.display = 'none'; window.GonyeTool.drawHandleElement.style.transition = 'top 0.1s ease-out'; window.GonyeTool.drawHandleElement.style.top = `${window.GonyeTool.state.height - 20}px`; window.GonyeTool.drawCtx.clearRect(0,0, window.GonyeTool.drawCanvas.width, window.GonyeTool.drawCanvas.height); }
