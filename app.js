@@ -3038,15 +3038,22 @@ window.sendNetworkData({
             ctx.stroke();
         }
 
-// --- BURAYA EKLE (ÖNİZLEMEYİ PC'YE FIRLAT) ---
-        window.broadcastPreview(currentTool, {
-            start: lineStartPoint || rectStartPoint || (window.tempPolygonData ? window.tempPolygonData.center : null) || snapshotStart,
-            end: endPos,
-            tool: currentTool
-        });
         
         ctx.restore(); // Çizim bitince kalemi düz çizgiye geri çevir
         previewActive = true;
+
+// --- BURAYA EKLE (Şekiller için) ---
+        window.sendNetworkData({ 
+            type: 'aktif_onizleme', 
+            arac: 'cizim_onizleme', 
+            payload: { 
+                tool: currentTool, 
+                start: lineStartPoint || rectStartPoint || (window.tempPolygonData ? window.tempPolygonData.center : null), 
+                end: endPos,
+                radius: (window.tempPolygonData) ? window.tempPolygonData.radius : null
+            } 
+        });
+
     }
 
     if (previewActive) return; 
@@ -3079,6 +3086,11 @@ window.sendNetworkData({
         const pressureMove = pInfoMove.type === 'pen' ? pInfoMove.pressure : 1;
         drawnStrokes[drawnStrokes.length - 1].path.push({x: pos.x, y: pos.y, p: pressureMove});
         redrawAllStrokes();
+window.sendNetworkData({ 
+            type: 'aktif_onizleme', 
+            arac: 'cizim_onizleme', 
+            payload: { tool: 'pen', path: drawnStrokes[drawnStrokes.length - 1].path } 
+        });
     } 
     else if (currentTool === 'eraser') {
         // ... (Buradaki silgi algoritması aynı kalacak)
@@ -5112,7 +5124,7 @@ function setupConnectionEvents() {
     myConnection.on('data', function(data) {
         if (!data || !data.type) return;
 
-        // 1. ÇİZİM VE ARAÇ AKTARIMI
+       // 1. ÇİZİM, PDF VE RESİM AKTARIMI
         if (data.type === 'yeni_cizim') {
             const stroke = data.stroke;
             if (!window.drawnStrokes.some(s => s.id && s.id === stroke.id)) {
@@ -5161,9 +5173,8 @@ function setupConnectionEvents() {
                 if (typeof pdfjsLib !== 'undefined') {
                     pdfjsLib.getDocument(bytes).promise.then(pdf => {
                         window.currentPDF = pdf; window.totalPDFPages = pdf.numPages; window.currentPDFPage = 1;
-                        const pdfControls = document.getElementById('pdf-controls');
-                        if (pdfControls) pdfControls.classList.remove('hidden');
-                        if (typeof renderPDFPage === 'function') renderPDFPage(window.currentPDFPage);
+                        if (document.getElementById('pdf-controls')) document.getElementById('pdf-controls').classList.remove('hidden');
+                        if (typeof renderPDFPage === 'function') renderPDFPage(1);
                     });
                 }
             } catch (e) { console.error("PDF Hatası:", e); }
@@ -5176,6 +5187,13 @@ function setupConnectionEvents() {
             img.src = data.imgData;
         }
 
+// 3. ZOOM VE KOPYALAR (TRANSFORM AKTARIMI)
+        if (data.type === 'zoom_senkron') {
+            const bgStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
+            bgStrokes.forEach(bg => { bg.x = data.x; bg.y = data.y; bg.width = data.width; bg.height = data.height; });
+            if (window.redrawAllStrokes) window.redrawAllStrokes();
+        }
+
         // 3. DİL VE KOPYA ARAÇLARI
         if (data.type === 'dil_secimi') { 
             if (typeof setLanguage === 'function') setLanguage(data.lang);
@@ -5185,9 +5203,11 @@ function setupConnectionEvents() {
         if (data.type === 'arac_senkron') {
             const el = document.querySelector(data.selector);
             if (el) {
-                el.style.display = data.display; el.style.left = data.left; el.style.top = data.top;
-                el.style.transform = data.transform;
-                if (data.width) el.style.width = data.width;
+                el.style.display = data.display; 
+                el.style.left = data.left; 
+                el.style.top = data.top;
+                el.style.transform = data.transform; // DÖNDÜRME BURADA İŞLENİR
+                if (data.width) el.style.width = data.width; // BOYUTLANDIRMA BURADA İŞLENİR
                 if (data.height) el.style.height = data.height;
             }
         }
@@ -5271,6 +5291,45 @@ function setupConnectionEvents() {
                 clearTimeout(window.lazerTimer); window.lazerTimer = setTimeout(() => { lazer.style.display = 'none'; }, 150);
             }
         }
+
+// 5. ÇİZİM ÖNİZLEME (KALEM, DİKDÖRTGEN, ÇOKGEN)
+            else if (arac === 'cizim_onizleme') {
+                const canvas = document.getElementById('drawing-canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Ekranı temizleyip sadece mevcut kayıtlı çizimleri çiz (önizlemeyi temizlemek için)
+                if (typeof window.redrawAllStrokes === 'function') {
+                    window.redrawAllStrokes();
+                }
+
+                ctx.save();
+                ctx.strokeStyle = '#FF0000'; // Önizleme rengi
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]); // Kesikli çizgi
+
+                // A) KALEM (PEN) ÖNİZLEMESİ
+                if (p.tool === 'pen' && p.path) {
+                    ctx.beginPath();
+                    ctx.moveTo(p.path[0].x, p.path[0].y);
+                    for (let i = 1; i < p.path.length; i++) {
+                        ctx.lineTo(p.path[i].x, p.path[i].y);
+                    }
+                    ctx.stroke();
+                }
+                // B) DİKDÖRTGEN ÖNİZLEMESİ
+                else if (p.tool === 'rectangle') {
+                    ctx.beginPath();
+                    ctx.rect(p.x, p.y, p.w, p.h);
+                    ctx.stroke();
+                }
+                // C) ÇOKGEN/ÇEMBER ÖNİZLEMESİ
+                else if (p.tool === 'polygon' || p.tool === 'arc') {
+                    ctx.beginPath();
+                    ctx.arc(p.cx, p.cy, p.radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
         
         if (data.type === 'onizleme_bitir') {
             if (window.RulerTool && window.RulerTool.drawCtx) { window.RulerTool.drawHandleLabel.style.display = 'none'; window.RulerTool.drawCtx.clearRect(0,0, window.RulerTool.drawCanvas.width, window.RulerTool.drawCanvas.height); }
