@@ -37,7 +37,7 @@ Bu proje; dijital araçlarla geometriyi öğretmeyi kolaylaştırmak için tasar
 ## ⚠️ Önemli Not (Sorumluluk Reddi)
 - **Bağımsızlık:** Bu yazılım, herhangi bir resmi kurum veya kuruluşla organik bir bağ içermez; tamamen kişisel bir hobi projesidir.
 - **Veri Gizliliği:** Bu uygulama **hiçbir kişisel veri toplamaz, depolamaz ve sunuculara yüklemez.** Tüm işlemler kullanıcıların kendi cihazları arasında (yerel/özel ağda) gerçekleşir.
-- **Kullanım:** Yazılım "olduğu gibi" sunulmuştur. Kullanımdan doğabilecek teknik veya diğer durumlardan geliştirici sorumlu tutulamaz.
+- **Kullanım:** "Bu yazılım 'olduğu gibi' sunulmuştur. Geliştirici, yazılımın kullanımından kaynaklanan hiçbir hukuki sorumluluğu kabul etmez. Kullanıcı, tüm sorumluluğun kendisine ait olduğunu kabul eder."
 
 ---
 
