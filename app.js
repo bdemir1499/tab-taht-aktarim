@@ -5096,7 +5096,74 @@ function setupConnectionEvents() {
     myConnection.on('data', function(data) {
         if (!data || !data.type) return;
 
-        // GELİŞMİŞ ARAÇLAR (BEYİN - STATE)
+        // --- 1. TEMEL ÇİZİMLER, PDF, RESİM VE KOPYALAR ---
+        // Kalem, Çokgen ve Fiziksel Araçların Tamamlanmış Çizimleri Buradan Alınır
+        if (data.type === 'yeni_cizim') {
+            const stroke = data.stroke;
+            if (!window.drawnStrokes.some(s => s.id && s.id === stroke.id)) {
+                if (stroke.type === 'image' && stroke.imgData) {
+                    const tempImg = new Image();
+                    tempImg.src = stroke.imgData;
+                    tempImg.onload = () => { stroke.imgObj = tempImg; window.drawnStrokes.push(stroke); if (window.redrawAllStrokes) window.redrawAllStrokes(); };
+                } else {
+                    window.drawnStrokes.push(stroke);
+                    if (window.redrawAllStrokes) window.redrawAllStrokes();
+                }
+            }
+        }
+
+        if (data.type === 'sil_objeyi') {
+            const zombiIndex = window.drawnStrokes.findIndex(s => s.id === data.strokeId);
+            if (zombiIndex !== -1) window.drawnStrokes.splice(zombiIndex, 1);
+            else if (data.index !== undefined && window.drawnStrokes[data.index]) window.drawnStrokes.splice(data.index, 1);
+            if (window.redrawAllStrokes) window.redrawAllStrokes();
+        }
+
+        if (data.type === 'geri_al') { window.drawnStrokes.pop(); if (window.redrawAllStrokes) window.redrawAllStrokes(); }
+        if (data.type === 'hepsini_sil') { window.drawnStrokes.length = 0; if (window.redrawAllStrokes) window.redrawAllStrokes(); }
+        
+        // PDF Aktarımı
+        if (data.type === 'pdf_yukle') { 
+            try {
+                const base64Data = data.pdfData.split(',')[1];
+                const binaryString = window.atob(base64Data);
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) { bytes[i] = binaryString.charCodeAt(i); }
+                if (typeof pdfjsLib !== 'undefined') {
+                    pdfjsLib.getDocument(bytes).promise.then(pdf => {
+                        window.currentPDF = pdf; window.totalPDFPages = pdf.numPages; window.currentPDFPage = 1;
+                        const pdfControls = document.getElementById('pdf-controls');
+                        if (pdfControls) pdfControls.classList.remove('hidden');
+                        if (typeof renderPDFPage === 'function') renderPDFPage(window.currentPDFPage);
+                    }).catch(err => { console.error("PDF Hatası:", err); });
+                }
+            } catch (e) { console.error("PDF Veri Hatası:", e); }
+        }
+
+        if (data.type === 'pdf_sayfa_degis') { window.currentPDFPage = data.sayfa; if (typeof renderPDFPage === 'function') renderPDFPage(window.currentPDFPage); }
+        
+        // Resim Aktarımı
+        if (data.type === 'resim_yukle') {
+            const img = new Image();
+            img.onload = () => { if (typeof addNewImageToCanvas === 'function') addNewImageToCanvas(img, false); };
+            img.src = data.imgData;
+        }
+
+        if (data.type === 'dil_secimi') { if (typeof setLanguage === 'function') setLanguage(data.lang); }
+
+        // Kutu, Serbest Seçim ve Yüzen Kopya Aktarımı
+        if (data.type === 'arac_senkron') {
+            const el = document.querySelector(data.selector);
+            if (el) {
+                el.style.display = data.display; el.style.left = data.left; el.style.top = data.top;
+                el.style.transform = data.transform;
+                if (data.width) el.style.width = data.width;
+                if (data.height) el.style.height = data.height;
+            }
+        }
+
+        // --- 2. GELİŞMİŞ ARAÇLAR (BEYİN - STATE) ---
         if (data.type === 'arac_state_senkron') {
             let toolObj = null, el = null;
             if (data.arac === 'ruler') { toolObj = window.RulerTool; el = document.querySelector('.ruler-container'); }
@@ -5105,26 +5172,20 @@ function setupConnectionEvents() {
             if (data.arac === 'pergel') { toolObj = window.PergelTool; el = document.getElementById('compass-container'); }
 
             if (toolObj) {
-                // Beyin (State) Güncellemesi
-                if (data.state) {
-                    Object.assign(toolObj.state, data.state);
-                    
-                    // PERGEL ÖZEL: Canlı Önizleme Çizimi
-                    if (data.arac === 'pergel') {
-                        if (toolObj.state.isDrawing) { 
-                            // PC'deki tuvali tabletle aynı boyuta getir
-                            toolObj.previewCanvas.style.display = 'block';
-                            toolObj.previewCanvas.width = window.innerWidth;
-                            toolObj.previewCanvas.height = window.innerHeight;
-                            toolObj.drawPreviewArc(); // YAYI ÇİZ!
-                        } else { 
-                            toolObj.previewCanvas.style.display = 'none'; 
-                            if(toolObj.previewCtx) toolObj.previewCtx.clearRect(0,0,toolObj.previewCanvas.width, toolObj.previewCanvas.height); 
-                        }
+                if (data.state) Object.assign(toolObj.state, data.state);
+                
+                if (data.arac === 'pergel' && toolObj.state) {
+                    if (toolObj.state.isDrawing) { 
+                        toolObj.previewCanvas.style.display = 'block';
+                        toolObj.previewCanvas.width = window.innerWidth;
+                        toolObj.previewCanvas.height = window.innerHeight;
+                        toolObj.drawPreviewArc(); 
+                    } else { 
+                        toolObj.previewCanvas.style.display = 'none'; 
+                        if(toolObj.previewCtx) toolObj.previewCtx.clearRect(0,0,toolObj.previewCanvas.width, toolObj.previewCanvas.height); 
                     }
                 }
                 
-                // HTML kutusunu güncelle (Eğer el mevcutsa)
                 if (el) {
                     if (data.display === 'none') { data.arac === 'pergel' ? el.classList.add('hidden') : el.style.display = 'none'; }
                     else { data.arac === 'pergel' ? el.classList.remove('hidden') : el.style.display = (data.arac === 'ruler' || data.arac === 'gonye') ? 'flex' : 'block'; }
@@ -5132,85 +5193,67 @@ function setupConnectionEvents() {
                     if (data.height) el.style.height = data.height;
                 }
 
-                // --- GÜNCELLEME KOMUTLARI ---
                 if (typeof toolObj.updateTransform === 'function') toolObj.updateTransform();
                 if (typeof toolObj.updateMarkings === 'function') toolObj.updateMarkings();
                 if (typeof toolObj.createLabels === 'function') toolObj.createLabels();
             } 
         } 
 
-        // --- GERÇEK ZAMANLI ÖNİZLEME ALICISI (PC EKRANI İÇİN) ---
+        // --- 3. GERÇEK ZAMANLI ÖNİZLEME ALICISI (PC EKRANI İÇİN) ---
         if (data.type === 'aktif_onizleme') {
             const arac = data.arac;
             const p = data.payload;
 
-            // 1. CETVEL
             if (arac === 'ruler' && window.RulerTool && window.RulerTool.drawCtx) {
                 const r = window.RulerTool;
-                r.drawHandleElement.style.transition = 'none';
-                r.drawHandleElement.style.left = `${p.handleX}px`;
+                r.drawHandleElement.style.transition = 'none'; r.drawHandleElement.style.left = `${p.handleX}px`;
                 r.drawHandleLabel.innerText = `${(p.handleX / r.PIXELS_PER_CM).toFixed(1).replace('.', ',')} cm`;
                 r.drawHandleLabel.style.display = 'block';
                 r.drawCtx.clearRect(0, 0, r.drawCanvas.width, r.drawCanvas.height);
                 r.drawCtx.beginPath(); r.drawCtx.moveTo(0, 4); r.drawCtx.lineTo(p.handleX, 4);
                 r.drawCtx.strokeStyle = '#FFFFFF'; r.drawCtx.lineWidth = 3; r.drawCtx.stroke();
             }
-            // 2. GÖNYE
             else if (arac === 'gonye' && window.GonyeTool && window.GonyeTool.drawCtx) {
                 const g = window.GonyeTool;
-                g.drawHandleElement.style.transition = 'none';
-                g.drawHandleElement.style.top = `${p.handleY}px`;
+                g.drawHandleElement.style.transition = 'none'; g.drawHandleElement.style.top = `${p.handleY}px`;
                 g.drawHandleLabel.innerText = `${(Math.abs(g.state.height - (p.handleY + 10)) / g.PIXELS_PER_CM).toFixed(1).replace('.', ',')} cm`;
                 g.drawHandleLabel.style.display = 'block';
                 g.drawCtx.clearRect(0, 0, g.drawCanvas.width, g.drawCanvas.height);
                 g.drawCtx.beginPath(); g.drawCtx.moveTo(4, g.state.height); g.drawCtx.lineTo(4, p.handleY + 10);
                 g.drawCtx.strokeStyle = '#FFFFFF'; g.drawCtx.lineWidth = 3; g.drawCtx.stroke();
             }
-            // 3. AÇIÖLÇER
             else if (arac === 'aciolcer' && window.AciolcerTool && window.AciolcerTool.previewCtx) {
                 const a = window.AciolcerTool;
-                a.previewCanvas.style.display = 'block';
-                a.previewCanvas.width = window.innerWidth; a.previewCanvas.height = window.innerHeight;
+                a.previewCanvas.style.display = 'block'; a.previewCanvas.width = window.innerWidth; a.previewCanvas.height = window.innerHeight;
                 a.previewCtx.clearRect(0, 0, a.previewCanvas.width, a.previewCanvas.height);
                 a.previewCtx.beginPath(); a.previewCtx.moveTo(p.cx, p.cy); a.previewCtx.lineTo(p.px, p.py);
-                a.previewCtx.strokeStyle = '#FFFFFF'; a.previewCtx.lineWidth = 3; a.previewCtx.setLineDash([5, 5]); 
-                a.previewCtx.stroke(); a.previewCtx.setLineDash([]);
-                a.drawHandleLabel.style.display = 'block';
-                a.drawHandleLabel.innerText = `${p.angle.toFixed(0)}°`;
-                a.redLine.style.transition = 'none';
-                a.redLine.style.transform = `rotate(${-p.angle}deg)`;
+                a.previewCtx.strokeStyle = '#FFFFFF'; a.previewCtx.lineWidth = 3; a.previewCtx.setLineDash([5, 5]); a.previewCtx.stroke(); a.previewCtx.setLineDash([]);
+                a.drawHandleLabel.style.display = 'block'; a.drawHandleLabel.innerText = `${p.angle.toFixed(0)}°`;
+                a.redLine.style.transition = 'none'; a.redLine.style.transform = `rotate(${-p.angle}deg)`;
                 a.drawHandle.style.transform = `translateX(-50%) translate(${p.ldx}px, ${p.ldy + 5}px)`;
                 a.drawHandleLabel.style.transform = `translateX(-50%) translate(${p.ldx}px, ${p.ldy - 20}px)`;
             }
-            // 4. DİĞER ÇİZİMLER (Lazer / Parlayan Kalem Ucu)
             else if (arac === 'lazer') {
                 let lazer = document.getElementById('sanal-lazer');
                 if (!lazer) {
-                    lazer = document.createElement('div');
-                    lazer.id = 'sanal-lazer';
-                    lazer.style.width = '14px'; lazer.style.height = '14px';
-                    lazer.style.background = 'rgba(0, 255, 200, 0.9)'; 
-                    lazer.style.boxShadow = '0 0 12px rgba(0,255,200,1)';
-                    lazer.style.borderRadius = '50%'; lazer.style.position = 'fixed';
-                    lazer.style.pointerEvents = 'none'; lazer.style.zIndex = '9999';
-                    lazer.style.transform = 'translate(-50%, -50%)';
+                    lazer = document.createElement('div'); lazer.id = 'sanal-lazer';
+                    lazer.style.width = '14px'; lazer.style.height = '14px'; lazer.style.background = 'rgba(0, 255, 200, 0.9)'; lazer.style.boxShadow = '0 0 12px rgba(0,255,200,1)';
+                    lazer.style.borderRadius = '50%'; lazer.style.position = 'fixed'; lazer.style.pointerEvents = 'none'; lazer.style.zIndex = '9999'; lazer.style.transform = 'translate(-50%, -50%)';
                     document.body.appendChild(lazer);
                 }
-                lazer.style.display = 'block';
-                lazer.style.left = `${p.x}px`; lazer.style.top = `${p.y}px`;
-                clearTimeout(window.lazerTimer);
-                window.lazerTimer = setTimeout(() => { lazer.style.display = 'none'; }, 150);
+                lazer.style.display = 'block'; lazer.style.left = `${p.x}px`; lazer.style.top = `${p.y}px`;
+                clearTimeout(window.lazerTimer); window.lazerTimer = setTimeout(() => { lazer.style.display = 'none'; }, 150);
             }
         }
         
-        // --- PARMAK KALKTIĞINDA ÖNİZLEMELERİ SİL ---
+        // --- 4. PARMAK KALKTIĞINDA ÖNİZLEMELERİ SİL ---
         if (data.type === 'onizleme_bitir') {
             if (window.RulerTool && window.RulerTool.drawCtx) { window.RulerTool.drawHandleLabel.style.display = 'none'; window.RulerTool.drawCtx.clearRect(0,0, window.RulerTool.drawCanvas.width, window.RulerTool.drawCanvas.height); }
             if (window.GonyeTool && window.GonyeTool.drawCtx) { window.GonyeTool.drawHandleLabel.style.display = 'none'; window.GonyeTool.drawHandleElement.style.transition = 'top 0.1s ease-out'; window.GonyeTool.drawHandleElement.style.top = `${window.GonyeTool.state.height - 20}px`; window.GonyeTool.drawCtx.clearRect(0,0, window.GonyeTool.drawCanvas.width, window.GonyeTool.drawCanvas.height); }
             if (window.AciolcerTool && window.AciolcerTool.previewCtx) { window.AciolcerTool.drawHandleLabel.style.display = 'none'; window.AciolcerTool.previewCanvas.style.display = 'none'; window.AciolcerTool.redLine.style.transition = 'transform 0.1s ease-out'; window.AciolcerTool.redLine.style.transform = 'rotate(0deg)'; window.AciolcerTool.drawHandle.style.transition = 'transform 0.1s ease-out'; window.AciolcerTool.drawHandle.style.transform = 'translateX(-50%) translate(0px, 0px)'; window.AciolcerTool.previewCtx.clearRect(0,0, window.AciolcerTool.previewCanvas.width, window.AciolcerTool.previewCanvas.height); }
             let lazer = document.getElementById('sanal-lazer'); if (lazer) lazer.style.display = 'none';
         }
-    }); // <--- İŞTE O KAYIP PARANTEZ BURADA, DATA DİNLEYİCİSİ KAPANDI!
+    });
 
     // --- BAĞLANTI KOPTUĞUNDA ÇALIŞACAK FONKSİYON ---
     myConnection.on('close', function() {
@@ -5225,8 +5268,8 @@ function setupConnectionEvents() {
         if (connectInput) connectInput.style.display = "block";
         if (connectBtn) connectBtn.style.display = "block";
     });
+}
 
-} // <--- SETUPCONNECTIONEVENTS FONKSİYONU BURADA BİTİYOR
 
 // =========================================================
 // 7. GÜVENLİ VERİ FIRLATMA FONKSİYONU
