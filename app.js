@@ -5078,10 +5078,17 @@ for (let i = 0; i < 5; i++) {
 // --- PEERJS BAŞLANGIÇ VE CİHAZ MODU AYARI ---
 const isTablet = window.location.href.includes("tablet");
 
+// --- YEREL AĞ ZORUNLULUĞU (SADECE AYNI Wİ-Fİ/OKUL AĞI) ---
+const localOnlyConfig = {
+    config: {
+        'iceServers': [] // Boş bırakmak, TURN/STUN sunucularını devre dışı bırakır!
+    }
+};
+
 if (isTablet) {
-    myPeer = new Peer(); 
+    myPeer = new Peer(undefined, localOnlyConfig); 
 } else {
-    myPeer = new Peer(myRoomCode);
+    myPeer = new Peer(myRoomCode, localOnlyConfig);
     window.sessionPassword = Math.floor(1000 + Math.random() * 9000).toString();
 }
 
