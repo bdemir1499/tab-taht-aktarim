@@ -5081,53 +5081,29 @@ document.getElementById('connect-btn').addEventListener('click', () => {
     }
 });
 
-// =========================================================
-// 6. Bağlantının Durumunu ve Veri Akışını Yöneten Merkezi Fonksiyon
-// =========================================================
+// =========================================================================
+// 6. ANA BAĞLANTI VE VERİ KARŞILAMA FONKSİYONU (SENİN SİLİNEN KISIM BURASIYDI)
+// =========================================================================
 function setupConnectionEvents() {
-
-if (window.PergelTool && typeof window.PergelTool.init === 'function') {
-        window.PergelTool.init();
-        // PC'de pergelin fiziksel bir kutusu olmasın, sadece çizim katmanı çalışsın
-        window.PergelTool.hide(); 
+    isConnected = true;
+    const statusEl = document.getElementById('connection-status');
+    if (statusEl) {
+        statusEl.innerText = "BAĞLANDI 🟢";
+        statusEl.style.color = "#00ffcc";
     }
-    
-    const baglantiyiAktifEt = () => {
-        isConnected = true;
-        const statusEl = document.getElementById('connection-status');
-        if (statusEl) {
-            statusEl.innerText = "BAĞLANDI 🟢";
-            statusEl.style.color = "#00ffcc";
-        }
-        
-        setTimeout(() => {
-            const connectInput = document.getElementById('connect-input');
-            const connectBtn = document.getElementById('connect-btn');
-            if (connectInput) connectInput.style.display = "none";
-            if (connectBtn) connectBtn.style.display = "none";
-        }, 500);
-
-        setTimeout(() => {
-            const closeBtn = document.getElementById('network-close-btn');
-            if (closeBtn) closeBtn.click();
-        }, 2000);
-    };
-
-    if (myConnection.open) baglantiyiAktifEt();
-    else myConnection.on('open', baglantiyiAktifEt);
 
     // --- VERİ KARŞILAMA MERKEZİ ---
     myConnection.on('data', function(data) {
 
+        // Şifre Güvenliği
         if (data.password !== window.sessionPassword) {
             console.warn("🔴 Yabancı erişim engellendi!");
             myConnection.close();
             return;
         }
-
         if (!data || !data.type) return;
 
-        // 1. ZOMBİ KORUMASI (SİLME)
+        // [ESKİ TEMEL ÇİZİM VE SİLME KODLARIN - KAYBOLMAMASI İÇİN EKLENDİ]
         if (data.type === 'sil_objeyi') {
             const zombiIndex = window.drawnStrokes.findIndex(s => s.id === data.strokeId);
             if (zombiIndex !== -1) window.drawnStrokes.splice(zombiIndex, 1);
@@ -5135,7 +5111,6 @@ if (window.PergelTool && typeof window.PergelTool.init === 'function') {
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
 
-        // 2. YENİ ÇİZİM
         if (data.type === 'yeni_cizim') {
             const stroke = data.stroke;
             if (!window.drawnStrokes.some(s => s.id && s.id === stroke.id)) {
@@ -5150,32 +5125,10 @@ if (window.PergelTool && typeof window.PergelTool.init === 'function') {
             }
         }
 
-        // 3. PDF VE MEDYA
-        if (data.type === 'pdf_yukle') { 
-            /* ... (PDF kodun aynı kalsın) ... */ 
-        }
-        if (data.type === 'pdf_sayfa_degis') {
-            window.currentPDFPage = data.sayfa;
-            if (typeof renderPDFPage === 'function') renderPDFPage(window.currentPDFPage);
-        }
-        if (data.type === 'resim_yukle') {
-            const img = new Image();
-            img.onload = () => { if (typeof addNewImageToCanvas === 'function') addNewImageToCanvas(img, false); };
-            img.src = data.imgData;
-        }
-
-        // 4. ARAÇLAR VE DİL
         if (data.type === 'geri_al') { window.drawnStrokes.pop(); if (window.redrawAllStrokes) window.redrawAllStrokes(); }
         if (data.type === 'hepsini_sil') { window.drawnStrokes.length = 0; if (window.redrawAllStrokes) window.redrawAllStrokes(); }
+        if (data.type === 'dil_secimi') { if (typeof setLanguage === 'function') setLanguage(data.lang); }
 
-        // --- İŞTE EKSİK OLAN KISIM: DİL SEÇİMİ VE EKRAN GEÇİŞİ ---
-        if (data.type === 'dil_secimi') {
-            if (typeof setLanguage === 'function') setLanguage(data.lang);
-            // Eğer dil seçimi ile ekranı değiştiriyorsan tetikleyiciyi burada çağır:
-            if (typeof showDrawingScreen === 'function') showDrawingScreen(); 
-        }
-
-        // 5. BASİT ARAÇLAR (Kopyalar)
         if (data.type === 'arac_senkron') {
             const el = document.querySelector(data.selector);
             if (el) {
@@ -5186,7 +5139,7 @@ if (window.PergelTool && typeof window.PergelTool.init === 'function') {
             }
         }
 
-       // 6. GELİŞMİŞ ARAÇLAR (BEYİN - STATE)
+        // GELİŞMİŞ ARAÇLAR (BEYİN - STATE)
         if (data.type === 'arac_state_senkron') {
             let toolObj = null, el = null;
             if (data.arac === 'ruler') { toolObj = window.RulerTool; el = document.querySelector('.ruler-container'); }
@@ -5202,11 +5155,10 @@ if (window.PergelTool && typeof window.PergelTool.init === 'function') {
                     // PERGEL ÖZEL: Canlı Önizleme Çizimi
                     if (data.arac === 'pergel') {
                         if (toolObj.state.isDrawing) { 
-                            // PC'deki tuvali tabletle aynı boyuta getir
                             toolObj.previewCanvas.style.display = 'block';
                             toolObj.previewCanvas.width = window.innerWidth;
                             toolObj.previewCanvas.height = window.innerHeight;
-                            toolObj.drawPreviewArc(); // YAYI ÇİZ!
+                            toolObj.drawPreviewArc(); 
                         } else { 
                             toolObj.previewCanvas.style.display = 'none'; 
                             if(toolObj.previewCtx) toolObj.previewCtx.clearRect(0,0,toolObj.previewCanvas.width, toolObj.previewCanvas.height); 
@@ -5222,30 +5174,14 @@ if (window.PergelTool && typeof window.PergelTool.init === 'function') {
                     if (data.height) el.style.height = data.height;
                 }
 
-                // --- GÜNCELLEME KOMUTLARI (toolObj bloğunun İÇİNDE olmalı) ---
+                // --- GÜNCELLEME KOMUTLARI ---
                 if (typeof toolObj.updateTransform === 'function') toolObj.updateTransform();
                 if (typeof toolObj.updateMarkings === 'function') toolObj.updateMarkings();
                 if (typeof toolObj.createLabels === 'function') toolObj.createLabels();
             } 
         } 
-    }); // <--- Veri dinleyicisini kapatan ANA parantez. (Eğer altında başka data.type eklemediysen tam olarak burada bitmeli)
 
-    myConnection.on('close', function() {
-        isConnected = false;
-        const statusEl = document.getElementById('connection-status');
-        if (statusEl) {
-            statusEl.innerText = "Bağlantı Koptu 🔴";
-            statusEl.style.color = "#ff4444";
-        }
-        // BU KISIMLAR SENİN İÇİN ÇOK ÖNEMLİ, SİLME!
-        const connectInput = document.getElementById('connect-input');
-        const connectBtn = document.getElementById('connect-btn');
-        if (connectInput) connectInput.style.display = "block";
-        if (connectBtn) connectBtn.style.display = "block";
-    });
-} // setupConnectionEvents fonksiyonunun sonu
-
-// --- GERÇEK ZAMANLI ÖNİZLEME ALICISI (PC EKRANI İÇİN) ---
+        // --- GERÇEK ZAMANLI ÖNİZLEME ALICISI (PC EKRANI İÇİN) ---
         if (data.type === 'aktif_onizleme') {
             const arac = data.arac;
             const p = data.payload;
@@ -5317,19 +5253,31 @@ if (window.PergelTool && typeof window.PergelTool.init === 'function') {
             let lazer = document.getElementById('sanal-lazer'); if (lazer) lazer.style.display = 'none';
         }
 
+    }); // <--- DATA DİNLEYİCİSİ BURADA BİTİYOR
 
+    // --- BAĞLANTI KOPTUĞUNDA ÇALIŞACAK FONKSİYON ---
+    myConnection.on('close', function() {
+        isConnected = false;
+        const statusEl = document.getElementById('connection-status');
+        if (statusEl) {
+            statusEl.innerText = "Bağlantı Koptu 🔴";
+            statusEl.style.color = "#ff4444";
+        }
+        const connectInput = document.getElementById('connect-input');
+        const connectBtn = document.getElementById('connect-btn');
+        if (connectInput) connectInput.style.display = "block";
+        if (connectBtn) connectBtn.style.display = "block";
+    });
+
+} // <--- SETUPCONNECTIONEVENTS FONKSİYONU BURADA BİTİYOR
 
 // =========================================================
 // 7. GÜVENLİ VERİ FIRLATMA FONKSİYONU
 // =========================================================
 window.sendNetworkData = function(dataPackage) {
     if (isConnected && myConnection) {
-        
-        // --- YENİ GÜVENLİK İMZASI ---
         // Sabit anahtar yerine öğretmenin o an girdiği dinamik şifreyi gömüyoruz
         dataPackage.password = window.sessionPassword;
-        
-        // Artık paket güvenli, yola çıkabilir!
         myConnection.send(dataPackage);
     }
 };
@@ -5398,8 +5346,8 @@ window.araclariAgaGonder = function() {
                     arac: arac.id,
                     display: isVisible,
                     state: arac.obj.state,
-                    width: elW,   // Pergelin turuncu butonla değişen kutu genişliği
-                    height: elH   // Pergelin turuncu butonla değişen kutu yüksekliği
+                    width: elW,   
+                    height: elH   
                 });
             }
         }
@@ -5439,7 +5387,6 @@ window.addEventListener('load', () => {
     if (window.PergelTool && typeof window.PergelTool.init === 'function') {
         window.PergelTool.init();
         // PC'de pergelin çizim yapmasına gerek yok, sadece önizlemeyi izleyecek
-        // Bu yüzden PC tarafında araçları "gizli" (hidden) başlatabiliriz
         window.PergelTool.hide(); 
     }
 });
@@ -5456,7 +5403,6 @@ window.broadcastPreview = function(toolType, stateData) {
         });
     }
 };
-
 
 // Çizim yaparken kalemin ucunu PC'ye lazer olarak aktar
 window.addEventListener('pointermove', (e) => {
