@@ -390,6 +390,12 @@ window.GonyeTool = {
         if (typeof window.broadcastPreview === 'function') {
             window.broadcastPreview('gonye', { handleY: handleY });
         }
+// Gönye Canlı Yayın
+        if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+            window.sendNetworkData({ type: 'aktif_onizleme', arac: 'gonye', payload: { handleY: handleY } });
+        }
+
+
     },
 
     // --- 3. FİNAL ÇİZİM (CANLI REFERANS KULLANAN KISIM) ---

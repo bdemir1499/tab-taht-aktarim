@@ -353,6 +353,15 @@ window.AciolcerTool = {
         if (typeof window.broadcastPreview === 'function') {
             window.broadcastPreview('aciolcer', { angle: localAngleDeg, cx: cx, cy: cy, currPosX: currPos.x, currPosY: currPos.y });
         }
+
+// Açıölçer Canlı Yayın
+        if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+            window.sendNetworkData({ 
+                type: 'aktif_onizleme', arac: 'aciolcer', 
+                payload: { angle: localAngleDeg, cx: cx, cy: cy, px: currPos.x, py: currPos.y, ldx: ldx, ldy: ldy } 
+            });
+        }
+
     },
 
    // --- 3. FİNAL ÇİZİM (CANLI REFERANS VE ID İLE AĞA AKTARIM) ---

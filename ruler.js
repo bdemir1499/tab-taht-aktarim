@@ -422,6 +422,12 @@ window.RulerTool = {
         if (typeof window.broadcastPreview === 'function') {
             window.broadcastPreview('ruler', { handleX: handleX });
         }
+
+// Cetvel Canlı Yayın
+        if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+            window.sendNetworkData({ type: 'aktif_onizleme', arac: 'ruler', payload: { handleX: handleX } });
+        }
+
     },
 
     finalizeDraw: function() {

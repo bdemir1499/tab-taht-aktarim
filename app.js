@@ -5245,6 +5245,78 @@ if (window.PergelTool && typeof window.PergelTool.init === 'function') {
     });
 } // setupConnectionEvents fonksiyonunun sonu
 
+// --- GERÇEK ZAMANLI ÖNİZLEME ALICISI (PC EKRANI İÇİN) ---
+        if (data.type === 'aktif_onizleme') {
+            const arac = data.arac;
+            const p = data.payload;
+
+            // 1. CETVEL
+            if (arac === 'ruler' && window.RulerTool && window.RulerTool.drawCtx) {
+                const r = window.RulerTool;
+                r.drawHandleElement.style.transition = 'none';
+                r.drawHandleElement.style.left = `${p.handleX}px`;
+                r.drawHandleLabel.innerText = `${(p.handleX / r.PIXELS_PER_CM).toFixed(1).replace('.', ',')} cm`;
+                r.drawHandleLabel.style.display = 'block';
+                r.drawCtx.clearRect(0, 0, r.drawCanvas.width, r.drawCanvas.height);
+                r.drawCtx.beginPath(); r.drawCtx.moveTo(0, 4); r.drawCtx.lineTo(p.handleX, 4);
+                r.drawCtx.strokeStyle = '#FFFFFF'; r.drawCtx.lineWidth = 3; r.drawCtx.stroke();
+            }
+            // 2. GÖNYE
+            else if (arac === 'gonye' && window.GonyeTool && window.GonyeTool.drawCtx) {
+                const g = window.GonyeTool;
+                g.drawHandleElement.style.transition = 'none';
+                g.drawHandleElement.style.top = `${p.handleY}px`;
+                g.drawHandleLabel.innerText = `${(Math.abs(g.state.height - (p.handleY + 10)) / g.PIXELS_PER_CM).toFixed(1).replace('.', ',')} cm`;
+                g.drawHandleLabel.style.display = 'block';
+                g.drawCtx.clearRect(0, 0, g.drawCanvas.width, g.drawCanvas.height);
+                g.drawCtx.beginPath(); g.drawCtx.moveTo(4, g.state.height); g.drawCtx.lineTo(4, p.handleY + 10);
+                g.drawCtx.strokeStyle = '#FFFFFF'; g.drawCtx.lineWidth = 3; g.drawCtx.stroke();
+            }
+            // 3. AÇIÖLÇER
+            else if (arac === 'aciolcer' && window.AciolcerTool && window.AciolcerTool.previewCtx) {
+                const a = window.AciolcerTool;
+                a.previewCanvas.style.display = 'block';
+                a.previewCanvas.width = window.innerWidth; a.previewCanvas.height = window.innerHeight;
+                a.previewCtx.clearRect(0, 0, a.previewCanvas.width, a.previewCanvas.height);
+                a.previewCtx.beginPath(); a.previewCtx.moveTo(p.cx, p.cy); a.previewCtx.lineTo(p.px, p.py);
+                a.previewCtx.strokeStyle = '#FFFFFF'; a.previewCtx.lineWidth = 3; a.previewCtx.setLineDash([5, 5]); 
+                a.previewCtx.stroke(); a.previewCtx.setLineDash([]);
+                a.drawHandleLabel.style.display = 'block';
+                a.drawHandleLabel.innerText = `${p.angle.toFixed(0)}°`;
+                a.redLine.style.transition = 'none';
+                a.redLine.style.transform = `rotate(${-p.angle}deg)`;
+                a.drawHandle.style.transform = `translateX(-50%) translate(${p.ldx}px, ${p.ldy + 5}px)`;
+                a.drawHandleLabel.style.transform = `translateX(-50%) translate(${p.ldx}px, ${p.ldy - 20}px)`;
+            }
+            // 4. DİĞER ÇİZİMLER (Lazer / Parlayan Kalem Ucu)
+            else if (arac === 'lazer') {
+                let lazer = document.getElementById('sanal-lazer');
+                if (!lazer) {
+                    lazer = document.createElement('div');
+                    lazer.id = 'sanal-lazer';
+                    lazer.style.width = '14px'; lazer.style.height = '14px';
+                    lazer.style.background = 'rgba(0, 255, 200, 0.9)'; 
+                    lazer.style.boxShadow = '0 0 12px rgba(0,255,200,1)';
+                    lazer.style.borderRadius = '50%'; lazer.style.position = 'fixed';
+                    lazer.style.pointerEvents = 'none'; lazer.style.zIndex = '9999';
+                    lazer.style.transform = 'translate(-50%, -50%)';
+                    document.body.appendChild(lazer);
+                }
+                lazer.style.display = 'block';
+                lazer.style.left = `${p.x}px`; lazer.style.top = `${p.y}px`;
+                clearTimeout(window.lazerTimer);
+                window.lazerTimer = setTimeout(() => { lazer.style.display = 'none'; }, 150);
+            }
+        }
+        
+        // --- PARMAK KALKTIĞINDA ÖNİZLEMELERİ SİL ---
+        if (data.type === 'onizleme_bitir') {
+            if (window.RulerTool && window.RulerTool.drawCtx) { window.RulerTool.drawHandleLabel.style.display = 'none'; window.RulerTool.drawCtx.clearRect(0,0, window.RulerTool.drawCanvas.width, window.RulerTool.drawCanvas.height); }
+            if (window.GonyeTool && window.GonyeTool.drawCtx) { window.GonyeTool.drawHandleLabel.style.display = 'none'; window.GonyeTool.drawHandleElement.style.transition = 'top 0.1s ease-out'; window.GonyeTool.drawHandleElement.style.top = `${window.GonyeTool.state.height - 20}px`; window.GonyeTool.drawCtx.clearRect(0,0, window.GonyeTool.drawCanvas.width, window.GonyeTool.drawCanvas.height); }
+            if (window.AciolcerTool && window.AciolcerTool.previewCtx) { window.AciolcerTool.drawHandleLabel.style.display = 'none'; window.AciolcerTool.previewCanvas.style.display = 'none'; window.AciolcerTool.redLine.style.transition = 'transform 0.1s ease-out'; window.AciolcerTool.redLine.style.transform = 'rotate(0deg)'; window.AciolcerTool.drawHandle.style.transition = 'transform 0.1s ease-out'; window.AciolcerTool.drawHandle.style.transform = 'translateX(-50%) translate(0px, 0px)'; window.AciolcerTool.previewCtx.clearRect(0,0, window.AciolcerTool.previewCanvas.width, window.AciolcerTool.previewCanvas.height); }
+            let lazer = document.getElementById('sanal-lazer'); if (lazer) lazer.style.display = 'none';
+        }
+
 
 
 // =========================================================
@@ -5385,195 +5457,18 @@ window.broadcastPreview = function(toolType, stateData) {
     }
 };
 
-// =========================================================================
-// 🚀 SİHİRLİ ÖNİZLEME MOTORU V2 (KIRMIZI TUTAMAÇLAR + TÜM ARAÇLAR + LAZER)
-// Hiçbir aracı bozmadan arka planda çalışan "Kusursuz Canlı Yayın" sistemi.
-// =========================================================================
 
-// --- 1. TABLET (GÖNDERİCİ) İÇİN OTOMATİK KANCALAR ---
-setTimeout(() => {
-    // 1. Cetvel Kancası (Tutamaç Hareketi)
-    if (window.RulerTool && typeof window.RulerTool.handleDraw === 'function') {
-        const orjRuler = window.RulerTool.handleDraw;
-        window.RulerTool.handleDraw = function(e) {
-            orjRuler.apply(this, arguments);
-            if (typeof window.sendNetworkData === 'function' && window.isConnected) {
-                window.sendNetworkData({ type: 'aktif_onizleme', arac: 'ruler', payload: { handleX: this.state.currentHandleX } });
-            }
-        };
+// Çizim yaparken kalemin ucunu PC'ye lazer olarak aktar
+window.addEventListener('pointermove', (e) => {
+    // Ekrana basılıysa (e.buttons > 0) lazeri gönder
+    if (e.buttons > 0 && typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+        window.sendNetworkData({ type: 'aktif_onizleme', arac: 'lazer', payload: { x: e.clientX, y: e.clientY } });
     }
-    // 2. Gönye Kancası (Tutamaç Hareketi)
-    if (window.GonyeTool && typeof window.GonyeTool.handleDraw === 'function') {
-        const orjGonye = window.GonyeTool.handleDraw;
-        window.GonyeTool.handleDraw = function(pos) {
-            orjGonye.apply(this, arguments);
-            if (typeof window.sendNetworkData === 'function' && window.isConnected) {
-                window.sendNetworkData({ type: 'aktif_onizleme', arac: 'gonye', payload: { handleY: this.state.currentHandleY } });
-            }
-        };
+});
+
+// Parmak kalktığında önizlemeleri temizleme emri gönder
+window.addEventListener('pointerup', () => {
+    if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+        window.sendNetworkData({ type: 'onizleme_bitir' });
     }
-    // 3. Açıölçer Kancası (Kırmızı Çizgi ve Tutamaç)
-    if (window.AciolcerTool && typeof window.AciolcerTool.handleDraw === 'function') {
-        const orjAci = window.AciolcerTool.handleDraw;
-        window.AciolcerTool.handleDraw = function(currPos) {
-            orjAci.apply(this, arguments);
-            if (typeof window.sendNetworkData === 'function' && window.isConnected) {
-                // Açıölçerin ldx ve ldy değerlerini de yakalayıp gönderiyoruz
-                const gdx = currPos.x - this.state.x; const gdy = currPos.y - this.state.y;
-                const rad = -this.state.angle * Math.PI / 180;
-                const ldx = gdx * Math.cos(rad) - gdy * Math.sin(rad);
-                const ldy = gdx * Math.sin(rad) + gdy * Math.cos(rad);
-                window.sendNetworkData({ 
-                    type: 'aktif_onizleme', arac: 'aciolcer', 
-                    payload: { angle: this.state.currentDrawAngleLocal, cx: this.state.x, cy: this.state.y, px: currPos.x, py: currPos.y, ldx: ldx, ldy: ldy } 
-                });
-            }
-        };
-    }
-    // 4. Pergel Kancası
-    if (window.PergelTool && typeof window.PergelTool.onPointerMove === 'function') {
-        const orjPergel = window.PergelTool.onPointerMove;
-        window.PergelTool.onPointerMove = function(e) {
-            orjPergel.apply(this, arguments);
-            if (this.state && this.state.isDrawing && typeof window.sendNetworkData === 'function' && window.isConnected) {
-                window.sendNetworkData({ type: 'aktif_onizleme', arac: 'pergel', payload: { rotation: this.state.rotation, radius: this.state.radius, pivot: this.state.pivot } });
-            }
-        };
-    }
-    
-    // 5. Kalem/Çokgen/Çizgi Lazer Takipçisi ve Bırakma (Temizleme) Sinyali
-    window.addEventListener('pointermove', (e) => {
-        if (window.isDrawing && typeof window.sendNetworkData === 'function' && window.isConnected) {
-            window.sendNetworkData({ type: 'aktif_onizleme', arac: 'lazer', payload: { x: e.clientX, y: e.clientY } });
-        }
-    });
-    // Parmak kalktığında "önizlemeleri temizle ve tutamaçları gizle" emri gönder
-    window.addEventListener('pointerup', () => {
-        if (typeof window.sendNetworkData === 'function' && window.isConnected) {
-            window.sendNetworkData({ type: 'onizleme_bitir' });
-        }
-    });
-
-}, 2000);
-
-
-// --- 2. PC (ALICI) İÇİN CANLI YAYIN MOTORU VE KIRMIZI TUTAMAÇ YÖNETİCİSİ ---
-let isPreviewAttachedV2 = false;
-setInterval(() => {
-    if (typeof myConnection !== 'undefined' && myConnection.open && !isPreviewAttachedV2) {
-        isPreviewAttachedV2 = true;
-        
-        myConnection.on('data', function(data) {
-            
-            // --- A) CANLI HAREKET ANINDA ---
-            if (data.type === 'aktif_onizleme') {
-                const arac = data.arac;
-                const p = data.payload;
-
-                // 1. CETVEL (Kırmızı Tutamaç ve Etiket Hareket Ediyor)
-                if (arac === 'ruler' && window.RulerTool && window.RulerTool.drawCtx) {
-                    const r = window.RulerTool;
-                    r.drawHandleElement.style.transition = 'none';
-                    r.drawHandleElement.style.left = `${p.handleX}px`;
-                    r.drawHandleLabel.innerText = `${(p.handleX / r.PIXELS_PER_CM).toFixed(1).replace('.', ',')} cm`;
-                    r.drawHandleLabel.style.display = 'block';
-                    r.drawCtx.clearRect(0, 0, r.drawCanvas.width, r.drawCanvas.height);
-                    r.drawCtx.beginPath(); r.drawCtx.moveTo(0, 4); r.drawCtx.lineTo(p.handleX, 4);
-                    r.drawCtx.strokeStyle = '#FFFFFF'; r.drawCtx.lineWidth = 3; r.drawCtx.stroke();
-                }
-                // 2. GÖNYE (Kırmızı Tutamaç ve Etiket Hareket Ediyor)
-                else if (arac === 'gonye' && window.GonyeTool && window.GonyeTool.drawCtx) {
-                    const g = window.GonyeTool;
-                    g.drawHandleElement.style.transition = 'none';
-                    g.drawHandleElement.style.top = `${p.handleY}px`;
-                    g.drawHandleLabel.innerText = `${(Math.abs(g.state.height - (p.handleY + 10)) / g.PIXELS_PER_CM).toFixed(1).replace('.', ',')} cm`;
-                    g.drawHandleLabel.style.display = 'block';
-                    g.drawCtx.clearRect(0, 0, g.drawCanvas.width, g.drawCanvas.height);
-                    g.drawCtx.beginPath(); g.drawCtx.moveTo(4, g.state.height); g.drawCtx.lineTo(4, p.handleY + 10);
-                    g.drawCtx.strokeStyle = '#FFFFFF'; g.drawCtx.lineWidth = 3; g.drawCtx.stroke();
-                }
-                // 3. AÇIÖLÇER (Kırmızı Çizgi ve Tutamaç Dönüyor)
-                else if (arac === 'aciolcer' && window.AciolcerTool && window.AciolcerTool.previewCtx) {
-                    const a = window.AciolcerTool;
-                    a.previewCanvas.style.display = 'block';
-                    a.previewCanvas.width = window.innerWidth; a.previewCanvas.height = window.innerHeight;
-                    a.previewCtx.clearRect(0, 0, a.previewCanvas.width, a.previewCanvas.height);
-                    a.previewCtx.beginPath(); a.previewCtx.moveTo(p.cx, p.cy); a.previewCtx.lineTo(p.px, p.py);
-                    a.previewCtx.strokeStyle = '#FFFFFF'; a.previewCtx.lineWidth = 3; a.previewCtx.setLineDash([5, 5]); 
-                    a.previewCtx.stroke(); a.previewCtx.setLineDash([]);
-                    
-                    a.drawHandleLabel.style.display = 'block';
-                    a.drawHandleLabel.innerText = `${p.angle.toFixed(0)}°`;
-                    a.redLine.style.transition = 'none';
-                    a.redLine.style.transform = `rotate(${-p.angle}deg)`;
-                    a.drawHandle.style.transform = `translateX(-50%) translate(${p.ldx}px, ${p.ldy + 5}px)`;
-                    a.drawHandleLabel.style.transform = `translateX(-50%) translate(${p.ldx}px, ${p.ldy - 20}px)`;
-                }
-                // 4. PERGEL (Pembe Yay Canlı Çiziliyor)
-                else if (arac === 'pergel' && window.PergelTool && window.PergelTool.previewCtx) {
-                    const pr = window.PergelTool;
-                    pr.state.rotation = p.rotation; pr.state.radius = p.radius; pr.state.pivot = p.pivot;
-                    pr.previewCanvas.style.display = 'block';
-                    pr.previewCanvas.width = window.innerWidth; pr.previewCanvas.height = window.innerHeight;
-                    if(typeof pr.drawPreviewArc === 'function') pr.drawPreviewArc();
-                }
-                // 5. SANAL LAZER (Kalemlerin ve Çokgenlerin Önizlemesi İçin)
-                else if (arac === 'lazer') {
-                    let lazer = document.getElementById('sanal-lazer');
-                    if (!lazer) {
-                        lazer = document.createElement('div');
-                        lazer.id = 'sanal-lazer';
-                        lazer.style.width = '14px'; lazer.style.height = '14px';
-                        lazer.style.background = 'rgba(0, 255, 200, 0.9)'; 
-                        lazer.style.boxShadow = '0 0 12px rgba(0,255,200,1)';
-                        lazer.style.borderRadius = '50%'; lazer.style.position = 'fixed';
-                        lazer.style.pointerEvents = 'none'; lazer.style.zIndex = '9999';
-                        lazer.style.transform = 'translate(-50%, -50%)';
-                        document.body.appendChild(lazer);
-                    }
-                    lazer.style.display = 'block';
-                    lazer.style.left = `${p.x}px`; lazer.style.top = `${p.y}px`;
-                    
-                    clearTimeout(window.lazerTimer);
-                    window.lazerTimer = setTimeout(() => { lazer.style.display = 'none'; }, 200);
-                }
-            }
-
-            // --- B) ÇİZİM BİTTİĞİNDE (PARMAK KALKTIĞINDA) HER ŞEYİ TEMİZLE ---
-            if (data.type === 'onizleme_bitir') {
-                // Cetveli Temizle
-                if (window.RulerTool && window.RulerTool.drawCtx) {
-                    window.RulerTool.drawHandleLabel.style.display = 'none';
-                    window.RulerTool.drawCtx.clearRect(0,0, window.RulerTool.drawCanvas.width, window.RulerTool.drawCanvas.height);
-                }
-                // Gönyeyi Temizle
-                if (window.GonyeTool && window.GonyeTool.drawCtx) {
-                    window.GonyeTool.drawHandleLabel.style.display = 'none';
-                    window.GonyeTool.drawHandleElement.style.transition = 'top 0.1s ease-out';
-                    window.GonyeTool.drawHandleElement.style.top = `${window.GonyeTool.state.height - 20}px`;
-                    window.GonyeTool.drawCtx.clearRect(0,0, window.GonyeTool.drawCanvas.width, window.GonyeTool.drawCanvas.height);
-                }
-                // Açıölçeri Temizle
-                if (window.AciolcerTool && window.AciolcerTool.previewCtx) {
-                    window.AciolcerTool.drawHandleLabel.style.display = 'none';
-                    window.AciolcerTool.previewCanvas.style.display = 'none';
-                    window.AciolcerTool.redLine.style.transition = 'transform 0.1s ease-out';
-                    window.AciolcerTool.redLine.style.transform = 'rotate(0deg)';
-                    window.AciolcerTool.drawHandle.style.transition = 'transform 0.1s ease-out';
-                    window.AciolcerTool.drawHandle.style.transform = 'translateX(-50%) translate(0px, 0px)';
-                    window.AciolcerTool.previewCtx.clearRect(0,0, window.AciolcerTool.previewCanvas.width, window.AciolcerTool.previewCanvas.height);
-                }
-                // Pergeli Temizle
-                if (window.PergelTool && window.PergelTool.previewCtx) {
-                    window.PergelTool.previewCanvas.style.display = 'none';
-                    window.PergelTool.previewCtx.clearRect(0,0, window.PergelTool.previewCanvas.width, window.PergelTool.previewCanvas.height);
-                }
-                // Lazeri Gizle
-                let lazer = document.getElementById('sanal-lazer');
-                if (lazer) lazer.style.display = 'none';
-            }
-        });
-        
-        myConnection.on('close', () => { isPreviewAttachedV2 = false; });
-    }
-}, 1000);
+});
