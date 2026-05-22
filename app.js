@@ -2754,6 +2754,7 @@ canvas.addEventListener('pointermove', (e) => {
         const cY = selectedItem.y + selectedItem.height / 2;
         const angle = Math.atan2(pos.y - cY, pos.x - cX);
         selectedItem.rotation = (angle * 180 / Math.PI) + 90;
+window.sendNetworkData({ type: 'arac_senkron', selector: '.yuzen-kopya-container', transform: `rotate(${selectedItem.rotation}deg)` });
         if (window.redrawAllStrokes) window.redrawAllStrokes();
         return;
     }
@@ -2767,6 +2768,7 @@ canvas.addEventListener('pointermove', (e) => {
         selectedItem.height = window.startImageHeight * ratio;
         selectedItem.x = cX - selectedItem.width / 2;
         selectedItem.y = cY - selectedItem.height / 2;
+window.sendNetworkData({ type: 'arac_senkron', selector: '.yuzen-kopya-container', width: selectedItem.width + 'px', height: selectedItem.height + 'px' });
         if (window.redrawAllStrokes) window.redrawAllStrokes();
         return;
     }
@@ -2872,6 +2874,16 @@ canvas.addEventListener('pointermove', (e) => {
         }
 
         redrawAllStrokes();
+window.sendNetworkData({
+            type: 'arac_senkron',
+            selector: '.yuzen-kopya-container',
+            display: 'block',
+            left: (selectedItem.x || 0) + 'px',
+            top: (selectedItem.y || 0) + 'px',
+            transform: `rotate(${selectedItem.rotation || 0}deg)`,
+            width: (selectedItem.width || 0) + 'px',
+            height: (selectedItem.height || 0) + 'px'
+        });
         return; 
     }
 
@@ -3025,6 +3037,13 @@ canvas.addEventListener('pointermove', (e) => {
             ctx.rect(Math.min(snapshotStart.x, endPos.x), Math.min(snapshotStart.y, endPos.y), Math.abs(endPos.x - snapshotStart.x), Math.abs(endPos.y - snapshotStart.y));
             ctx.stroke();
         }
+
+// --- BURAYA EKLE (ÖNİZLEMEYİ PC'YE FIRLAT) ---
+        window.broadcastPreview(currentTool, {
+            start: lineStartPoint || rectStartPoint || (window.tempPolygonData ? window.tempPolygonData.center : null) || snapshotStart,
+            end: endPos,
+            tool: currentTool
+        });
         
         ctx.restore(); // Çizim bitince kalemi düz çizgiye geri çevir
         previewActive = true;
@@ -5105,6 +5124,19 @@ function setupConnectionEvents() {
                     window.drawnStrokes.push(stroke);
                     if (window.redrawAllStrokes) window.redrawAllStrokes();
                 }
+            }
+        }
+
+// 2. KOPYALARI VE TRANSFORMLARI (DÖNDÜRME/BOYUT) AKTAR
+        if (data.type === 'arac_senkron') {
+            const el = document.querySelector(data.selector);
+            if (el) {
+                el.style.display = data.display; 
+                el.style.left = data.left; 
+                el.style.top = data.top;
+                el.style.transform = data.transform; // Döndürme ve ölçek burada işlenir
+                if (data.width) el.style.width = data.width;
+                if (data.height) el.style.height = data.height;
             }
         }
 
