@@ -5081,9 +5081,6 @@ document.getElementById('connect-btn').addEventListener('click', () => {
     }
 });
 
-// =========================================================================
-// 6. BAĞLANTI DURUMUNU VE VERİ AKIŞINI YÖNETEN ANA FONKSİYON
-// =========================================================================
 function setupConnectionEvents() {
     isConnected = true;
     const statusEl = document.getElementById('connection-status');
@@ -5092,12 +5089,11 @@ function setupConnectionEvents() {
         statusEl.style.color = "#00ffcc";
     }
 
-    // --- VERİ KARŞILAMA MERKEZİ ---
+    // --- VERİ KARŞILAMA MERKEZİ (Tüm özellikler burada) ---
     myConnection.on('data', function(data) {
         if (!data || !data.type) return;
 
-        // --- 1. TEMEL ÇİZİMLER, PDF, RESİM VE KOPYALAR ---
-        // Kalem, Çokgen ve Fiziksel Araçların Tamamlanmış Çizimleri Buradan Alınır
+        // 1. ÇİZİM VE ARAÇ AKTARIMI
         if (data.type === 'yeni_cizim') {
             const stroke = data.stroke;
             if (!window.drawnStrokes.some(s => s.id && s.id === stroke.id)) {
@@ -5122,7 +5118,7 @@ function setupConnectionEvents() {
         if (data.type === 'geri_al') { window.drawnStrokes.pop(); if (window.redrawAllStrokes) window.redrawAllStrokes(); }
         if (data.type === 'hepsini_sil') { window.drawnStrokes.length = 0; if (window.redrawAllStrokes) window.redrawAllStrokes(); }
         
-        // PDF Aktarımı
+        // 2. PDF VE RESİM AKTARIMI
         if (data.type === 'pdf_yukle') { 
             try {
                 const base64Data = data.pdfData.split(',')[1];
@@ -5136,23 +5132,24 @@ function setupConnectionEvents() {
                         const pdfControls = document.getElementById('pdf-controls');
                         if (pdfControls) pdfControls.classList.remove('hidden');
                         if (typeof renderPDFPage === 'function') renderPDFPage(window.currentPDFPage);
-                    }).catch(err => { console.error("PDF Hatası:", err); });
+                    });
                 }
-            } catch (e) { console.error("PDF Veri Hatası:", e); }
+            } catch (e) { console.error("PDF Hatası:", e); }
         }
 
         if (data.type === 'pdf_sayfa_degis') { window.currentPDFPage = data.sayfa; if (typeof renderPDFPage === 'function') renderPDFPage(window.currentPDFPage); }
-        
-        // Resim Aktarımı
         if (data.type === 'resim_yukle') {
             const img = new Image();
             img.onload = () => { if (typeof addNewImageToCanvas === 'function') addNewImageToCanvas(img, false); };
             img.src = data.imgData;
         }
 
-        if (data.type === 'dil_secimi') { if (typeof setLanguage === 'function') setLanguage(data.lang); }
+        // 3. DİL VE KOPYA ARAÇLARI
+        if (data.type === 'dil_secimi') { 
+            if (typeof setLanguage === 'function') setLanguage(data.lang);
+            if (typeof showDrawingScreen === 'function') showDrawingScreen();
+        }
 
-        // Kutu, Serbest Seçim ve Yüzen Kopya Aktarımı
         if (data.type === 'arac_senkron') {
             const el = document.querySelector(data.selector);
             if (el) {
@@ -5163,7 +5160,7 @@ function setupConnectionEvents() {
             }
         }
 
-        // --- 2. GELİŞMİŞ ARAÇLAR (BEYİN - STATE) ---
+        // 4. GELİŞMİŞ ARAÇLAR (BEYİN - STATE)
         if (data.type === 'arac_state_senkron') {
             let toolObj = null, el = null;
             if (data.arac === 'ruler') { toolObj = window.RulerTool; el = document.querySelector('.ruler-container'); }
@@ -5173,7 +5170,6 @@ function setupConnectionEvents() {
 
             if (toolObj) {
                 if (data.state) Object.assign(toolObj.state, data.state);
-                
                 if (data.arac === 'pergel' && toolObj.state) {
                     if (toolObj.state.isDrawing) { 
                         toolObj.previewCanvas.style.display = 'block';
@@ -5185,21 +5181,19 @@ function setupConnectionEvents() {
                         if(toolObj.previewCtx) toolObj.previewCtx.clearRect(0,0,toolObj.previewCanvas.width, toolObj.previewCanvas.height); 
                     }
                 }
-                
                 if (el) {
                     if (data.display === 'none') { data.arac === 'pergel' ? el.classList.add('hidden') : el.style.display = 'none'; }
                     else { data.arac === 'pergel' ? el.classList.remove('hidden') : el.style.display = (data.arac === 'ruler' || data.arac === 'gonye') ? 'flex' : 'block'; }
                     if (data.width) el.style.width = data.width;
                     if (data.height) el.style.height = data.height;
                 }
-
                 if (typeof toolObj.updateTransform === 'function') toolObj.updateTransform();
                 if (typeof toolObj.updateMarkings === 'function') toolObj.updateMarkings();
                 if (typeof toolObj.createLabels === 'function') toolObj.createLabels();
             } 
         } 
 
-        // --- 3. GERÇEK ZAMANLI ÖNİZLEME ALICISI (PC EKRANI İÇİN) ---
+        // 5. GERÇEK ZAMANLI ÖNİZLEME VE LAZER
         if (data.type === 'aktif_onizleme') {
             const arac = data.arac;
             const p = data.payload;
@@ -5246,7 +5240,6 @@ function setupConnectionEvents() {
             }
         }
         
-        // --- 4. PARMAK KALKTIĞINDA ÖNİZLEMELERİ SİL ---
         if (data.type === 'onizleme_bitir') {
             if (window.RulerTool && window.RulerTool.drawCtx) { window.RulerTool.drawHandleLabel.style.display = 'none'; window.RulerTool.drawCtx.clearRect(0,0, window.RulerTool.drawCanvas.width, window.RulerTool.drawCanvas.height); }
             if (window.GonyeTool && window.GonyeTool.drawCtx) { window.GonyeTool.drawHandleLabel.style.display = 'none'; window.GonyeTool.drawHandleElement.style.transition = 'top 0.1s ease-out'; window.GonyeTool.drawHandleElement.style.top = `${window.GonyeTool.state.height - 20}px`; window.GonyeTool.drawCtx.clearRect(0,0, window.GonyeTool.drawCanvas.width, window.GonyeTool.drawCanvas.height); }
@@ -5255,7 +5248,7 @@ function setupConnectionEvents() {
         }
     });
 
-    // --- BAĞLANTI KOPTUĞUNDA ÇALIŞACAK FONKSİYON ---
+    // BAĞLANTI KOPMA
     myConnection.on('close', function() {
         isConnected = false;
         const statusEl = document.getElementById('connection-status');
@@ -5269,7 +5262,6 @@ function setupConnectionEvents() {
         if (connectBtn) connectBtn.style.display = "block";
     });
 }
-
 
 // =========================================================
 // 7. GÜVENLİ VERİ FIRLATMA FONKSİYONU
