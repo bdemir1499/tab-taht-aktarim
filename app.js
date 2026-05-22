@@ -5081,65 +5081,7 @@ document.getElementById('connect-btn').addEventListener('click', () => {
     }
 });
 
-// =========================================================================
-// 6. ANA BAĞLANTI VE VERİ KARŞILAMA FONKSİYONU (SENİN SİLİNEN KISIM BURASIYDI)
-// =========================================================================
-function setupConnectionEvents() {
-    isConnected = true;
-    const statusEl = document.getElementById('connection-status');
-    if (statusEl) {
-        statusEl.innerText = "BAĞLANDI 🟢";
-        statusEl.style.color = "#00ffcc";
-    }
-
-    // --- VERİ KARŞILAMA MERKEZİ ---
-    myConnection.on('data', function(data) {
-
-        // Şifre Güvenliği
-        if (data.password !== window.sessionPassword) {
-            console.warn("🔴 Yabancı erişim engellendi!");
-            myConnection.close();
-            return;
-        }
-        if (!data || !data.type) return;
-
-        // [ESKİ TEMEL ÇİZİM VE SİLME KODLARIN - KAYBOLMAMASI İÇİN EKLENDİ]
-        if (data.type === 'sil_objeyi') {
-            const zombiIndex = window.drawnStrokes.findIndex(s => s.id === data.strokeId);
-            if (zombiIndex !== -1) window.drawnStrokes.splice(zombiIndex, 1);
-            else if (data.index !== undefined && window.drawnStrokes[data.index]) window.drawnStrokes.splice(data.index, 1);
-            if (window.redrawAllStrokes) window.redrawAllStrokes();
-        }
-
-        if (data.type === 'yeni_cizim') {
-            const stroke = data.stroke;
-            if (!window.drawnStrokes.some(s => s.id && s.id === stroke.id)) {
-                if (stroke.type === 'image' && stroke.imgData) {
-                    const tempImg = new Image();
-                    tempImg.src = stroke.imgData;
-                    tempImg.onload = () => { stroke.imgObj = tempImg; window.drawnStrokes.push(stroke); if (window.redrawAllStrokes) window.redrawAllStrokes(); };
-                } else {
-                    window.drawnStrokes.push(stroke);
-                    if (window.redrawAllStrokes) window.redrawAllStrokes();
-                }
-            }
-        }
-
-        if (data.type === 'geri_al') { window.drawnStrokes.pop(); if (window.redrawAllStrokes) window.redrawAllStrokes(); }
-        if (data.type === 'hepsini_sil') { window.drawnStrokes.length = 0; if (window.redrawAllStrokes) window.redrawAllStrokes(); }
-        if (data.type === 'dil_secimi') { if (typeof setLanguage === 'function') setLanguage(data.lang); }
-
-        if (data.type === 'arac_senkron') {
-            const el = document.querySelector(data.selector);
-            if (el) {
-                el.style.display = data.display; el.style.left = data.left; el.style.top = data.top;
-                el.style.transform = data.transform;
-                if (data.width) el.style.width = data.width;
-                if (data.height) el.style.height = data.height;
-            }
-        }
-
-        // GELİŞMİŞ ARAÇLAR (BEYİN - STATE)
+// 6. GELİŞMİŞ ARAÇLAR (BEYİN - STATE)
         if (data.type === 'arac_state_senkron') {
             let toolObj = null, el = null;
             if (data.arac === 'ruler') { toolObj = window.RulerTool; el = document.querySelector('.ruler-container'); }
@@ -5155,10 +5097,11 @@ function setupConnectionEvents() {
                     // PERGEL ÖZEL: Canlı Önizleme Çizimi
                     if (data.arac === 'pergel') {
                         if (toolObj.state.isDrawing) { 
+                            // PC'deki tuvali tabletle aynı boyuta getir
                             toolObj.previewCanvas.style.display = 'block';
                             toolObj.previewCanvas.width = window.innerWidth;
                             toolObj.previewCanvas.height = window.innerHeight;
-                            toolObj.drawPreviewArc(); 
+                            toolObj.drawPreviewArc(); // YAYI ÇİZ!
                         } else { 
                             toolObj.previewCanvas.style.display = 'none'; 
                             if(toolObj.previewCtx) toolObj.previewCtx.clearRect(0,0,toolObj.previewCanvas.width, toolObj.previewCanvas.height); 
@@ -5252,7 +5195,6 @@ function setupConnectionEvents() {
             if (window.AciolcerTool && window.AciolcerTool.previewCtx) { window.AciolcerTool.drawHandleLabel.style.display = 'none'; window.AciolcerTool.previewCanvas.style.display = 'none'; window.AciolcerTool.redLine.style.transition = 'transform 0.1s ease-out'; window.AciolcerTool.redLine.style.transform = 'rotate(0deg)'; window.AciolcerTool.drawHandle.style.transition = 'transform 0.1s ease-out'; window.AciolcerTool.drawHandle.style.transform = 'translateX(-50%) translate(0px, 0px)'; window.AciolcerTool.previewCtx.clearRect(0,0, window.AciolcerTool.previewCanvas.width, window.AciolcerTool.previewCanvas.height); }
             let lazer = document.getElementById('sanal-lazer'); if (lazer) lazer.style.display = 'none';
         }
-
     }); // <--- DATA DİNLEYİCİSİ BURADA BİTİYOR
 
     // --- BAĞLANTI KOPTUĞUNDA ÇALIŞACAK FONKSİYON ---
@@ -5271,13 +5213,21 @@ function setupConnectionEvents() {
 
 } // <--- SETUPCONNECTIONEVENTS FONKSİYONU BURADA BİTİYOR
 
+
+
+
+
 // =========================================================
 // 7. GÜVENLİ VERİ FIRLATMA FONKSİYONU
 // =========================================================
 window.sendNetworkData = function(dataPackage) {
     if (isConnected && myConnection) {
+        
+        // --- YENİ GÜVENLİK İMZASI ---
         // Sabit anahtar yerine öğretmenin o an girdiği dinamik şifreyi gömüyoruz
         dataPackage.password = window.sessionPassword;
+        
+        // Artık paket güvenli, yola çıkabilir!
         myConnection.send(dataPackage);
     }
 };
@@ -5346,8 +5296,8 @@ window.araclariAgaGonder = function() {
                     arac: arac.id,
                     display: isVisible,
                     state: arac.obj.state,
-                    width: elW,   
-                    height: elH   
+                    width: elW,   // Pergelin turuncu butonla değişen kutu genişliği
+                    height: elH   // Pergelin turuncu butonla değişen kutu yüksekliği
                 });
             }
         }
@@ -5387,6 +5337,7 @@ window.addEventListener('load', () => {
     if (window.PergelTool && typeof window.PergelTool.init === 'function') {
         window.PergelTool.init();
         // PC'de pergelin çizim yapmasına gerek yok, sadece önizlemeyi izleyecek
+        // Bu yüzden PC tarafında araçları "gizli" (hidden) başlatabiliriz
         window.PergelTool.hide(); 
     }
 });
@@ -5403,6 +5354,7 @@ window.broadcastPreview = function(toolType, stateData) {
         });
     }
 };
+
 
 // Çizim yaparken kalemin ucunu PC'ye lazer olarak aktar
 window.addEventListener('pointermove', (e) => {
