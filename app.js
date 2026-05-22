@@ -5081,7 +5081,22 @@ document.getElementById('connect-btn').addEventListener('click', () => {
     }
 });
 
-// 6. GELİŞMİŞ ARAÇLAR (BEYİN - STATE)
+// =========================================================================
+// 6. BAĞLANTI DURUMUNU VE VERİ AKIŞINI YÖNETEN ANA FONKSİYON
+// =========================================================================
+function setupConnectionEvents() {
+    isConnected = true;
+    const statusEl = document.getElementById('connection-status');
+    if (statusEl) {
+        statusEl.innerText = "BAĞLANDI 🟢";
+        statusEl.style.color = "#00ffcc";
+    }
+
+    // --- VERİ KARŞILAMA MERKEZİ ---
+    myConnection.on('data', function(data) {
+        if (!data || !data.type) return;
+
+        // GELİŞMİŞ ARAÇLAR (BEYİN - STATE)
         if (data.type === 'arac_state_senkron') {
             let toolObj = null, el = null;
             if (data.arac === 'ruler') { toolObj = window.RulerTool; el = document.querySelector('.ruler-container'); }
@@ -5195,7 +5210,7 @@ document.getElementById('connect-btn').addEventListener('click', () => {
             if (window.AciolcerTool && window.AciolcerTool.previewCtx) { window.AciolcerTool.drawHandleLabel.style.display = 'none'; window.AciolcerTool.previewCanvas.style.display = 'none'; window.AciolcerTool.redLine.style.transition = 'transform 0.1s ease-out'; window.AciolcerTool.redLine.style.transform = 'rotate(0deg)'; window.AciolcerTool.drawHandle.style.transition = 'transform 0.1s ease-out'; window.AciolcerTool.drawHandle.style.transform = 'translateX(-50%) translate(0px, 0px)'; window.AciolcerTool.previewCtx.clearRect(0,0, window.AciolcerTool.previewCanvas.width, window.AciolcerTool.previewCanvas.height); }
             let lazer = document.getElementById('sanal-lazer'); if (lazer) lazer.style.display = 'none';
         }
-    }); // <--- DATA DİNLEYİCİSİ BURADA BİTİYOR
+    }); // <--- İŞTE O KAYIP PARANTEZ BURADA, DATA DİNLEYİCİSİ KAPANDI!
 
     // --- BAĞLANTI KOPTUĞUNDA ÇALIŞACAK FONKSİYON ---
     myConnection.on('close', function() {
@@ -5213,20 +5228,11 @@ document.getElementById('connect-btn').addEventListener('click', () => {
 
 } // <--- SETUPCONNECTIONEVENTS FONKSİYONU BURADA BİTİYOR
 
-
-
-
-
 // =========================================================
 // 7. GÜVENLİ VERİ FIRLATMA FONKSİYONU
 // =========================================================
 window.sendNetworkData = function(dataPackage) {
     if (isConnected && myConnection) {
-        
-        // --- YENİ GÜVENLİK İMZASI ---
-        // Sabit anahtar yerine öğretmenin o an girdiği dinamik şifreyi gömüyoruz
-        dataPackage.password = window.sessionPassword;
-        
         // Artık paket güvenli, yola çıkabilir!
         myConnection.send(dataPackage);
     }
@@ -5354,7 +5360,6 @@ window.broadcastPreview = function(toolType, stateData) {
         });
     }
 };
-
 
 // Çizim yaparken kalemin ucunu PC'ye lazer olarak aktar
 window.addEventListener('pointermove', (e) => {
