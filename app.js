@@ -5092,6 +5092,24 @@ if (isTablet) {
     window.sessionPassword = Math.floor(1000 + Math.random() * 9000).toString();
 }
 
+// --- YENİ: BAĞLANTI ONAY SİSTEMİ (KAPI ZİLİ) ---
+myPeer.on('connection', function(conn) {
+    console.log("Bir cihaz bağlanmak istiyor:", conn.peer);
+    
+    // Gelen isteği geçici hafızaya al
+    window.pendingConnection = conn; 
+    
+    // HTML'deki modalı ve yazıyı bulup ekrana getir
+    const requestText = document.getElementById('request-text');
+    const requestModal = document.getElementById('conn-request-modal');
+    
+    if (requestText && requestModal) {
+        requestText.innerText = `Oda kodu "${conn.peer}" olan bir cihaz bağlanmak istiyor. Onaylıyor musun?`;
+        requestModal.style.display = 'flex';
+    }
+});
+
+
 // 3. Sistem sunucuya başarıyla bağlandığında kodumuzu HTML panele yazdır
 myPeer.on('open', function(id) {
     const idSaha = document.getElementById('my-peer-id');
