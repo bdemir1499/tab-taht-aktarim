@@ -604,6 +604,8 @@ window.OyunListesi = [
         link: "https://bekrmatmt25.my.canva.site/kosegenlerden-dortgenlere"
     }
 ];
+
+
 // Sayfa açıldığında kırmızı butonun yanlışlıkla görünmesini engellemek için:
 const closePdfBtn = document.getElementById('btn-close-pdf');
 if (closePdfBtn) {
@@ -5101,26 +5103,40 @@ myPeer.on('connection', function(conn) {
     const btnAccept = document.getElementById('btn-conn-accept');
     const btnReject = document.getElementById('btn-conn-reject');
     
-    if (requestText && requestModal) {
+    // 1. GÜVENLİK KİLİDİ: HTML elementleri eksikse kodun çökmesini engeller
+    if (requestModal && requestText && btnAccept && btnReject) {
+        
         requestText.innerText = `Oda kodu "${conn.peer}" olan bir cihaz bağlanmak istiyor. Onaylıyor musun?`;
+        
+        // Kutuyu görünür yap (Projedeki genel yapıya uyumlu)
+        requestModal.classList.remove('hidden');
         requestModal.style.display = 'flex';
         
         // --- EVET BUTONUNA BASILINCA ---
         btnAccept.onclick = function() {
-            myConnection = conn; // app.js'nin kendi değişkenini güncelliyoruz (Hata vermez!)
+            myConnection = conn; 
             if (typeof setupConnectionEvents === 'function') {
                 setupConnectionEvents();
             }
-            requestModal.style.display = 'none'; // Kutuyu kapat
+            // Kutuyu kesin olarak kapat
+            requestModal.classList.add('hidden'); 
+            requestModal.style.display = 'none'; 
         };
         
         // --- REDDET BUTONUNA BASILINCA ---
         btnReject.onclick = function() {
             conn.close(); // Bağlantıyı kes
-            requestModal.style.display = 'none'; // Kutuyu kapat
+            // Kutuyu kesin olarak kapat
+            requestModal.classList.add('hidden'); 
+            requestModal.style.display = 'none'; 
         };
+        
+    } else {
+        // Hata durumunda ekranı dondurmak yerine konsola net bir uyarı basar
+        console.error("HATA: Kapı zili modalı veya onay butonları HTML'de bulunamadı! ID'leri kontrol edin.");
     }
 });
+
 
 // 3. Sistem sunucuya başarıyla bağlandığında kodumuzu HTML panele yazdır
 myPeer.on('open', function(id) {
