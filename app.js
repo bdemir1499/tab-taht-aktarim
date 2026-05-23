@@ -1,3 +1,15 @@
+// HATA GİDERİCİ: kucult fonksiyonu tanımlı değilse sistemin çökmesini engelle
+if (typeof kucult === 'undefined') {
+    window.kucult = function() {
+        console.log("Kucult fonksiyonu çağrıldı ama tanımlı değil. Eğer kucultPanel kullanıyorsan lütfen kodunda kucult() yazan yeri kucultPanel() olarak değiştir.");
+        // Eğer sistemde kucultPanel tanımlıysa onu çalıştır
+        if (typeof kucultPanel === 'function') {
+            kucultPanel();
+        }
+    };
+}
+
+
 // Artık sabit bir MY_SECRET_KEY yok, öğretmen her ders şifreyi belirleyecek
 window.sessionPassword = "";
 
