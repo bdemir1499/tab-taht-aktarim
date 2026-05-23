@@ -337,7 +337,8 @@ const bekci = setInterval(() => {
         </p>
         <button id="close-disclaimer" style="width:100%; padding:12px; background:#00ffcc; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">Kapat</button>
     </div>
-</div>,
+</div>
+
 <div id="conn-request-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:99999999; justify-content:center; align-items:center;">
     <div style="background:white; padding:25px; max-width:400px; width: 90%; border-radius:15px; color:black; text-align:center; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
         <h3>⚠️ Bağlantı İsteği</h3>
@@ -364,28 +365,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('disclaimer-modal').style.display = 'none';
     });
 
-    // --- 2. Bağlantı İsteği Butonları ---
-    window.pendingConnection = null; // app.js'nin görebilmesi için 'window'a ekledik
-
-    document.getElementById('btn-conn-accept').addEventListener('click', () => {
-        if (window.pendingConnection) {
-            window.myConnection = window.pendingConnection;
-            // Mevcut bağlantı ayarlarını başlat
-            if (typeof setupConnectionEvents === 'function') {
-                setupConnectionEvents();
-            }
-            document.getElementById('conn-request-modal').style.display = 'none';
-            window.pendingConnection = null;
-        }
-    });
-
-    document.getElementById('btn-conn-reject').addEventListener('click', () => {
-        if (window.pendingConnection) {
-            window.pendingConnection.close();
-            document.getElementById('conn-request-modal').style.display = 'none';
-            window.pendingConnection = null;
-        }
-    });
+    // BAĞLANTI BUTONU GÖREVLERİ BURADAN SİLİNDİ
+    // ÇÜNKÜ ARTIK BU GÖREVİ DOĞRUDAN APP.JS YAPIYOR!
 });
 </script>
 </body>
