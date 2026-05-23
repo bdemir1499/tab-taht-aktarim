@@ -5562,3 +5562,41 @@ window.addEventListener('pointerup', () => {
         window.sendNetworkData({ type: 'onizleme_bitir' });
     }
 });
+
+
+// Yasal Uyarı Modal Kontrolleri
+const modal = document.getElementById('disclaimer-modal');
+const openBtn = document.getElementById('open-disclaimer');
+const closeDisclaimerBtn = document.getElementById('close-disclaimer');
+
+// GÜVENLİK KONTROLÜ: Elemanlar gerçekten sayfada var mı?
+if (modal) {
+    // 1. Açma İşlemi
+    if (openBtn) {
+        openBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            modal.style.display = 'flex';
+        });
+    }
+
+    // 2. Kapatma İşlemi
+    if (closeDisclaimerBtn) {
+        closeDisclaimerBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+    }
+
+    // 3. Dışarıya tıklayınca kapatma
+    window.addEventListener('click', (event) => {
+        if (event.target == modal) {
+            modal.style.display = 'none';
+        }
+    });
+}
+
+// 4. Uygulama açılır açılmaz uyarıyı göster
+window.addEventListener('load', () => {
+    if (modal) {
+        modal.style.display = 'flex'; 
+    }
+});
