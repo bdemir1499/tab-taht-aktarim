@@ -351,7 +351,7 @@ const bekci = setInterval(() => {
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    // --- 1. Yasal Uyarı Modalı İşlemleri ---
+    // --- 1. Yasal Uyarı Modalı ---
     const openBtn = document.getElementById('open-disclaimer');
     if(openBtn) {
         openBtn.addEventListener('click', (e) => {
@@ -364,34 +364,26 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('disclaimer-modal').style.display = 'none';
     });
 
-    // --- 2. Bağlantı İsteği Onay İşlemleri ---
-    let pendingConnection = null;
-
-    if (window.myPeer) {
-        window.myPeer.on('connection', function(conn) {
-            pendingConnection = conn; 
-            document.getElementById('request-text').innerText = `Oda kodu "${conn.peer}" olan cihaz bağlanmak istiyor. Onaylıyor musun?`;
-            document.getElementById('conn-request-modal').style.display = 'flex';
-        });
-    }
+    // --- 2. Bağlantı İsteği Butonları ---
+    window.pendingConnection = null; // app.js'nin görebilmesi için 'window'a ekledik
 
     document.getElementById('btn-conn-accept').addEventListener('click', () => {
-        if (pendingConnection) {
-            window.myConnection = pendingConnection;
-            // Mevcut bağlantı ayarlarını başlat (Eğer app.js'de tanımlıysa çalışır)
+        if (window.pendingConnection) {
+            window.myConnection = window.pendingConnection;
+            // Mevcut bağlantı ayarlarını başlat
             if (typeof setupConnectionEvents === 'function') {
                 setupConnectionEvents();
             }
             document.getElementById('conn-request-modal').style.display = 'none';
-            pendingConnection = null;
+            window.pendingConnection = null;
         }
     });
 
     document.getElementById('btn-conn-reject').addEventListener('click', () => {
-        if (pendingConnection) {
-            pendingConnection.close();
+        if (window.pendingConnection) {
+            window.pendingConnection.close();
             document.getElementById('conn-request-modal').style.display = 'none';
-            pendingConnection = null;
+            window.pendingConnection = null;
         }
     });
 });
