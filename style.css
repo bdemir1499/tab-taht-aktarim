@@ -1019,3 +1019,11 @@ canvas {
     background: #00ffcc !important;
     color: #0d0d2b !important;
 }
+
+
+.disclaimer-show {
+    display: flex !important;
+}
+.disclaimer-hidden {
+    display: none !important;
+}

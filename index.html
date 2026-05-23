@@ -302,6 +302,38 @@
         <button id="close-disclaimer" style="width:100%; padding:10px; background:#007bff; color:white; border:none; border-radius:5px; cursor:pointer;">Kapat</button>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Elementleri tanımlayalım
+    const modal = document.getElementById('disclaimer-modal');
+    const openBtn = document.getElementById('open-disclaimer');
+    const closeBtn = document.getElementById('close-disclaimer');
+
+    // 2. Eğer linke tıklanırsa pencereyi aç
+    if (openBtn) {
+        openBtn.addEventListener('click', (e) => {
+            e.preventDefault(); // Sayfanın en başa gitmesini engeller
+            if (modal) modal.style.display = 'flex';
+        });
+    }
+
+    // 3. Eğer Kapat butonuna tıklanırsa pencereyi kapat
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            if (modal) modal.style.display = 'none';
+        });
+    }
+
+    // 4. Eğer pencerenin dışındaki karanlık alana tıklanırsa kapat
+    window.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+});
+</script>
+
   
 </body>
 </html>
