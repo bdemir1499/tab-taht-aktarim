@@ -5112,11 +5112,6 @@ myPeer.on('open', function(id) {
     }
 });
 
-// 4. TAHTA ROLÜ: Başka bir cihaz (Tablet) bize bağlandığında
-myPeer.on('connection', function(conn) {
-    myConnection = conn;
-    setupConnectionEvents();
-});
 
 // 5. TABLET ROLÜ: Bağlanma butonu
 document.getElementById('connect-btn').addEventListener('click', () => {
@@ -5135,6 +5130,13 @@ document.getElementById('connect-btn').addEventListener('click', () => {
 });
 
 function setupConnectionEvents() {
+
+// --- BAĞLANINCA OTOMATİK KAPAT ---
+    if (typeof window.kucultPanel === 'function') {
+        window.kucultPanel();
+    }
+    // ---------------------------------
+
     isConnected = true;
     const statusEl = document.getElementById('connection-status');
     if (statusEl) {

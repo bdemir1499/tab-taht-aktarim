@@ -57,6 +57,19 @@
     <div id="connection-status" style="font-size: 13px; margin-top: 10px; color: #ffeb3b; text-align: center; font-weight: 600;">Bağlantı Bekleniyor...</div>
 </div>
 <script>
+
+
+window.kucultPanel = function() {
+    const pnl = document.getElementById('network-panel');
+    const mBtn = document.getElementById('network-mini-btn');
+    if(pnl) pnl.style.display = 'none';
+    if(mBtn) mBtn.style.display = 'block';
+    sessionStorage.setItem('sinifDurumu', 'kapali');
+};
+
+
+
+
     // =========================================================
     // --- CANLI SINIF PANELI BEKÇİ MOTORU (KESİN ÇÖZÜM) ---
     // =========================================================
@@ -65,11 +78,7 @@
         const mBtn = document.getElementById('network-mini-btn');
         const pnl = document.getElementById('network-panel');
 
-        function kucult() {
-            pnl.style.display = 'none';
-            mBtn.style.display = 'block';
-            sessionStorage.setItem('sinifDurumu', 'kapali');
-        }
+        
 
         function ac() {
             mBtn.style.display = 'none';
@@ -80,6 +89,15 @@
         // Butonlara görevlerini ata
         cBtn.onclick = kucult;
         mBtn.onclick = ac;
+
+
+// --- YENİ EKLENEN KISIM: Bağlan butonuna tıklanınca paneli kapat ---
+    connBtn.addEventListener('click', () => {
+        // Not: Eğer bağlantı hemen kurulmazsa burada kapatmak paneli yok eder. 
+        // Eğer bağlantı hatası görürsen, kucult() komutunu app.js'deki "başarılı bağlantı" kısmına taşıman daha iyi olur.
+        kucult();
+    });
+
 
         // BEKÇİ: Dil ekranını izle. Kapandığı an paneli küçült ve linki gizle.
 const bekci = setInterval(() => {
@@ -317,21 +335,66 @@ const bekci = setInterval(() => {
             <strong>Lisans:</strong> MIT Lisansı ile korunmaktadır.<br><br>
             <strong>ℹ️ Disclaimer (English):</strong> This software is an independent educational tool developed voluntarily by a teacher. It is designed solely for classroom educational purposes. It does not collect, store, or upload any personal data. It is provided "as is" under the MIT License. The developer accepts no liability for misuse.
         </p>
-        <button id="close-disclaimer" style="width:100%; padding:12px; background:#00ffcc; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:16px;">Kapat</button>
+        <button id="close-disclaimer" style="width:100%; padding:12px; background:#00ffcc; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">Kapat</button>
+    </div>
+</div>,
+<div id="conn-request-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:99999999; justify-content:center; align-items:center;">
+    <div style="background:white; padding:25px; max-width:400px; width: 90%; border-radius:15px; color:black; text-align:center; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
+        <h3>⚠️ Bağlantı İsteği</h3>
+        <p id="request-text" style="font-size:16px;">Bir cihaz tahtaya bağlanmak istiyor. Onaylıyor musunuz?</p>
+        <div style="display:flex; gap:10px; justify-content:center;">
+            <button id="btn-conn-accept" style="padding:10px 25px; background:#00ffcc; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">Evet, Bağlan</button>
+            <button id="btn-conn-reject" style="padding:10px 25px; background:#ff4444; border:none; border-radius:8px; cursor:pointer; font-weight:bold; color:white;">Reddet</button>
+        </div>
     </div>
 </div>
 
 <script>
-    // Linke tıklanınca uyarı versin (çalışıp çalışmadığını anlamak için)
-    document.getElementById('open-disclaimer').addEventListener('click', (e) => {
-        e.preventDefault();
-        document.getElementById('disclaimer-modal').style.display = 'flex';
-    });
-
+document.addEventListener('DOMContentLoaded', () => {
+    // --- 1. Yasal Uyarı Modalı İşlemleri ---
+    const openBtn = document.getElementById('open-disclaimer');
+    if(openBtn) {
+        openBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('disclaimer-modal').style.display = 'flex';
+        });
+    }
+    
     document.getElementById('close-disclaimer').addEventListener('click', () => {
         document.getElementById('disclaimer-modal').style.display = 'none';
     });
+
+    // --- 2. Bağlantı İsteği Onay İşlemleri ---
+    let pendingConnection = null;
+
+    if (window.myPeer) {
+        window.myPeer.on('connection', function(conn) {
+            pendingConnection = conn; 
+            document.getElementById('request-text').innerText = `Oda kodu "${conn.peer}" olan cihaz bağlanmak istiyor. Onaylıyor musun?`;
+            document.getElementById('conn-request-modal').style.display = 'flex';
+        });
+    }
+
+    document.getElementById('btn-conn-accept').addEventListener('click', () => {
+        if (pendingConnection) {
+            window.myConnection = pendingConnection;
+            // Mevcut bağlantı ayarlarını başlat (Eğer app.js'de tanımlıysa çalışır)
+            if (typeof setupConnectionEvents === 'function') {
+                setupConnectionEvents();
+            }
+            document.getElementById('conn-request-modal').style.display = 'none';
+            pendingConnection = null;
+        }
+    });
+
+    document.getElementById('btn-conn-reject').addEventListener('click', () => {
+        if (pendingConnection) {
+            pendingConnection.close();
+            document.getElementById('conn-request-modal').style.display = 'none';
+            pendingConnection = null;
+        }
+    });
+});
 </script>
-  
 </body>
 </html>
