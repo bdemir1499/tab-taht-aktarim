@@ -5488,24 +5488,19 @@ function setupConnectionEvents() {
                 lazer.style.display = 'block'; lazer.style.left = `${p.x}px`; lazer.style.top = `${p.y}px`;
                 clearTimeout(window.lazerTimer); window.lazerTimer = setTimeout(() => { lazer.style.display = 'none'; }, 150);
             }
-        }
-
-// 5. ÇİZİM ÖNİZLEME (NESNE OLARAK AKTARIM - GÜNCEL)
-else if (arac === 'cizim_onizleme') {
-    // 1. Önceki "preview" hayaletlerini temizle
-    window.drawnStrokes = window.drawnStrokes.filter(s => s.type !== 'preview');
-    
-    // 2. Önizlemeyi bir "nesne" olarak kaydet (Artık sistem bunu bir obje olarak görüyor)
-    const previewObj = {
-        type: 'preview', 
-        isTemporaryPreview: true, // findHit'in bunu tanıması için
-        payload: p,
-        id: 'temp-preview-id'
-    };
-    
-    window.drawnStrokes.push(previewObj);
-    if (window.redrawAllStrokes) window.redrawAllStrokes();
-}
+            // --- KRİTİK YAMA: ÖNİZLEME BLOĞU ARTIK İÇERİDE! ---
+            else if (arac === 'cizim_onizleme') {
+                window.drawnStrokes = window.drawnStrokes.filter(s => s.type !== 'preview');
+                const previewObj = {
+                    type: 'preview',
+                    isTemporaryPreview: true, 
+                    payload: p,
+                    id: 'temp-preview-id'
+                };
+                window.drawnStrokes.push(previewObj);
+                if (window.redrawAllStrokes) window.redrawAllStrokes();
+            }
+        } // <--- 'aktif_onizleme' KONTROLÜ BURADA KAPANIYOR
 
 // 6. ÖNİZLEME BİTİR (Temizleyici)
 if (data.type === 'onizleme_bitir') {
