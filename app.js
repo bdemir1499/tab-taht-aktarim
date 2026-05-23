@@ -3068,6 +3068,42 @@ window.sendNetworkData({ type: 'arac_senkron', selector: '.yuzen-kopya-container
                 }
             }
             ctx.stroke();
+// --- BURADAN İTİBAREN EKLE ---
+        
+        // --- CANLI ÇİZİM ÖNİZLEMESİNİ PC'YE FIRLAT (DOKUNMATİK UYUMLU) ---
+        if (typeof isConnected !== 'undefined' && isConnected) {
+            let previewData = null;
+
+            // 1. Çizgi Çeşitleri
+            if (['straightLine', 'line', 'segment', 'ray'].includes(currentTool) && typeof lineStartPoint !== 'undefined' && lineStartPoint) {
+                previewData = { tool: currentTool, start: lineStartPoint, end: endPos };
+            }
+            // 2. Dikdörtgen
+            else if (currentTool === 'rectangle' && typeof rectStartPoint !== 'undefined' && rectStartPoint) {
+                previewData = { tool: currentTool, start: rectStartPoint, end: endPos };
+            }
+            // 3. Çokgen ve Çember
+            else if (window.tempPolygonData && window.tempPolygonData.center) {
+                previewData = { 
+                    tool: 'polygon',
+                    start: window.tempPolygonData.center,
+                    end: endPos,
+                    radius: window.tempPolygonData.radius || Math.hypot(endPos.x - window.tempPolygonData.center.x, endPos.y - window.tempPolygonData.center.y)
+                };
+            }
+
+            // PC'ye ateşle!
+            if (previewData) {
+                window.sendNetworkData({
+                    type: 'aktif_onizleme',
+                    arac: 'cizim_onizleme',
+                    payload: previewData
+                });
+            }
+        }
+        
+        // --- BURAYA KADAR EKLE ---
+
 // ========================================================
             // GERÇEK ZAMANLI KENAR UZUNLUĞU GÖSTERGESİ
             // ========================================================
