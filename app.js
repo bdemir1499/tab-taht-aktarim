@@ -979,6 +979,43 @@ function redrawAllStrokes() {
     // (Buradaki translate ve scale satırlarını tamamen sildik. Zemin artık sabit!)
 for (const stroke of drawnStrokes) {
 
+    // --- YENİ: PC'DE ÖNİZLEMEYİ CANLI NESNE OLARAK ÇİZ ---
+    if (stroke.type === 'preview') {
+        const p = stroke.payload;
+        ctx.save();
+        ctx.strokeStyle = '#FF0000';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([5, 5]);
+
+        if (p.tool === 'pen' && p.path) {
+            ctx.beginPath();
+            ctx.moveTo(p.path[0].x, p.path[0].y);
+            for (let i = 1; i < p.path.length; i++) ctx.lineTo(p.path[i].x, p.path[i].y);
+            ctx.stroke();
+        }
+        else if (['straightLine', 'line', 'segment', 'ray'].includes(p.tool) && p.start && p.end) {
+            ctx.beginPath();
+            const dx = p.end.x - p.start.x, dy = p.end.y - p.start.y, devCarpan = 5000;
+            if (p.tool === 'line') { ctx.moveTo(p.start.x - dx * devCarpan, p.start.y - dy * devCarpan); ctx.lineTo(p.start.x + dx * devCarpan, p.start.y + dy * devCarpan); }
+            else if (p.tool === 'ray') { ctx.moveTo(p.start.x, p.start.y); ctx.lineTo(p.start.x + dx * devCarpan, p.start.y + dy * devCarpan); }
+            else { ctx.moveTo(p.start.x, p.start.y); ctx.lineTo(p.end.x, p.end.y); }
+            ctx.stroke();
+        }
+        else if (p.tool === 'rectangle' && p.start && p.end) {
+            ctx.beginPath();
+            ctx.rect(Math.min(p.start.x, p.end.x), Math.min(p.start.y, p.end.y), Math.abs(p.end.x - p.start.x), Math.abs(p.end.y - p.start.y));
+            ctx.stroke();
+        }
+        else if (p.start && p.end) {
+            const radius = p.radius || Math.hypot(p.end.x - p.start.x, p.end.y - p.start.y);
+            ctx.beginPath();
+            ctx.arc(p.start.x, p.start.y, radius, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        ctx.restore();
+        continue; // Önizlemeyi çizdik, döngüde başka işlem yapma, sıradakine geç
+    }
+    // ----------------------------------------------------
   // --- AKILLI BOYAMA MASKESİ ---
         if (stroke.type === 'lasso-mask') {
             ctx.save();
@@ -2539,6 +2576,11 @@ if (typeof eraserPreview !== 'undefined' && eraserPreview) {
             selectedItem = hit.item;
             selectedPointKey = hit.pointKey; 
             dragStartPos = pos; 
+
+// YAMA: PC'ye Hangi Nesnenin Seçildiğini Bildir (Yan Butonlar Çıksın)
+    if (typeof isConnected !== 'undefined' && isConnected) {
+        window.sendNetworkData({ type: 'secimi_senkronize_et', strokeId: selectedItem.id });
+    }
             
             // Başlangıç konumlarını kaydet
             originalStartPos = {}; 
@@ -2589,6 +2631,11 @@ if (typeof eraserPreview !== 'undefined' && eraserPreview) {
                 selectedItem.showEdgeLabels = selectedItem.showAngleLabels = selectedItem.showCircleInfo = false;
             }
             selectedItem = null;
+
+// YAMA: PC'de Seçimi İptal Et (Yan Butonları Kapat)
+    if (typeof isConnected !== 'undefined' && isConnected) {
+        window.sendNetworkData({ type: 'secimi_kaldir' });
+    }
             redrawAllStrokes();
         }
     }
@@ -2888,19 +2935,23 @@ window.sendNetworkData({ type: 'arac_senkron', selector: '.yuzen-kopya-container
         }
 
         redrawAllStrokes();
-window.sendNetworkData({
-            type: 'arac_senkron',
-            selector: '.yuzen-kopya-container',
-            display: 'block',
-            left: (selectedItem.x || 0) + 'px',
-            top: (selectedItem.y || 0) + 'px',
-            transform: `rotate(${selectedItem.rotation || 0}deg)`,
-            width: (selectedItem.width || 0) + 'px',
-            height: (selectedItem.height || 0) + 'px'
-        });
+// --- GÜNCEL VE AKICI TAŞIMA MOTORU ---
+        if (typeof isConnected !== 'undefined' && isConnected) {
+            // 1. Şeklin en güncel koordinatlarını PC'ye ilet
+            window.sendNetworkData({ 
+                type: 'sekil_guncelle', 
+                stroke: selectedItem 
+            });
+            
+            // 2. PC'de o nesnenin seçili olduğunu ve butonlarının çıkması gerektiğini hatırlat
+            window.sendNetworkData({ 
+                type: 'secimi_senkronize_et', 
+                strokeId: selectedItem.id 
+            });
+        }
 
-// --- BURAYA EKLE ---
-        window.sendNetworkData({ type: 'sekil_guncelle', stroke: selectedItem });
+
+
         return; 
     }
 
@@ -3580,15 +3631,15 @@ if (currentTool === 'pen') {
                 }
 
                 // --- C) KESİLEN YERE BULUNAN RENKTE YAMA YAP (MASKE) ---
-                const maskStroke = {
-                    type: 'lasso-mask',
-                    points: lassoPoints.map(p => ({ x: p.x, y: p.y })),
-                    fillColor: detectedColor // SENSÖRÜN BULDUĞU RENK!
-                };
-                drawnStrokes.push(maskStroke); // Kopyadan ÖNCE yamayı koy
+const maskStroke = {
+    type: 'lasso-mask',
+    points: lassoPoints.map(p => ({ x: p.x, y: p.y })),
+    fillColor: detectedColor 
+};
+maskStroke.id = Date.now() + Math.random(); // BUNA KİMLİK EKLE
+drawnStrokes.push(maskStroke); 
 
-
-                // --- D) KOPYAYI EKRANA YERLEŞTİR (LASSO CANLI AKTARIMLI) ---
+// --- D) KOPYAYI EKRANA YERLEŞTİR (LASSO CANLI AKTARIMLI) ---
 const newImgStroke = {
     type: 'image',
     imgData: finalImage,
@@ -3600,6 +3651,7 @@ const newImgStroke = {
     isBackground: false,
     imgObj: null 
 };
+newImgStroke.id = Date.now() + Math.random(); // BUNA KİMLİK EKLE
 
 const tempImg = new Image();
 tempImg.onload = () => {
@@ -5370,98 +5422,69 @@ function setupConnectionEvents() {
             }
         }
 
-// 5. ÇİZİM ÖNİZLEME (KALEM, DİKDÖRTGEN, ÇOKGEN VE ÇİZGİLER)
-            else if (arac === 'cizim_onizleme') {
-                const canvas = document.getElementById('drawing-canvas');
-                const ctx = canvas.getContext('2d');
-                
-                // Ekranı temizleyip sadece mevcut kayıtlı çizimleri çiz (önizlemeyi temizlemek için)
-                if (typeof window.redrawAllStrokes === 'function') {
-                    window.redrawAllStrokes();
-                }
-
-                ctx.save();
-                ctx.strokeStyle = '#FF0000'; // Önizleme rengi
-                ctx.lineWidth = 3;
-                ctx.setLineDash([5, 5]); // Kesikli çizgi
-
-                // A) KALEM (PEN) ÖNİZLEMESİ
-                if (p.tool === 'pen' && p.path && p.path.length > 0) {
-                    ctx.beginPath();
-                    ctx.moveTo(p.path[0].x, p.path[0].y);
-                    for (let i = 1; i < p.path.length; i++) {
-                        ctx.lineTo(p.path[i].x, p.path[i].y);
-                    }
-                    ctx.stroke();
-                }
-                // B) ÇİZGİ ÇEŞİTLERİ (DOĞRU, IŞIN, PARÇA)
-                else if (['straightLine', 'line', 'segment', 'ray'].includes(p.tool) && p.start && p.end) {
-                    ctx.beginPath();
-                    const dx = p.end.x - p.start.x;
-                    const dy = p.end.y - p.start.y;
-                    const devCarpan = 5000;
-                    
-                    if (p.tool === 'line') {
-                        // İki yöne sonsuz uzayan doğru
-                        ctx.moveTo(p.start.x - dx * devCarpan, p.start.y - dy * devCarpan);
-                        ctx.lineTo(p.start.x + dx * devCarpan, p.start.y + dy * devCarpan);
-                    } else if (p.tool === 'ray') {
-                        // Tek yöne sonsuz uzayan ışın
-                        ctx.moveTo(p.start.x, p.start.y);
-                        ctx.lineTo(p.start.x + dx * devCarpan, p.start.y + dy * devCarpan);
-                    } else {
-                        // Normal doğru parçası
-                        ctx.moveTo(p.start.x, p.start.y);
-                        ctx.lineTo(p.end.x, p.end.y);
-                    }
-                    ctx.stroke();
-                }
-                // C) DİKDÖRTGEN ÖNİZLEMESİ
-                else if (p.tool === 'rectangle' && p.start && p.end) {
-                    ctx.beginPath();
-                    ctx.rect(
-                        Math.min(p.start.x, p.end.x), 
-                        Math.min(p.start.y, p.end.y), 
-                        Math.abs(p.end.x - p.start.x), 
-                        Math.abs(p.end.y - p.start.y)
-                    );
-                    ctx.stroke();
-                }
-                // D) ÇOKGEN VE ÇEMBER ÖNİZLEMESİ
-                else if (p.start && p.end) {
-                    // Yarıçap tablette hesaplanıp gelmişse onu kullan, yoksa PC'de hesapla
-                    const radius = p.radius || Math.hypot(p.end.x - p.start.x, p.end.y - p.start.y);
-                    ctx.beginPath();
-                    // Çokgenlerin ve çemberlerin sınırlarını belirten geçici çember önizlemesi
-                    ctx.arc(p.start.x, p.start.y, radius, 0, Math.PI * 2);
-                    ctx.stroke();
-                }
-                
-                ctx.restore();
-            }        
-        if (data.type === 'onizleme_bitir') {
-            if (window.RulerTool && window.RulerTool.drawCtx) { window.RulerTool.drawHandleLabel.style.display = 'none'; window.RulerTool.drawCtx.clearRect(0,0, window.RulerTool.drawCanvas.width, window.RulerTool.drawCanvas.height); }
-            if (window.GonyeTool && window.GonyeTool.drawCtx) { window.GonyeTool.drawHandleLabel.style.display = 'none'; window.GonyeTool.drawHandleElement.style.transition = 'top 0.1s ease-out'; window.GonyeTool.drawHandleElement.style.top = `${window.GonyeTool.state.height - 20}px`; window.GonyeTool.drawCtx.clearRect(0,0, window.GonyeTool.drawCanvas.width, window.GonyeTool.drawCanvas.height); }
-            if (window.AciolcerTool && window.AciolcerTool.previewCtx) { window.AciolcerTool.drawHandleLabel.style.display = 'none'; window.AciolcerTool.previewCanvas.style.display = 'none'; window.AciolcerTool.redLine.style.transition = 'transform 0.1s ease-out'; window.AciolcerTool.redLine.style.transform = 'rotate(0deg)'; window.AciolcerTool.drawHandle.style.transition = 'transform 0.1s ease-out'; window.AciolcerTool.drawHandle.style.transform = 'translateX(-50%) translate(0px, 0px)'; window.AciolcerTool.previewCtx.clearRect(0,0, window.AciolcerTool.previewCanvas.width, window.AciolcerTool.previewCanvas.height); }
-            let lazer = document.getElementById('sanal-lazer'); if (lazer) lazer.style.display = 'none';
-        }
-    });
-
-    // BAĞLANTI KOPMA
-    myConnection.on('close', function() {
-        isConnected = false;
-        const statusEl = document.getElementById('connection-status');
-        if (statusEl) {
-            statusEl.innerText = "Bağlantı Koptu 🔴";
-            statusEl.style.color = "#ff4444";
-        }
-        const connectInput = document.getElementById('connect-input');
-        const connectBtn = document.getElementById('connect-btn');
-        if (connectInput) connectInput.style.display = "block";
-        if (connectBtn) connectBtn.style.display = "block";
-    });
+// 5. ÇİZİM ÖNİZLEME (NESNE OLARAK AKTARIM - GÜNCEL)
+else if (arac === 'cizim_onizleme') {
+    // 1. Önceki "preview" hayaletlerini temizle
+    window.drawnStrokes = window.drawnStrokes.filter(s => s.type !== 'preview');
+    
+    // 2. Önizlemeyi bir "nesne" olarak kaydet (Artık sistem bunu bir obje olarak görüyor)
+    const previewObj = {
+        type: 'preview', 
+        isTemporaryPreview: true, // findHit'in bunu tanıması için
+        payload: p,
+        id: 'temp-preview-id'
+    };
+    
+    window.drawnStrokes.push(previewObj);
+    if (window.redrawAllStrokes) window.redrawAllStrokes();
 }
 
+// 6. ÖNİZLEME BİTİR (Temizleyici)
+if (data.type === 'onizleme_bitir') {
+    // Nesne tipi önizlemeleri temizle
+    window.drawnStrokes = window.drawnStrokes.filter(s => s.type !== 'preview');
+    
+    // Mevcut araç sıfırlama kodların
+    if (window.RulerTool && window.RulerTool.drawCtx) { window.RulerTool.drawHandleLabel.style.display = 'none'; window.RulerTool.drawCtx.clearRect(0,0, window.RulerTool.drawCanvas.width, window.RulerTool.drawCanvas.height); }
+    if (window.GonyeTool && window.GonyeTool.drawCtx) { window.GonyeTool.drawHandleLabel.style.display = 'none'; window.GonyeTool.drawHandleElement.style.transition = 'top 0.1s ease-out'; window.GonyeTool.drawHandleElement.style.top = `${window.GonyeTool.state.height - 20}px`; window.GonyeTool.drawCtx.clearRect(0,0, window.GonyeTool.drawCanvas.width, window.GonyeTool.drawCanvas.height); }
+    if (window.AciolcerTool && window.AciolcerTool.previewCtx) { window.AciolcerTool.drawHandleLabel.style.display = 'none'; window.AciolcerTool.previewCanvas.style.display = 'none'; window.AciolcerTool.redLine.style.transition = 'transform 0.1s ease-out'; window.AciolcerTool.redLine.style.transform = 'rotate(0deg)'; window.AciolcerTool.drawHandle.style.transition = 'transform 0.1s ease-out'; window.AciolcerTool.drawHandle.style.transform = 'translateX(-50%) translate(0px, 0px)'; window.AciolcerTool.previewCtx.clearRect(0,0, window.AciolcerTool.previewCanvas.width, window.AciolcerTool.previewCanvas.height); }
+    let lazer = document.getElementById('sanal-lazer'); if (lazer) lazer.style.display = 'none';
+    
+    if (window.redrawAllStrokes) window.redrawAllStrokes();
+}
+
+// --- YENİ EKLENEN: PC Tarafında Seçim Butonlarını (Yeşil/Pembe) Gösterme ---
+if (data.type === 'secimi_senkronize_et') {
+    const index = window.drawnStrokes.findIndex(s => s.id === data.strokeId);
+    if (index !== -1) {
+        window.selectedItem = window.drawnStrokes[index];
+        window.currentTool = 'move'; // PC'yi taşıma moduna sok ki butonlar çizilsin
+        if (window.redrawAllStrokes) window.redrawAllStrokes();
+    }
+}
+
+// Seçimi Kapatma
+if (data.type === 'secimi_kaldir') {
+    window.selectedItem = null;
+    if (window.redrawAllStrokes) window.redrawAllStrokes();
+}
+
+}); // <--- KRİTİK NOKTA: Veri karşılama merkezini (on.data) kapatan kayıp parantez BURADA!
+
+// BAĞLANTI KOPMA
+myConnection.on('close', function() {
+    isConnected = false;
+    const statusEl = document.getElementById('connection-status');
+    if (statusEl) {
+        statusEl.innerText = "Bağlantı Koptu 🔴";
+        statusEl.style.color = "#ff4444";
+    }
+    const connectInput = document.getElementById('connect-input');
+    const connectBtn = document.getElementById('connect-btn');
+    if (connectInput) connectInput.style.display = "block";
+    if (connectBtn) connectBtn.style.display = "block";
+});
+} // setupConnectionEvents fonksiyonunu kapatan parantez
 // =========================================================
 // 7. GÜVENLİ VERİ FIRLATMA FONKSİYONU
 // =========================================================
