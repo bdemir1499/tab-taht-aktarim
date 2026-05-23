@@ -30,6 +30,8 @@
 
 <body>
 
+
+
 <div id="network-mini-btn" style="display: none; position: fixed; bottom: 30px; right: 15px; background: #0d0d2b; color: #00ffcc; padding: 10px 15px; border-radius: 50px; z-index: 40000; font-family: 'Fredoka', sans-serif; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); border: 2px solid #00ffcc;">
     📡 Sınıf
 </div>
@@ -79,15 +81,26 @@
         cBtn.onclick = kucult;
         mBtn.onclick = ac;
 
-        // BEKÇİ: Dil ekranını izle. Kapandığı an paneli küçült.
-        const bekci = setInterval(() => {
-            const overlay = document.getElementById('language-overlay');
-            // Eğer dil seçim ekranı kapandıysa (display none olduysa)
-            if (overlay && overlay.style.display === 'none') {
-                kucult();
-                clearInterval(bekci); // İşlem tamam, bekçiyi durdur.
-            }
-        }, 300); // 300 milisaniyede bir kontrol et
+        // BEKÇİ: Dil ekranını izle. Kapandığı an paneli küçült ve linki gizle.
+const bekci = setInterval(() => {
+    const overlay = document.getElementById('language-overlay');
+    
+    // Eğer dil seçim ekranı kapandıysa (display none olduysa)
+    if (overlay && overlay.style.display === 'none') {
+        kucult(); // Paneli gizle
+        
+        // Yasal uyarı linkini ve KVKK bilgisini gizle
+        const footer = document.getElementById('footer-container'); // Eğer kapsayıcı div'i kullandıysan
+        const link = document.getElementById('open-disclaimer');
+        const kvkk = document.getElementById('kvkk-bilgi');
+        
+        if (link) link.style.display = 'none';
+        if (kvkk) kvkk.style.display = 'none';
+        if (footer) footer.style.display = 'none';
+        
+        clearInterval(bekci); // İşlem tamam, bekçiyi durdur.
+    }
+}, 300);
 
         // Sayfa yenilendiğinde hafızayı kontrol et
         if (sessionStorage.getItem('sinifDurumu') === 'kapali') {
@@ -283,58 +296,42 @@
     <script src="oyunlar.js"></script>
     <script src="app.js?v=final_fix_107"></script>
 
-<div id="kvkk-bilgi" style="position: fixed; bottom: 8px; left: 0; width: 100%; font-size: 11px; color: #888; text-align: center; z-index: 999999; pointer-events: none; font-family: sans-serif; opacity: 0.7; display: block !important; visibility: visible !important;">
-    Bu uygulama hiçbir kişisel veri toplamaz ve dosyalarınızı sunuculara yüklemez.
-</div>  
+<div id="footer-container" style="position: fixed; bottom: 10px; left: 0; width: 100%; text-align: center; z-index: 999999; font-family: sans-serif; pointer-events: auto; background: rgba(0,0,0,0.5); padding: 5px 0;">
+    
+    <div id="kvkk-bilgi" style="font-size: 11px; color: #888; opacity: 0.9; margin-bottom: 5px;">
+        Bu uygulama hiçbir kişisel veri toplamaz ve dosyalarınızı sunuculara yüklemez.
+    </div>
 
-<a href="#" id="open-disclaimer" style="cursor:pointer; color:#00ffcc; font-size:14px; text-decoration: underline; font-weight: bold; margin: 10px; display: block; text-align: center;">
-    ⚠️ Yasal Uyarı ve Sorumluluk Reddi
-</a>
-<div id="disclaimer-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:99999; justify-content:center; align-items:center;">
-    <div style="background:white; padding:20px; max-width:500px; border-radius:10px; position:relative; color:black; overflow-y:auto; max-height:80%;">
-        <h3>⚠️ Yasal Uyarı ve Sorumluluk Reddi</h3>
-        <p style="font-size:14px; line-height:1.5;">
+    <a href="#" id="open-disclaimer" style="color:#00ffcc; font-size:14px; text-decoration: underline; font-weight: bold; cursor:pointer; display: block;">
+        ⚠️ Yasal Uyarı ve Sorumluluk Reddi
+    </a>
+</div>
+
+<div id="disclaimer-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999999; justify-content:center; align-items:center;">
+    <div style="background:white; padding:25px; max-width:600px; width: 90%; border-radius:15px; color:black; overflow-y:auto; max-height:80%; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
+        <h3 style="margin-top:0;">⚠️ Yasal Uyarı ve Sorumluluk Reddi</h3>
+        <p style="font-size:14px; line-height:1.6; text-align: left;">
             <strong>Eğitim Amaçlıdır:</strong> Bu yazılım, yalnızca sınıf içi eğitim faaliyetlerini desteklemek amacıyla tasarlanmıştır. Yazılımın amacı dışında kullanımı yasaktır ve kullanıcı sorumluluğundadır.<br><br>
             <strong>Sorumluluk Reddi:</strong> Bu yazılım "olduğu gibi" sunulmuştur. Geliştirici, yazılımın kullanımından kaynaklanan veya kullanım amacı dışında kullanılmasıyla ortaya çıkabilecek hiçbir hukuki, cezai veya idari sorumluluğu kabul etmez. Kullanıcı, yazılımı kullanmaya başladığı andan itibaren tüm sorumluluğu üstlenmiş sayılır.<br><br>
             <strong>Bağımsızlık:</strong> Bu proje, herhangi bir resmi kurumla organik bağ içermeyen, öğretmen tarafından geliştirilmiş kişisel bir hobi projesidir.<br><br>
             <strong>Lisans:</strong> MIT Lisansı ile korunmaktadır.<br><br>
-            <strong>Disclaimer (English):</strong> This software is an independent educational tool developed voluntarily by a teacher. It is intended solely for classroom educational purposes. It does not collect, store, or upload any personal data. It is provided "as is" under the MIT License. The developer accepts no liability for misuse.
+            <strong>ℹ️ Disclaimer (English):</strong> This software is an independent educational tool developed voluntarily by a teacher. It is designed solely for classroom educational purposes. It does not collect, store, or upload any personal data. It is provided "as is" under the MIT License. The developer accepts no liability for misuse.
         </p>
-        <button id="close-disclaimer" style="width:100%; padding:10px; background:#007bff; color:white; border:none; border-radius:5px; cursor:pointer;">Kapat</button>
+        <button id="close-disclaimer" style="width:100%; padding:12px; background:#00ffcc; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:16px;">Kapat</button>
     </div>
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    // 1. Elementleri tanımlayalım
-    const modal = document.getElementById('disclaimer-modal');
-    const openBtn = document.getElementById('open-disclaimer');
-    const closeBtn = document.getElementById('close-disclaimer');
-
-    // 2. Eğer linke tıklanırsa pencereyi aç
-    if (openBtn) {
-        openBtn.addEventListener('click', (e) => {
-            e.preventDefault(); // Sayfanın en başa gitmesini engeller
-            if (modal) modal.style.display = 'flex';
-        });
-    }
-
-    // 3. Eğer Kapat butonuna tıklanırsa pencereyi kapat
-    if (closeBtn) {
-        closeBtn.addEventListener('click', () => {
-            if (modal) modal.style.display = 'none';
-        });
-    }
-
-    // 4. Eğer pencerenin dışındaki karanlık alana tıklanırsa kapat
-    window.addEventListener('click', (event) => {
-        if (event.target === modal) {
-            modal.style.display = 'none';
-        }
+    // Linke tıklanınca uyarı versin (çalışıp çalışmadığını anlamak için)
+    document.getElementById('open-disclaimer').addEventListener('click', (e) => {
+        e.preventDefault();
+        document.getElementById('disclaimer-modal').style.display = 'flex';
     });
-});
-</script>
 
+    document.getElementById('close-disclaimer').addEventListener('click', () => {
+        document.getElementById('disclaimer-modal').style.display = 'none';
+    });
+</script>
   
 </body>
 </html>
