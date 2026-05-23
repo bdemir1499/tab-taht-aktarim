@@ -1,45 +1,58 @@
-# 📐 Geometri Araç Seti (v2.2)
-13 farklı dilde erişim ve kullanım.
-Bu yazılım, bir öğretmen tarafından derslerde etkileşimli geometri eğitimini desteklemek amacıyla gönüllü olarak geliştirilmiştir.
+📐 Geometri Araç Seti (tab-that-aktarim)
+Dijital Geometri Laboratuvarı ve Etkileşimli Sınıf Platformu
 
-## ℹ️ Hakkında
-Bu proje; dijital araçlarla geometriyi öğretmeyi kolaylaştırmak için tasarlanmış, **P2P (Peer-to-Peer)** tabanlı, eş zamanlı bir eğitim setidir. Kullanıcıların (öğretmenlerin) kendi sınıflarında akıllı tahta ile tablet arasında tüm araçları ve çizimleri anlık senkronize etmelerini sağlar.
+Bu yazılım, geometri öğretimini somutlaştırmak, etkileşimi artırmak ve geleneksel ölçüm araçlarını dijital dünyanın hızıyla birleştirmek amacıyla geliştirilmiş, gönüllü bir eğitim platformudur.
 
-## 🛠 Kullanım Özellikleri
+🌟 Öne Çıkan Özellikler
+1. Çizim ve Şekil Araçları
+Akıllı Çizim: Kalem ve silgi ile akıcı not alma. Silgi, temas ettiği tüm objeyi tek dokunuşta siler.
 
-### 1. Temel Çizim ve Araçlar
-* **Kalem:** İstediğiniz renkte akıcı çizim imkanı.
-* **Silgi:** İlk temasta temas edilen tüm objeyi siler.
-* **Çizgi Araçları:** Nokta, Düz Çizgi, Doğru, Doğru Parçası ve Işın seçenekleri. Önizlemeli çizim sayesinde büyüklüğü ve yönü gerçek zamanlı ayarlayabilirsiniz.
-* **Çokgenler ve Çember:** Seçilen kenar sayısına göre önizlemeli çokgen çizimi ve otomatik hesaplamalı çember desteği.
+Gelişmiş Çizim Araçları: Çizgi, doğru parçası ve ışın çizimi. İkinci tıklama/parmak çekme ile onaylanan önizlemeli çizim mekanizması.
 
-### 2. Etkileşimli Geometri Araçları
-* **Cetvel, Gönye, Açıölçer ve Pergel:** * Gerçek zamanlı uzunluk/açı etiketleri.
-    * Akıcı döndürme (yeşil butonlar) ve boyutlandırma (pembe butonlar).
-    * **Pergel:** Otomatik kilitlenen sivri uç, uç değiştirme ve yarıçap ayarı.
-    * Araçlar üst üste gelirse tıklandığında üste geçme özelliği.
+Geometrik Şekiller: Çokgenler (3gen, 5gen vb.) ve çemberler. Çizim esnasında gerçek zamanlı boyut takibi ve çokgen kenar/açı ölçümleri.
 
-### 3. PDF ve Resim Yükleme (Öne Çıkan Özellik)
-* **Ultra Yüksek Çözünürlük:** Yükle butonuyla kitaplarınızı veya resimlerinizi yüksek çözünürlükle ortama ekleyin.
-* **Canlandırma (Snapshot):** Yüklü PDF veya resimdeki herhangi bir bölümü çerçeve içine alıp kopyalayın; kopya üzerinde döndürme, taşıma ve yeniden boyutlandırma yapın.
-* **Mobil Kontrol:** Taşı butonuyla dokunmatik ekranda sürükleme ve "iki parmakla zoom" (Arka sıralar için mükemmel görüş).
+Matematiksel Hesaplama: Çember ve çokgenlerde, taştı butonuna basıp şekle tıklandığında Pİ=3 kabulüyle hesaplanmış çevre, alan ve yarıçap formüllerinin gösterimi.
 
-### 4. Gelişmiş Senkronizasyon (P2P Ağ Motoru)
-* **Güvenli Bağlantı:** Oda kodu ve her ders için otomatik üretilen 4 haneli PIN ile tam güvenlik.
-* **Dinamik Şifreleme:** Dışarıdan müdahalelere karşı uçtan uca şifreleme.
-* **Uzaktan Yönetim:** Tablet üzerinden tahtanın dilini değiştirme, sayfaları yönetme ve araçları senkronize etme.
+2. Etkileşimli Fiziksel Araçlar
+Cetvel, Gönye, Açıölçer ve Pergel: Gerçek zamanlı uzunluk/açı etiketleri.
 
-### 5. Eğitim Oyunları
-* **Maarif Modeli Uyumu:** 5. Sınıf müfredatı ile uyumlu 34 adet etkileşimli oyun.
+Akıllı Pergel: Otomatik kilitlenen sivri uç, uç değiştirme (tepeye çift tıklama) ve turuncu/pembe butonlarla boyutlandırma.
 
----
+Dinamik Etiketleme: Araçların üzerine entegre edilen etiketler sayesinde, çizim yaparken değerleri anlık takip edebilirsiniz.
 
-## ⚠️ Önemli Not (Sorumluluk Reddi)
-- **Bağımsızlık:** Bu yazılım, herhangi bir resmi kurum veya kuruluşla organik bir bağ içermez; tamamen kişisel bir hobi projesidir.
-- **Veri Gizliliği:** Bu uygulama **hiçbir kişisel veri toplamaz, depolamaz ve sunuculara yüklemez.** Tüm işlemler kullanıcıların kendi cihazları arasında (yerel/özel ağda) gerçekleşir.
-- **Kullanım:** Yazılım "olduğu gibi" sunulmuştur. Kullanımdan doğabilecek teknik veya diğer durumlardan geliştirici sorumlu tutulamaz.
+3. PDF/Resim Desteği ve "Canlandırma" (Snapshot)
+Ultra Yüksek Çözünürlük: Tek tıkla PDF kitapları veya görselleri sisteme yükleme.
 
----
+Sayfa Yönetimi: Kitap modunda sayfa numarası ile doğrudan erişim ve ileri/geri navigasyon.
 
-## Disclaimer
-This software is an independent educational tool developed voluntarily by a teacher. It has no organic connection to any official institution. It does not collect, store, or upload any personal data to servers. It is provided "as is" under the MIT License.
+Snapshot Özelliği: Yüklü PDF/Resim üzerindeki bir soruyu veya şekli çerçeve içine alıp kopyalama. Kopyalanan parçayı döndürme, taşıma ve yeniden boyutlandırma.
+
+Arka Sıra Görünürlüğü: İki parmakla zoom özelliği sayesinde en arkadaki öğrencinin bile içeriği net görmesini sağlama.
+
+4. Özelleştirme ve Kontrol
+Renk Paleti: Beyaz veya Siyah zemin seçeneği (Kitap arka planına göre hızlı geçiş).
+
+Kontrol Paneli: Geri al, hepsini sil ve araç gövdelerinden serbestçe taşıma özellikleri.
+
+Eğitim Oyunları: 5. Sınıf Maarif Modeli ile uyumlu 14 adet etkileşimli oyun (Restorasyon aşamasında).
+
+🔒 Güvenlik Mimarisi
+Uygulama, Merkeziyetsiz P2P (Peer-to-Peer) mimarisiyle tasarlanmıştır.
+
+Yerel Ağ (Wi-Fi) Zorunluluğu: Dışarıdan veya farklı lokasyonlardan izinsiz erişimleri engellemek için bağlantı, aynı yerel ağ (Aynı modem/okul ağı) ile sınırlandırılmıştır.
+
+Veri Gizliliği: Uygulama hiçbir kişisel veri toplamaz, depolamaz veya sunucuya yüklemez. Tüm oturum verileri geçicidir ve tarayıcılar arası doğrudan (P2P) aktarılır.
+
+PIN Korumalı Bağlantı: Oda kodu ve her ders için üretilen 4 haneli PIN kodu sayesinde, sınıf içindeki bağlantılar sadece yetkili tabletlerle mühürlenir.
+
+⚠️ Yasal Uyarı ve Sorumluluk Reddi
+Eğitim Amaçlıdır: Bu yazılım, yalnızca sınıf içi eğitim faaliyetlerini desteklemek amacıyla tasarlanmıştır. Yazılımın amacı dışında kullanımı yasaktır ve kullanıcı sorumluluğundadır.
+
+Sorumluluk Reddi: Bu yazılım "olduğu gibi" sunulmuştur. Geliştirici, yazılımın kullanımından kaynaklanan veya kullanım amacı dışında kullanılmasıyla ortaya çıkabilecek hiçbir hukuki, cezai veya idari sorumluluğu kabul etmez. Kullanıcı, yazılımı kullanmaya başladığı andan itibaren tüm sorumluluğu üstlenmiş sayılır.
+
+Bağımsızlık: Bu proje, herhangi bir resmi kurumla organik bağ içermeyen, öğretmen tarafından geliştirilmiş kişisel bir hobi projesidir.
+
+Lisans: MIT Lisansı ile korunmaktadır.
+
+ℹ️ Disclaimer (English)
+This software is an independent educational tool developed voluntarily by a teacher. It is intended solely for classroom educational purposes. It does not collect, store, or upload any personal data. It is provided "as is" under the MIT License. The developer accepts no liability for misuse.
