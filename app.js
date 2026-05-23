@@ -979,43 +979,47 @@ function redrawAllStrokes() {
     // (Buradaki translate ve scale satırlarını tamamen sildik. Zemin artık sabit!)
 for (const stroke of drawnStrokes) {
 
-    // --- YENİ: PC'DE ÖNİZLEMEYİ CANLI NESNE OLARAK ÇİZ ---
-    if (stroke.type === 'preview') {
-        const p = stroke.payload;
-        ctx.save();
-        ctx.strokeStyle = '#FF0000';
-        ctx.lineWidth = 3;
-        ctx.setLineDash([5, 5]);
+    for (const stroke of drawnStrokes) {
+        
+        // --- BU BLOĞU DÖNGÜNÜN EN BAŞINA EKLE ---
+        if (stroke.type === 'preview') {
+            const p = stroke.payload;
+            ctx.save();
+            ctx.strokeStyle = '#FF0000'; // Kırmızı
+            ctx.lineWidth = 3;
+            ctx.setLineDash([5, 5]); // Kesikli
 
-        if (p.tool === 'pen' && p.path) {
-            ctx.beginPath();
-            ctx.moveTo(p.path[0].x, p.path[0].y);
-            for (let i = 1; i < p.path.length; i++) ctx.lineTo(p.path[i].x, p.path[i].y);
-            ctx.stroke();
+            if (p.tool === 'pen' && p.path) {
+                ctx.beginPath();
+                ctx.moveTo(p.path[0].x, p.path[0].y);
+                for (let i = 1; i < p.path.length; i++) ctx.lineTo(p.path[i].x, p.path[i].y);
+                ctx.stroke();
+            }
+            else if (['straightLine', 'line', 'segment', 'ray'].includes(p.tool) && p.start && p.end) {
+                ctx.beginPath();
+                const dx = p.end.x - p.start.x, dy = p.end.y - p.start.y, devCarpan = 5000;
+                if (p.tool === 'line') { ctx.moveTo(p.start.x - dx * devCarpan, p.start.y - dy * devCarpan); ctx.lineTo(p.start.x + dx * devCarpan, p.start.y + dy * devCarpan); }
+                else if (p.tool === 'ray') { ctx.moveTo(p.start.x, p.start.y); ctx.lineTo(p.start.x + dx * devCarpan, p.start.y + dy * devCarpan); }
+                else { ctx.moveTo(p.start.x, p.start.y); ctx.lineTo(p.end.x, p.end.y); }
+                ctx.stroke();
+            }
+            else if (p.tool === 'rectangle' && p.start && p.end) {
+                ctx.beginPath();
+                ctx.rect(Math.min(p.start.x, p.end.x), Math.min(p.start.y, p.end.y), Math.abs(p.end.x - p.start.x), Math.abs(p.end.y - p.start.y));
+                ctx.stroke();
+            }
+            else if (p.start && p.end) {
+                const radius = p.radius || Math.hypot(p.end.x - p.start.x, p.end.y - p.start.y);
+                ctx.beginPath();
+                ctx.arc(p.start.x, p.start.y, radius, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            ctx.restore();
+            continue; // Bu nesneyi çizdik, diğer döngülere girmesine gerek yok
         }
-        else if (['straightLine', 'line', 'segment', 'ray'].includes(p.tool) && p.start && p.end) {
-            ctx.beginPath();
-            const dx = p.end.x - p.start.x, dy = p.end.y - p.start.y, devCarpan = 5000;
-            if (p.tool === 'line') { ctx.moveTo(p.start.x - dx * devCarpan, p.start.y - dy * devCarpan); ctx.lineTo(p.start.x + dx * devCarpan, p.start.y + dy * devCarpan); }
-            else if (p.tool === 'ray') { ctx.moveTo(p.start.x, p.start.y); ctx.lineTo(p.start.x + dx * devCarpan, p.start.y + dy * devCarpan); }
-            else { ctx.moveTo(p.start.x, p.start.y); ctx.lineTo(p.end.x, p.end.y); }
-            ctx.stroke();
-        }
-        else if (p.tool === 'rectangle' && p.start && p.end) {
-            ctx.beginPath();
-            ctx.rect(Math.min(p.start.x, p.end.x), Math.min(p.start.y, p.end.y), Math.abs(p.end.x - p.start.x), Math.abs(p.end.y - p.start.y));
-            ctx.stroke();
-        }
-        else if (p.start && p.end) {
-            const radius = p.radius || Math.hypot(p.end.x - p.start.x, p.end.y - p.start.y);
-            ctx.beginPath();
-            ctx.arc(p.start.x, p.start.y, radius, 0, Math.PI * 2);
-            ctx.stroke();
-        }
-        ctx.restore();
-        continue; // Önizlemeyi çizdik, döngüde başka işlem yapma, sıradakine geç
-    }
-    // ----------------------------------------------------
+        // ------------------------------------------
+
+        // ... (Senin mevcut if (stroke.type === 'pen') { ... } kodların burada devam edecek)
   // --- AKILLI BOYAMA MASKESİ ---
         if (stroke.type === 'lasso-mask') {
             ctx.save();
@@ -3146,18 +3150,17 @@ window.sendNetworkData({ type: 'arac_senkron', selector: '.yuzen-kopya-container
         ctx.restore(); // Çizim bitince kalemi düz çizgiye geri çevir
         previewActive = true;
 
-// --- BURAYA EKLE (Şekiller için) ---
-        window.sendNetworkData({ 
-            type: 'aktif_onizleme', 
-            arac: 'cizim_onizleme', 
-            payload: { 
-                tool: currentTool, 
-                start: lineStartPoint || rectStartPoint || (window.tempPolygonData ? window.tempPolygonData.center : null), 
-                end: endPos,
-                radius: (window.tempPolygonData) ? window.tempPolygonData.radius : null
-            } 
-        });
-
+window.sendNetworkData({
+    type: 'aktif_onizleme',
+    arac: 'cizim_onizleme',
+    payload: {
+        tool: currentTool,
+        path: (typeof currentPath !== 'undefined') ? currentPath : [],
+        start: (typeof lineStartPoint !== 'undefined') ? lineStartPoint : null,
+        end: anlikPos,
+        radius: (typeof radius !== 'undefined') ? radius : null
+    }
+});
     }
 
     if (previewActive) return; 
