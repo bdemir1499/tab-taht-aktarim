@@ -3164,6 +3164,38 @@ window.sendNetworkData({
         // ... (Buradaki silgi algoritması aynı kalacak)
     }
 
+// --- BURADAN İTİBAREN EKLE ---
+        // --- CANLI ÇİZİM ÖNİZLEMESİNİ PC'YE FIRLAT ---
+        if (typeof isConnected !== 'undefined' && isConnected && e.buttons > 0) {
+            
+            const anlikPos = typeof getPointerPos === 'function' ? getPointerPos(e) : { x: e.clientX, y: e.clientY };
+            let previewData = null;
+
+            if (['straightLine', 'line', 'segment', 'ray'].includes(currentTool) && typeof lineStartPoint !== 'undefined' && lineStartPoint) {
+                previewData = { tool: currentTool, start: lineStartPoint, end: anlikPos };
+            }
+            else if (currentTool === 'rectangle' && typeof rectStartPoint !== 'undefined' && rectStartPoint) {
+                previewData = { tool: currentTool, start: rectStartPoint, end: anlikPos };
+            }
+            else if (window.tempPolygonData && window.tempPolygonData.center) {
+                previewData = { 
+                    tool: 'polygon',
+                    start: window.tempPolygonData.center,
+                    end: anlikPos,
+                    radius: Math.hypot(anlikPos.x - window.tempPolygonData.center.x, anlikPos.y - window.tempPolygonData.center.y)
+                };
+            }
+
+            if (previewData) {
+                window.sendNetworkData({
+                    type: 'aktif_onizleme',
+                    arac: 'cizim_onizleme',
+                    payload: previewData
+                });
+            }
+        }
+        // --- BURAYA KADAR EKLE ---
+
 }, { passive: false }); // <--- TÜM FONKSİYON ŞİMDİ BURADA KAPANIYOR
 
 
