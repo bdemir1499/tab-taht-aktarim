@@ -5174,7 +5174,6 @@ document.getElementById('connect-btn').addEventListener('click', () => {
         alert("Bağlantı reddedildi! Lütfen hem 5 haneli Oda Kodunu hem de Tahta Şifresini eksiksiz girin.");
     }
 });
-
 function setupConnectionEvents() {
 
 // --- BAĞLANINCA OTOMATİK KAPAT ---
