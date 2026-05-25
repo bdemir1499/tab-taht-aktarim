@@ -5341,8 +5341,6 @@ function setupConnectionEvents() {
     // YENİ:
 setTimeout(() => {
     if (!baglantiOnaylandi && !kontrolYapildi) {
-        // IP hiç gelmedi = tarayıcı gizledi
-        // Bağlantıya izin ver, güvenlik şifre sistemiyle sağlanıyor
         console.warn("IP okunamadı, şifre korumasına güveniliyor.");
         baglantiOnaylandi = true;
         isConnected = true;
@@ -5352,7 +5350,19 @@ setTimeout(() => {
             statusEl.style.color = "#00ffcc";
         }
     }
+    // IP geldi ama baglantiOnaylandi hala false ise (yerel ag onaylandı ama flag set edilmedi)
+    if (kontrolYapildi && !baglantiOnaylandi) {
+        baglantiOnaylandi = true;
+        isConnected = true;
+        const statusEl = document.getElementById('connection-status');
+        if (statusEl) {
+            statusEl.innerText = "BAĞLANDI 🟢";
+            statusEl.style.color = "#00ffcc";
+        }
+    }
 }, 5000);
+
+
     // --- IP KONTROLÜ BİTİŞ ---
 
     // --- BAĞLANINCA OTOMATİK KAPAT ---
@@ -5389,6 +5399,15 @@ setTimeout(() => {
 
     myConnection.on('data', function(data) {
     if (!data || !data.type) return;
+
+// DİL SEÇİMİ HER ZAMAN GEÇSİN (bağlantı onayı bekleme)
+    if (data.type === 'dil_secimi') { 
+    if (typeof setLanguage === 'function') setLanguage(data.lang);
+    // Dil ekranını kapat, çizim alanına geç
+    const overlay = document.getElementById('language-overlay');
+    if (overlay) overlay.style.display = 'none';
+    return;
+}
     
     // GÜVENLİK DUVARI: IP henüz onaylanmadıysa hiçbir veriyi işleme
     if (!baglantiOnaylandi) {
@@ -5473,10 +5492,6 @@ setTimeout(() => {
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
 
-        if (data.type === 'dil_secimi') { 
-            if (typeof setLanguage === 'function') setLanguage(data.lang);
-            if (typeof showDrawingScreen === 'function') showDrawingScreen();
-        }
 
         if (data.type === 'arac_state_senkron') {
             let toolObj = null, el = null;
