@@ -3366,6 +3366,18 @@ if (isPhysicalTool) {
             
             drawnStrokes.push(strokeObj);
 
+// ... diğer çizgi tipleri (straightLine, line, segment, ray) ...
+else if (isDrawingRay) {
+    const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
+    const stroke = { type: 'ray', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3, label1: l1, label2: l2 };
+    drawnStrokes.push(stroke); 
+
+    // ŞURAYA EKLE:
+    if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+        window.sendNetworkData({ type: 'yeni_cizim', stroke: stroke });
+    }
+}
+
             // --- CANLI SINIF FIRLATICI ---
             if (typeof isConnected !== 'undefined' && isConnected) {
                 window.sendNetworkData({ 
@@ -3376,29 +3388,26 @@ if (isPhysicalTool) {
         }
     }
 
-    // --- D) ÇOKGENLERİ BİTİR (BİRLEŞTİRİLMİŞ VE CANLI AKTARIMLI) ---
+    // --- D) ÇOKGENLERİ BİTİR ---
 if (currentTool && currentTool.startsWith('draw_polygon_')) {
     if (window.tempPolygonData && window.tempPolygonData.center) {
         const finalRadius = window.tempPolygonData.radius || 0;
         if (finalRadius > 5) {
             const currentType = window.tempPolygonData.type;
             
-            // 1. Şekli yerel hafızaya (drawnStrokes) kaydet
+            // 1. Çokgeni veya Çemberi oluştur ve drawnStrokes listesine ekle
             if (currentType === 0) window.PolygonTool.finalizeCircle(finalRadius);
             else window.PolygonTool.finalizeDraw(finalRadius, window.tempPolygonData.rotation);
             
-            // --- CANLI SINIF FIRLATICI: Yeni oluşan çokgeni tahtaya gönder ---
-            setTimeout(() => { 
+            // 2. Fırlatıcı (Aynı anda tahtaya gönder)
+            setTimeout(() => {
                 const lastS = drawnStrokes[drawnStrokes.length - 1];
-                if (typeof isConnected !== 'undefined' && isConnected && lastS) {
-                    window.sendNetworkData({ 
-                        type: 'yeni_cizim', 
-                        stroke: lastS 
-                    });
+                if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected && lastS) {
+                    window.sendNetworkData({ type: 'yeni_cizim', stroke: lastS });
                 }
-            }, 20); 
-            // ---------------------------------------------------------------
-            
+            }, 50); // Çizimin listeye tam yerleşmesi için milisaniyelik bekleyiş
+
+            // 3. Arayüz temizliği
             if (typeof polygonPreviewLabel !== 'undefined' && polygonPreviewLabel) {
                 polygonPreviewLabel.classList.add('hidden');
             }
@@ -3468,6 +3477,18 @@ if (currentTool === 'snapshot' && snapshotStart && currentMousePos) {
         };
         drawnStrokes.push(maskStroke);
 
+// ... diğer çizgi tipleri (straightLine, line, segment, ray) ...
+else if (isDrawingRay) {
+    const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
+    const stroke = { type: 'ray', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3, label1: l1, label2: l2 };
+    drawnStrokes.push(stroke); 
+
+    // ŞURAYA EKLE:
+    if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+        window.sendNetworkData({ type: 'yeni_cizim', stroke: stroke });
+    }
+}
+
         // 4. YENİ KOPYA NESNESİ (KESİLEN SORU)
         const newImgStroke = {
             type: 'image',
@@ -3492,6 +3513,17 @@ if (currentTool === 'snapshot' && snapshotStart && currentMousePos) {
         };
         
         drawnStrokes.push(newImgStroke);
+// ... diğer çizgi tipleri (straightLine, line, segment, ray) ...
+else if (isDrawingRay) {
+    const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
+    const stroke = { type: 'ray', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3, label1: l1, label2: l2 };
+    drawnStrokes.push(stroke); 
+
+    // ŞURAYA EKLE:
+    if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+        window.sendNetworkData({ type: 'yeni_cizim', stroke: stroke });
+    }
+}
         
         if (!window.boxCopies) window.boxCopies = [];
         window.boxCopies.push(newImgStroke);
@@ -3553,6 +3585,23 @@ if (isDrawingRectangle && rectStartPoint && finalPos) {
         // 3. TABLETİN KENDİ HAFIZASINA KAYDET
         drawnStrokes.push(rectangleStroke);
 
+// ŞURAYA EKLE:
+if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+    window.sendNetworkData({ type: 'yeni_cizim', stroke: rectangleStroke }); // Not: 'rectangleStroke' değişken adın neyse onu kullan
+}
+
+// ... diğer çizgi tipleri (straightLine, line, segment, ray) ...
+else if (isDrawingRay) {
+    const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
+    const stroke = { type: 'ray', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3, label1: l1, label2: l2 };
+    drawnStrokes.push(stroke); 
+
+    // ŞURAYA EKLE:
+    if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+        window.sendNetworkData({ type: 'yeni_cizim', stroke: stroke });
+    }
+}
+
         // --- CANLI SINIF FIRLATICI: Dikdörtgeni saniyesinde tahtaya gönder ---
         if (typeof isConnected !== 'undefined' && isConnected) {
             window.sendNetworkData({ 
@@ -3592,6 +3641,23 @@ if (currentTool === 'pen') {
             if (Array.isArray(correctedShape)) {
                 correctedShape.forEach(s => s.id = Date.now() + Math.random()); // HER BİRİNE ID VER
                 drawnStrokes.push(...correctedShape);
+// ŞURAYA EKLE:
+    if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+        window.sendNetworkData({ type: 'yeni_cizim', stroke: correctedShape });
+    }
+}
+
+// ... diğer çizgi tipleri (straightLine, line, segment, ray) ...
+else if (isDrawingRay) {
+    const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
+    const stroke = { type: 'ray', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3, label1: l1, label2: l2 };
+    drawnStrokes.push(stroke); 
+
+    // ŞURAYA EKLE:
+    if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+        window.sendNetworkData({ type: 'yeni_cizim', stroke: stroke });
+    }
+}
                 
                 // TAHTAYA TÜM ÇİZGİLERİ GÖNDER
                 if (typeof isConnected !== 'undefined' && isConnected) {
@@ -3604,6 +3670,17 @@ if (currentTool === 'pen') {
             else {
                 correctedShape.id = Date.now() + Math.random(); // ID VER
                 drawnStrokes.push(correctedShape);
+// ... diğer çizgi tipleri (straightLine, line, segment, ray) ...
+else if (isDrawingRay) {
+    const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
+    const stroke = { type: 'ray', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3, label1: l1, label2: l2 };
+    drawnStrokes.push(stroke); 
+
+    // ŞURAYA EKLE:
+    if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+        window.sendNetworkData({ type: 'yeni_cizim', stroke: stroke });
+    }
+}
                 
                 // TAHTAYA ŞEKLİ GÖNDER
                 if (typeof isConnected !== 'undefined' && isConnected) {
@@ -3727,6 +3804,17 @@ const maskStroke = {
 };
 maskStroke.id = Date.now() + Math.random(); // BUNA KİMLİK EKLE
 drawnStrokes.push(maskStroke); 
+// ... diğer çizgi tipleri (straightLine, line, segment, ray) ...
+else if (isDrawingRay) {
+    const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
+    const stroke = { type: 'ray', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3, label1: l1, label2: l2 };
+    drawnStrokes.push(stroke); 
+
+    // ŞURAYA EKLE:
+    if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+        window.sendNetworkData({ type: 'yeni_cizim', stroke: stroke });
+    }
+}
 
 // --- D) KOPYAYI EKRANA YERLEŞTİR (LASSO CANLI AKTARIMLI) ---
 const newImgStroke = {
