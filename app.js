@@ -35,7 +35,7 @@ const translations = {
     ja: { yukle: "アップロード", silgi: "消しゴム", kalem: "ペン", cizgi: "線", nokta: "点", d_cizgi: "直線", dogru: "直線", dogru_parcasi: "線分", isin: "半直線", cetvel: "定規", gonye: "三角定規", aciolcer: "分度器", pergel: "コンパス", cokgenler: "多角形", cember: "円", d_ucgen: "正三角形", d_dortgen: "正方形", dikdortgen: "長方形", d_besgen: "五角形", d_altigen: "六角形", d_yedigen: "七角形", d_sekizgen: "八角形", oyunlar: "ゲーム", arac_rengi: "ツールの色", geri_al: "元に戻す", hepsini_sil: "すべて消去", tasi: "移動", canlandir: "アニメ ✂️", kutu: "ボックス", serbest: "自由", yardim: "ヘルプ", ins_t: "アプリをインストール", ins_d: "パフォーマンス向上のためインストール", ins_b: "インストール", ins_c: "閉じる", vid_cetvel: "定規の使い方", vid_gonye: "三角定規の使い方", vid_aciolcer: "分度器の使い方", vid_pergel: "コンパスの使い方", vid_canlandir: "アニメーション (コピー)", vid_cizgi: "線メニューの使い方", vid_cokgenler: "多角形", vid_kalem: "ペン", vid_kitap: "本と画像を読み込む", vid_oyunlar: "ゲーム", pdf_soru: "このPDFは{0}ページあります。どのページから続行しますか？", kvkk: "このアプリケーションは個人データを収集せず、ファイルをサーバーにアップロードしません。" }
 };
 
-
+window.aktifBaglantilar = {};
 let currentLassoX = 0;
 let currentLassoY = 0;
 let isDrawingLasso = false;
@@ -607,6 +607,22 @@ window.OyunListesi = [
         link: "https://bekrmatmt25.my.canva.site/kosegenlerden-dortgenlere"
     }
 ];
+
+// --- BURAYA YAPIŞTIR ---
+window.sendNetworkData = function(dataObj) {
+    // 1. Durum: Eğer bu cihaz TABLET ise (tahtaya bağlıyız)
+    if (typeof myConnection !== 'undefined' && myConnection && myConnection.open) {
+        myConnection.send(dataObj);
+    }
+    // 2. Durum: Eğer bu cihaz AKILLI TAHTA ise (bağlı olan tabletlere gönder)
+    else if (typeof window.aktifBaglantilar !== 'undefined') {
+        for (let id in window.aktifBaglantilar) {
+            if (window.aktifBaglantilar[id] && window.aktifBaglantilar[id].open) {
+                window.aktifBaglantilar[id].send(dataObj);
+            }
+        }
+    }
+};
 
 
 // Sayfa açıldığında kırmızı butonun yanlışlıkla görünmesini engellemek için:
@@ -5236,6 +5252,15 @@ myPeer.on('connection', function(conn) {
         // --- EVET BUTONUNA BASILINCA ---
         btnAccept.onclick = function() {
             myConnection = conn; 
+// --- YENİ EKLENECEK KISIM ---
+            window.aktifBaglantilar[conn.peer] = conn; // Listeye ekle
+            conn.on('data', veriGeldigindeİsle);        // Veri akışını başlat
+            conn.on('close', function() {              // Koptuğunda listeden sil
+                delete window.aktifBaglantilar[conn.peer];
+            });
+            // -----------------------------
+
+
             if (typeof setupConnectionEvents === 'function') {
                 setupConnectionEvents();
             }
@@ -5415,20 +5440,31 @@ setTimeout(() => {
         return;
     }
 
-       // 1. ÇİZİM, PDF VE RESİM AKTARIMI
-        if (data.type === 'yeni_cizim') {
-            const stroke = data.stroke;
-            if (!window.drawnStrokes.some(s => s.id && s.id === stroke.id)) {
-                if (stroke.type === 'image' && stroke.imgData) {
-                    const tempImg = new Image();
-                    tempImg.src = stroke.imgData;
-                    tempImg.onload = () => { stroke.imgObj = tempImg; window.drawnStrokes.push(stroke); if (window.redrawAllStrokes) window.redrawAllStrokes(); };
-                } else {
-                    window.drawnStrokes.push(stroke);
-                    if (window.redrawAllStrokes) window.redrawAllStrokes();
-                }
-            }
+       // --- 1. ÇİZİM, PDF VE RESİM AKTARIMI (GÜNCELLENMİŞ) ---
+if (data.type === 'yeni_cizim') {
+    const stroke = data.stroke;
+    
+    // Gelen veri yüksek çözünürlüklü kopyalama/kesme ise (Resim)
+    if (stroke.type === 'image' && stroke.imgData) {
+        const tempImg = new Image();
+        tempImg.src = stroke.imgData;
+        tempImg.onload = () => {
+            stroke.imgObj = tempImg;
+            window.drawnStrokes.push(stroke);
+            if (window.redrawAllStrokes) window.redrawAllStrokes();
+        };
+    } 
+    // Normal çizimler (Kalem, Çizgi, Çokgen, Dikdörtgen vb.)
+    else {
+        // ID kontrolünü basitleştirdik, eğer ID varsa çakışmayı önle, yoksa direkt ekle
+        const isDuplicate = stroke.id && window.drawnStrokes.some(s => s.id === stroke.id);
+        
+        if (!isDuplicate) {
+            window.drawnStrokes.push(stroke);
+            if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
+    }
+}
 
         if (data.type === 'arac_senkron') {
             const el = document.querySelector(data.selector);
