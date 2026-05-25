@@ -5207,16 +5207,11 @@ for (let i = 0; i < 5; i++) {
 const isTablet = window.location.href.includes("tablet");
 
 // --- YEREL AĞ ZORUNLULUĞU (SADECE AYNI Wİ-Fİ/OKUL AĞI) ---
-const localOnlyConfig = {
-    config: {
-        'iceServers': [] // Boş bırakmak, TURN/STUN sunucularını devre dışı bırakır!
-    }
-};
 
 if (isTablet) {
-    myPeer = new Peer(undefined, localOnlyConfig); 
+    myPeer = new Peer();
 } else {
-    myPeer = new Peer(myRoomCode, localOnlyConfig);
+    myPeer = new Peer(myRoomCode);
     window.sessionPassword = Math.floor(1000 + Math.random() * 9000).toString();
 }
 
