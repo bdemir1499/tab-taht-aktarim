@@ -5338,19 +5338,21 @@ function setupConnectionEvents() {
         }
     });
 
-    // IP kontrolü 5 saniye içinde sonuç vermezse güvenlik için kes
-    setTimeout(() => {
-        if (!baglantiOnaylandi && !kontrolYapildi) {
-            console.warn("IP doğrulanamadı, bağlantı güvenlik nedeniyle kesildi.");
-            myConnection.close();
-            const statusEl = document.getElementById('connection-status');
-            if (statusEl) {
-                statusEl.innerText = "❌ IP doğrulanamadı, bağlantı reddedildi!";
-                statusEl.style.color = "#ff4444";
-            }
-            isConnected = false;
+    // YENİ:
+setTimeout(() => {
+    if (!baglantiOnaylandi && !kontrolYapildi) {
+        // IP hiç gelmedi = tarayıcı gizledi
+        // Bağlantıya izin ver, güvenlik şifre sistemiyle sağlanıyor
+        console.warn("IP okunamadı, şifre korumasına güveniliyor.");
+        baglantiOnaylandi = true;
+        isConnected = true;
+        const statusEl = document.getElementById('connection-status');
+        if (statusEl) {
+            statusEl.innerText = "BAĞLANDI 🟢";
+            statusEl.style.color = "#00ffcc";
         }
-    }, 5000);
+    }
+}, 5000);
     // --- IP KONTROLÜ BİTİŞ ---
 
     // --- BAĞLANINCA OTOMATİK KAPAT ---
