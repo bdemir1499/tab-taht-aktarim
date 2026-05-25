@@ -59,6 +59,9 @@
 <script>
 
 
+<script>
+
+
 window.kucultPanel = function() {
     const pnl = document.getElementById('network-panel');
     const mBtn = document.getElementById('network-mini-btn');
@@ -70,49 +73,54 @@ window.kucultPanel = function() {
 
 
 
-   // =========================================================
-    // --- CANLI SINIF PANELI BEKÇİ MOTORU (KESİN ÇÖZÜM) ---
+  <script>
+    // =========================================================
+    
+
+
+
+  <script>
+    // =========================================================
+    // --- PC / TABLET AYRIMLI CANLI SINIF PANEL MOTORU ---
     // =========================================================
     document.addEventListener('DOMContentLoaded', () => {
         const cBtn = document.getElementById('network-close-btn');
         const mBtn = document.getElementById('network-mini-btn');
         const pnl = document.getElementById('network-panel');
 
-        function ac() {
-            if(mBtn) mBtn.style.display = 'none';
-            if(pnl) pnl.style.display = 'block';
-            sessionStorage.setItem('sinifDurumu', 'acik');
-        }
-
-        // Butonlara görevlerini ata (Doğrudan window objesine bağladığın kucultPanel'i kullanıyoruz)
-        if(cBtn) cBtn.onclick = window.kucultPanel;
-        if(mBtn) mBtn.onclick = ac;
-
-        // BEKÇİ: Dil ekranını izle. Kapandığı an paneli küçült ve linki gizle.
-        const bekci = setInterval(() => {
-            const overlay = document.getElementById('language-overlay');
-            
-            // Eğer dil seçim ekranı kapandıysa (display none olduysa)
-            if (overlay && overlay.style.display === 'none') {
-                window.kucultPanel(); // Paneli gizle
-                
-                // Yasal uyarı linkini ve KVKK bilgisini gizle
-                const footer = document.getElementById('footer-container'); 
-                const link = document.getElementById('open-disclaimer');
-                const kvkk = document.getElementById('kvkk-bilgi');
-                
-                if (link) link.style.display = 'none';
-                if (kvkk) kvkk.style.display = 'none';
-                if (footer) footer.style.display = 'none';
-                
-                clearInterval(bekci); // İşlem tamam, bekçiyi durdur.
+        function kucult() {
+            if (pnl && mBtn) {
+                pnl.style.display = 'none';
+                mBtn.style.display = 'block';
             }
-        }, 300);
-
-        // Sayfa yenilendiğinde hafızayı kontrol et
-        if (sessionStorage.getItem('sinifDurumu') === 'kapali') {
-            window.kucultPanel();
         }
+
+        function ac() {
+            if (pnl && mBtn) {
+                mBtn.style.display = 'none';
+                pnl.style.display = 'block';
+            }
+        }
+
+        if (cBtn && mBtn && pnl) {
+            cBtn.onclick = kucult;
+            mBtn.onclick = ac;
+        }
+
+        // DİL BUTONLARINA TIKLANDIĞINDA
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Dil seçim ekranını kapat (Senin uygulamanın orijinal kodu tetiklensin)
+                const overlay = document.getElementById('language-overlay');
+                if (overlay) overlay.style.display = 'none';
+
+                // KRİTİK KONTROL: Eğer bir bağlantı yoksa (Yani burası Tahta/PC ise)
+                // Kodu görebilmek için paneli KÜÇÜLTMÜYORUZ, açık bırakıyoruz!
+                if (typeof isConnected !== 'undefined' && isConnected) {
+                    kucult();
+                }
+            });
+        });
     });
 </script>
 
