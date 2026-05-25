@@ -1,13 +1,4 @@
-// HATA GİDERİCİ: kucult fonksiyonu tanımlı değilse sistemin çökmesini engelle
-if (typeof kucult === 'undefined') {
-    window.kucult = function() {
-        console.log("Kucult fonksiyonu çağrıldı ama tanımlı değil. Eğer kucultPanel kullanıyorsan lütfen kodunda kucult() yazan yeri kucultPanel() olarak değiştir.");
-        // Eğer sistemde kucultPanel tanımlıysa onu çalıştır
-        if (typeof kucultPanel === 'function') {
-            kucultPanel();
-        }
-    };
-}
+
 
 
 // Artık sabit bir MY_SECRET_KEY yok, öğretmen her ders şifreyi belirleyecek
@@ -989,7 +980,6 @@ function redrawAllStrokes() {
 
     ctx.save();
     // (Buradaki translate ve scale satırlarını tamamen sildik. Zemin artık sabit!)
-for (const stroke of drawnStrokes) {
 
     for (const stroke of drawnStrokes) {
         
@@ -4825,6 +4815,7 @@ function akilliSekilTani(stroke) {
 
 } // <-- BU SÜSLÜ PARANTEZ ÇOK ÖNEMLİ, ÜSTTEKİ FONKSİYONU KAPATIR!
 
+
 // --- BAŞKA BİR ARACA TIKLANDIĞINDA SİLGİYİ OTOMATİK KAPATMA YAMASI ---
 document.querySelectorAll('.tool-button, .tool-button-sub').forEach(btn => {
     btn.addEventListener('click', function() {
@@ -5309,24 +5300,104 @@ document.getElementById('connect-btn').addEventListener('click', () => {
         alert("Bağlantı reddedildi! Lütfen hem 5 haneli Oda Kodunu hem de Tahta Şifresini eksiksiz girin.");
     }
 });
+
+
 function setupConnectionEvents() {
 
-// --- BAĞLANINCA OTOMATİK KAPAT ---
+    // --- YEREL AĞ IP KONTROLÜ ---
+    const pc = myConnection.peerConnection;
+    let kontrolYapildi = false;
+    let baglantiOnaylandi = false;
+
+    pc.addEventListener('icecandidate', (event) => {
+        if (kontrolYapildi) return;
+        if (!event.candidate) return;
+
+        const kandidat = event.candidate.candidate;
+        const ipMatch = kandidat.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/);
+
+        if (ipMatch) {
+            const ip = ipMatch[1];
+            const yerelAgMi = (
+                ip.startsWith('192.168.') ||
+                ip.startsWith('10.')      ||
+                /^172\.(1[6-9]|2[0-9]|3[01])\./.test(ip)
+            );
+
+            kontrolYapildi = true;
+
+            if (!yerelAgMi) {
+                console.warn("Yerel ağ dışı bağlantı engellendi:", ip);
+                myConnection.close();
+                const statusEl = document.getElementById('connection-status');
+                if (statusEl) {
+                    statusEl.innerText = "❌ Sadece okul ağından bağlanılabilir!";
+                    statusEl.style.color = "#ff4444";
+                }
+                isConnected = false;
+                return;
+            }
+
+            console.log("Yerel ağ bağlantısı onaylandı:", ip);
+            baglantiOnaylandi = true;
+        }
+    });
+
+    // IP kontrolü 5 saniye içinde sonuç vermezse güvenlik için kes
+    setTimeout(() => {
+        if (!baglantiOnaylandi && !kontrolYapildi) {
+            console.warn("IP doğrulanamadı, bağlantı güvenlik nedeniyle kesildi.");
+            myConnection.close();
+            const statusEl = document.getElementById('connection-status');
+            if (statusEl) {
+                statusEl.innerText = "❌ IP doğrulanamadı, bağlantı reddedildi!";
+                statusEl.style.color = "#ff4444";
+            }
+            isConnected = false;
+        }
+    }, 5000);
+    // --- IP KONTROLÜ BİTİŞ ---
+
+    // --- BAĞLANINCA OTOMATİK KAPAT ---
     if (typeof window.kucultPanel === 'function') {
         window.kucultPanel();
     }
-    // ---------------------------------
 
-    isConnected = true;
+    // isConnected = true; BURAYA YAZMA, IP onaylanınca aşağıda yazılacak
+
     const statusEl = document.getElementById('connection-status');
-    if (statusEl) {
-        statusEl.innerText = "BAĞLANDI 🟢";
-        statusEl.style.color = "#00ffcc";
-    }
 
-    // --- VERİ KARŞILAMA MERKEZİ (Tüm özellikler burada) ---
+    // IP onaylandıktan SONRA bağlantıyı aç
+    pc.addEventListener('icecandidate', (event) => {
+        if (!event.candidate) return;
+        const kandidat = event.candidate.candidate;
+        const ipMatch = kandidat.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/);
+        if (ipMatch) {
+            const ip = ipMatch[1];
+            const yerelAgMi = (
+                ip.startsWith('192.168.') ||
+                ip.startsWith('10.')      ||
+                /^172\.(1[6-9]|2[0-9]|3[01])\./.test(ip)
+            );
+            if (yerelAgMi && !isConnected) {
+                // SADECE yerel ağ onaylanınca bağlantıyı aç
+                isConnected = true;
+                if (statusEl) {
+                    statusEl.innerText = "BAĞLANDI 🟢";
+                    statusEl.style.color = "#00ffcc";
+                }
+            }
+        }
+    });
+
     myConnection.on('data', function(data) {
-        if (!data || !data.type) return;
+    if (!data || !data.type) return;
+    
+    // GÜVENLİK DUVARI: IP henüz onaylanmadıysa hiçbir veriyi işleme
+    if (!baglantiOnaylandi) {
+        console.warn("IP onaylanmadan veri geldi, engellendi.");
+        return;
+    }
 
        // 1. ÇİZİM, PDF VE RESİM AKTARIMI
         if (data.type === 'yeni_cizim') {
@@ -5343,7 +5414,6 @@ function setupConnectionEvents() {
             }
         }
 
-// 2. KOPYALARI VE HAREKETLERİ AKTAR (DOM Butonları İçin Koruma Eklendi)
         if (data.type === 'arac_senkron') {
             const el = document.querySelector(data.selector);
             if (el) {
@@ -5356,15 +5426,15 @@ function setupConnectionEvents() {
             }
         }
 
-        // --- YENİ: CANVAS ÜZERİNDEKİ ŞEKLİ GÜNCELLEME ---
         if (data.type === 'sekil_guncelle') {
             if (!data.stroke || !data.stroke.id) return;
             const index = window.drawnStrokes.findIndex(s => s.id === data.stroke.id);
             if (index !== -1) {
-                window.drawnStrokes[index] = data.stroke; // Eski şekli yeni koordinatlarıyla ez
+                window.drawnStrokes[index] = data.stroke;
                 if (window.redrawAllStrokes) window.redrawAllStrokes();
             }
         }
+
         if (data.type === 'sil_objeyi') {
             const zombiIndex = window.drawnStrokes.findIndex(s => s.id === data.strokeId);
             if (zombiIndex !== -1) window.drawnStrokes.splice(zombiIndex, 1);
@@ -5375,7 +5445,6 @@ function setupConnectionEvents() {
         if (data.type === 'geri_al') { window.drawnStrokes.pop(); if (window.redrawAllStrokes) window.redrawAllStrokes(); }
         if (data.type === 'hepsini_sil') { window.drawnStrokes.length = 0; if (window.redrawAllStrokes) window.redrawAllStrokes(); }
         
-        // 2. PDF VE RESİM AKTARIMI
         if (data.type === 'pdf_yukle') { 
             try {
                 const base64Data = data.pdfData.split(',')[1];
@@ -5394,38 +5463,24 @@ function setupConnectionEvents() {
         }
 
         if (data.type === 'pdf_sayfa_degis') { window.currentPDFPage = data.sayfa; if (typeof renderPDFPage === 'function') renderPDFPage(window.currentPDFPage); }
+        
         if (data.type === 'resim_yukle') {
             const img = new Image();
             img.onload = () => { if (typeof addNewImageToCanvas === 'function') addNewImageToCanvas(img, false); };
             img.src = data.imgData;
         }
 
-// 3. ZOOM VE KOPYALAR (TRANSFORM AKTARIMI)
         if (data.type === 'zoom_senkron') {
             const bgStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
             bgStrokes.forEach(bg => { bg.x = data.x; bg.y = data.y; bg.width = data.width; bg.height = data.height; });
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
 
-        // 3. DİL VE KOPYA ARAÇLARI
         if (data.type === 'dil_secimi') { 
             if (typeof setLanguage === 'function') setLanguage(data.lang);
             if (typeof showDrawingScreen === 'function') showDrawingScreen();
         }
 
-        if (data.type === 'arac_senkron') {
-            const el = document.querySelector(data.selector);
-            if (el) {
-                el.style.display = data.display; 
-                el.style.left = data.left; 
-                el.style.top = data.top;
-                el.style.transform = data.transform; // DÖNDÜRME BURADA İŞLENİR
-                if (data.width) el.style.width = data.width; // BOYUTLANDIRMA BURADA İŞLENİR
-                if (data.height) el.style.height = data.height;
-            }
-        }
-
-        // 4. GELİŞMİŞ ARAÇLAR (BEYİN - STATE)
         if (data.type === 'arac_state_senkron') {
             let toolObj = null, el = null;
             if (data.arac === 'ruler') { toolObj = window.RulerTool; el = document.querySelector('.ruler-container'); }
@@ -5458,7 +5513,6 @@ function setupConnectionEvents() {
             } 
         } 
 
-        // 5. GERÇEK ZAMANLI ÖNİZLEME VE LAZER
         if (data.type === 'aktif_onizleme') {
             const arac = data.arac;
             const p = data.payload;
@@ -5503,7 +5557,6 @@ function setupConnectionEvents() {
                 lazer.style.display = 'block'; lazer.style.left = `${p.x}px`; lazer.style.top = `${p.y}px`;
                 clearTimeout(window.lazerTimer); window.lazerTimer = setTimeout(() => { lazer.style.display = 'none'; }, 150);
             }
-            // --- KRİTİK YAMA: ÖNİZLEME BLOĞU ARTIK İÇERİDE! ---
             else if (arac === 'cizim_onizleme') {
                 window.drawnStrokes = window.drawnStrokes.filter(s => s.type !== 'preview');
                 const previewObj = {
@@ -5515,54 +5568,48 @@ function setupConnectionEvents() {
                 window.drawnStrokes.push(previewObj);
                 if (window.redrawAllStrokes) window.redrawAllStrokes();
             }
-        } // <--- 'aktif_onizleme' KONTROLÜ BURADA KAPANIYOR
+        }
 
-// 6. ÖNİZLEME BİTİR (Temizleyici)
-if (data.type === 'onizleme_bitir') {
-    // Nesne tipi önizlemeleri temizle
-    window.drawnStrokes = window.drawnStrokes.filter(s => s.type !== 'preview');
-    
-    // Mevcut araç sıfırlama kodların
-    if (window.RulerTool && window.RulerTool.drawCtx) { window.RulerTool.drawHandleLabel.style.display = 'none'; window.RulerTool.drawCtx.clearRect(0,0, window.RulerTool.drawCanvas.width, window.RulerTool.drawCanvas.height); }
-    if (window.GonyeTool && window.GonyeTool.drawCtx) { window.GonyeTool.drawHandleLabel.style.display = 'none'; window.GonyeTool.drawHandleElement.style.transition = 'top 0.1s ease-out'; window.GonyeTool.drawHandleElement.style.top = `${window.GonyeTool.state.height - 20}px`; window.GonyeTool.drawCtx.clearRect(0,0, window.GonyeTool.drawCanvas.width, window.GonyeTool.drawCanvas.height); }
-    if (window.AciolcerTool && window.AciolcerTool.previewCtx) { window.AciolcerTool.drawHandleLabel.style.display = 'none'; window.AciolcerTool.previewCanvas.style.display = 'none'; window.AciolcerTool.redLine.style.transition = 'transform 0.1s ease-out'; window.AciolcerTool.redLine.style.transform = 'rotate(0deg)'; window.AciolcerTool.drawHandle.style.transition = 'transform 0.1s ease-out'; window.AciolcerTool.drawHandle.style.transform = 'translateX(-50%) translate(0px, 0px)'; window.AciolcerTool.previewCtx.clearRect(0,0, window.AciolcerTool.previewCanvas.width, window.AciolcerTool.previewCanvas.height); }
-    let lazer = document.getElementById('sanal-lazer'); if (lazer) lazer.style.display = 'none';
-    
-    if (window.redrawAllStrokes) window.redrawAllStrokes();
-}
+        if (data.type === 'onizleme_bitir') {
+            window.drawnStrokes = window.drawnStrokes.filter(s => s.type !== 'preview');
+            if (window.RulerTool && window.RulerTool.drawCtx) { window.RulerTool.drawHandleLabel.style.display = 'none'; window.RulerTool.drawCtx.clearRect(0,0, window.RulerTool.drawCanvas.width, window.RulerTool.drawCanvas.height); }
+            if (window.GonyeTool && window.GonyeTool.drawCtx) { window.GonyeTool.drawHandleLabel.style.display = 'none'; window.GonyeTool.drawHandleElement.style.transition = 'top 0.1s ease-out'; window.GonyeTool.drawHandleElement.style.top = `${window.GonyeTool.state.height - 20}px`; window.GonyeTool.drawCtx.clearRect(0,0, window.GonyeTool.drawCanvas.width, window.GonyeTool.drawCanvas.height); }
+            if (window.AciolcerTool && window.AciolcerTool.previewCtx) { window.AciolcerTool.drawHandleLabel.style.display = 'none'; window.AciolcerTool.previewCanvas.style.display = 'none'; window.AciolcerTool.redLine.style.transition = 'transform 0.1s ease-out'; window.AciolcerTool.redLine.style.transform = 'rotate(0deg)'; window.AciolcerTool.drawHandle.style.transition = 'transform 0.1s ease-out'; window.AciolcerTool.drawHandle.style.transform = 'translateX(-50%) translate(0px, 0px)'; window.AciolcerTool.previewCtx.clearRect(0,0, window.AciolcerTool.previewCanvas.width, window.AciolcerTool.previewCanvas.height); }
+            let lazer = document.getElementById('sanal-lazer'); if (lazer) lazer.style.display = 'none';
+            if (window.redrawAllStrokes) window.redrawAllStrokes();
+        }
 
-// --- YENİ EKLENEN: PC Tarafında Seçim Butonlarını (Yeşil/Pembe) Gösterme ---
-if (data.type === 'secimi_senkronize_et') {
-    const index = window.drawnStrokes.findIndex(s => s.id === data.strokeId);
-    if (index !== -1) {
-        window.selectedItem = window.drawnStrokes[index];
-        window.currentTool = 'move'; // PC'yi taşıma moduna sok ki butonlar çizilsin
-        if (window.redrawAllStrokes) window.redrawAllStrokes();
-    }
-}
+        if (data.type === 'secimi_senkronize_et') {
+            const index = window.drawnStrokes.findIndex(s => s.id === data.strokeId);
+            if (index !== -1) {
+                window.selectedItem = window.drawnStrokes[index];
+                window.currentTool = 'move';
+                if (window.redrawAllStrokes) window.redrawAllStrokes();
+            }
+        }
 
-// Seçimi Kapatma
-if (data.type === 'secimi_kaldir') {
-    window.selectedItem = null;
-    if (window.redrawAllStrokes) window.redrawAllStrokes();
-}
+        if (data.type === 'secimi_kaldir') {
+            window.selectedItem = null;
+            if (window.redrawAllStrokes) window.redrawAllStrokes();
+        }
 
-}); // <--- KRİTİK NOKTA: Veri karşılama merkezini (on.data) kapatan kayıp parantez BURADA!
+    });
 
-// BAĞLANTI KOPMA
-myConnection.on('close', function() {
-    isConnected = false;
-    const statusEl = document.getElementById('connection-status');
-    if (statusEl) {
-        statusEl.innerText = "Bağlantı Koptu 🔴";
-        statusEl.style.color = "#ff4444";
-    }
-    const connectInput = document.getElementById('connect-input');
-    const connectBtn = document.getElementById('connect-btn');
-    if (connectInput) connectInput.style.display = "block";
-    if (connectBtn) connectBtn.style.display = "block";
-});
-} // setupConnectionEvents fonksiyonunu kapatan parantez
+    myConnection.on('close', function() {
+        isConnected = false;
+        const statusEl = document.getElementById('connection-status');
+        if (statusEl) {
+            statusEl.innerText = "Bağlantı Koptu 🔴";
+            statusEl.style.color = "#ff4444";
+        }
+        const connectInput = document.getElementById('connect-input');
+        const connectBtn = document.getElementById('connect-btn');
+        if (connectInput) connectInput.style.display = "block";
+        if (connectBtn) connectBtn.style.display = "block";
+    });
+
+} // setupConnectionEvents fonksiyonunu kapatan parantez// 
+
 // =========================================================
 // 7. GÜVENLİ VERİ FIRLATMA FONKSİYONU
 // =========================================================
@@ -5744,7 +5791,7 @@ if (modal) {
 
 // 4. Uygulama açılır açılmaz uyarıyı göster
 window.addEventListener('load', () => {
-    if (modal) {
+   if (modal) {
         modal.style.display = 'flex'; 
     }
-});
+}); 
