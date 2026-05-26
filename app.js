@@ -638,44 +638,42 @@ window.veriGeldigindeİsle = function(data) {
         return;
     }
 
-    // 2. YENİ ÇİZİM GELDİĞİNDE (Çoklu Nesne Destekli Sürüm)
+    // 2. YENİ ÇİZİM GELDİĞİNDE (Çizgi, Kutu, Kalem, Lasso Kopyası vb.)
     if (data.type === 'yeni_cizim') {
-        // Gelen veri tekil mi yoksa akıllı şekil tanıma gibi çoklu paket mi?
-        const strokeData = data.stroke;
+        const stroke = data.stroke;
         
-        // --- A) Eğer gelen tekil bir nesneyse (cetvel, normal kalem vb.) ---
-        if (typeof strokeData === 'object' && !Array.isArray(strokeData)) {
-            // Yankı (Zombi) kontrolü: ID zaten varsa ekleme
-            if (!window.drawnStrokes.some(s => s.id && s.id === strokeData.id)) {
-                
-                // Resim/Kutu kontrolü
-                if (strokeData.type === 'image' && strokeData.imgData) {
-                    const tempImg = new Image();
-                    tempImg.src = strokeData.imgData;
-                    tempImg.onload = () => { 
-                        strokeData.imgObj = tempImg; 
-                        window.drawnStrokes.push(strokeData); 
-                        if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes(); 
-                    };
-                } 
-                // Normal çizim
-                else {
-                    window.drawnStrokes.push(strokeData);
-                    if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
-                }
+        // Çift ID (Yankı/Zombi) kontrolü: Bu çizim zaten varsa ekleme
+        if (!window.drawnStrokes.some(s => s.id && s.id === stroke.id)) {
+            
+            // Eğer gelen şey kopyalanmış bir resim/kutu ise
+            if (stroke.type === 'image' && stroke.imgData) {
+                const tempImg = new Image();
+                tempImg.src = stroke.imgData;
+                tempImg.onload = () => { 
+                    stroke.imgObj = tempImg; 
+                    window.drawnStrokes.push(stroke); 
+                    if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes(); 
+                };
+            } 
+            // Normal çizim veya maske ise
+            else {
+                window.drawnStrokes.push(stroke);
+                if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
             }
-        } 
-        // --- B) İŞTE KRİTİK EKLENTİ: Eğer çoklu bir paket ise (Düzeltilmiş üçgen, kare vb.) ---
-        else if (Array.isArray(strokeData)) {
-            // Paketin içini aç ve her bir çizgiyi tek tek PC hafızasına ekle
-            strokeData.forEach(s => {
-                if (!window.drawnStrokes.some(existS => existS.id === s.id)) {
-                    window.drawnStrokes.push(s);
-                }
-            });
-            // Hepsini ekledikten sonra bir kere ekranı tazele
-            if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
         }
+    }
+
+// --- KRİTİK EKLENTİ: AKILLI KALEM TOPLU ŞEKİL GELDİĞİNDE (Üçgen, Yamuk vb.) ---
+    if (data.type === 'akilli_sekil_toplu' && Array.isArray(data.strokes)) {
+        data.strokes.forEach(stroke => {
+            // PC'de bu çizgi id'si yoksa hafızaya ekle
+            if (!window.drawnStrokes.some(s => s.id && s.id === stroke.id)) {
+                window.drawnStrokes.push(stroke);
+            }
+        });
+        // Tüm çizgiler hafızaya başarıyla geçince canvas'ı SADECE BİR KERE tertemiz çiz
+        if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
+        return;
     }
 
     // 3. SİLME VE GERİ ALMA İŞLEMLERİ
@@ -3570,17 +3568,20 @@ canvas.addEventListener('pointerup', (e) => {
 
                 // Eğer akıllı sistem bunu bir şekle (kare, üçgen vb) çevirdiyse
                 if (correctedShape) {
-                    drawnStrokes.pop(); // Eski yamuk çizimi sil
+                    drawnStrokes.pop(); // Eski yamuk çizimi tablette sil
                     
+                    // --- A) ÇOKLU ÇİZGİ (ÜÇGEN, YAMUK vb.) - TOPLU GÖNDERİM ---
                     if (Array.isArray(correctedShape)) {
-                        correctedShape.forEach(s => {
-                            s.id = Date.now() + Math.random();
-                            drawnStrokes.push(s);
-                            if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-                                window.sendNetworkData({ type: 'yeni_cizim', stroke: s });
-                            }
-                        });
-                    } else {
+                        correctedShape.forEach(s => s.id = Date.now() + Math.random()); // Hepsine ID ver
+                        drawnStrokes.push(...correctedShape); // Tablete ekle
+                        
+                        // TAHTAYA TÜM ŞEKLİ TEK BİR TOPLU PAKET OLARAK FIRLAT
+                        if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                            window.sendNetworkData({ type: 'akilli_sekil_toplu', strokes: correctedShape });
+                        }
+                    } 
+                    // --- B) TEKİL ŞEKİL (ÇEMBER, KUTU vb.) - NORMAL GÖNDERİM ---
+                    else {
                         correctedShape.id = Date.now() + Math.random(); 
                         drawnStrokes.push(correctedShape);
                         if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
@@ -3588,15 +3589,16 @@ canvas.addEventListener('pointerup', (e) => {
                         }
                     }
                 } 
-                // Şekil değilse, sadece normal bir karalamaysa (İşte senin kalem çizimin!)
+
+               // --- C) ŞEKİL DEĞİLSE (Sadece normal kalem karalamasıysa) ---
                 else {
                     if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
                         window.sendNetworkData({ type: 'yeni_cizim', stroke: lastStroke });
                     }
                 }
-            }
-        }
-    }
+            } // <--- EKSİK OLAN 1. PARANTEZ (Else bloğunu kapatır)
+        } // <--- EKSİK OLAN 2. PARANTEZ (lastStroke kontrolünü kapatır)
+    } // <--- EKSİK OLAN 3. PARANTEZ (currentTool === 'pen' bloğunu kapatır)
 
     // --- GENEL SIFIRLAMA ---
     isDrawing = false;
@@ -3608,6 +3610,8 @@ canvas.addEventListener('pointerup', (e) => {
     window.isImageRotating = false;
     window.isImageResizing = false;
     if (typeof snapIndicator !== 'undefined' && snapIndicator) snapIndicator.style.display = 'none';
+
+    // --- H) KESKİN NİŞANCI LASSO (SERBEST KESİM) ---
 
     // --- H) KESKİN NİŞANCI LASSO (SERBEST KESİM) ---
     if (currentTool === 'lasso' && window.isDraggingLassoPoint) {
