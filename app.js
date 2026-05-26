@@ -3256,70 +3256,55 @@ window.sendNetworkData({
 }, { passive: false }); // <--- TÜM FONKSİYON ŞİMDİ BURADA KAPANIYOR
 
 
+// ==============================================================================
+// --- POINTER UP (TÜM ÇİZİM VE ARAÇ İŞLEMLERİNİN BİTİŞİ) ---
+// ==============================================================================
 canvas.addEventListener('pointerup', (e) => {
     isDrawing = false;
     
-    // HATA ÇÖZÜMÜ: Eğer kilit varsa serbest bırak, yoksa hata verme
+    // Kilitleri serbest bırak
     if (canvas.hasPointerCapture && canvas.hasPointerCapture(e.pointerId)) {
         canvas.releasePointerCapture(e.pointerId);
     }
-    // 1. Tarayıcı kilitlerini kaldır (Pardus Korumalı)
-   
     if (e.pointerType === 'touch' && e.cancelable) e.preventDefault();
 
-// --- PARDUS ÇİFT SİNYAL ENGELLEYİCİ ---
+    // --- PARDUS ÇİFT SİNYAL ENGELLEYİCİ ---
     if (e.pointerType === 'mouse') {
         let hasTouch = false;
         for (let p of pointers.values()) {
             if (p.pointerType === 'touch' || p.pointerType === 'pen') hasTouch = true;
         }
-        if (hasTouch) return; // Hayalet fare kalkış yapmasın
+        if (hasTouch) return;
     }
-    // --------------------------------------
 
-
-// --- BUNLARI EKLE: Kalkan parmağı sil ve zoom'u sıfırla ---
     pointers.delete(e.pointerId); 
     if (pointers.size < 2) lastDist = 0; 
-    // -----------------------------------------------------------
 
-    // -----------------------------------------------------------------
-    // KRİTİK: Zıplamayı bitiren altın kural!
-    // Parmağını kaldırdığın an etkinlikten (e) gelen hatalı koordinatı OKUMUYORUZ.
-    // 'pointermove' sırasında kaydedilen son "kararlı" konumu (currentMousePos) kullanıyoruz.
-    // -----------------------------------------------------------------
+    // KRİTİK: Son kararlı konumu al
     const finalPos = snapTarget || currentMousePos;
 
-    // --- A) FİZİKSEL ARAÇLAR İÇİN GÜVENLİK DUVARI (CANLI AKTARIMLI) ---
-const isPhysicalTool = ['ruler', 'gonye', 'aciolcer', 'pergel'].includes(currentTool);
+    // --- A) FİZİKSEL ARAÇLAR (CETVEL, GÖNYE, PERGEL vb.) ---
+    const isPhysicalTool = ['ruler', 'gonye', 'aciolcer', 'pergel'].includes(currentTool);
+    if (isPhysicalTool) {
+        isDrawing = false;
+        if (currentTool === 'ruler' && window.RulerTool && window.RulerTool.finalizeDraw) window.RulerTool.finalizeDraw();
+        if (currentTool === 'gonye' && window.GonyeTool && window.GonyeTool.finalizeDraw) window.GonyeTool.finalizeDraw();
+        if (currentTool === 'aciolcer' && window.AciolcerTool && window.AciolcerTool.finalizeDraw) window.AciolcerTool.finalizeDraw();
+        if (currentTool === 'pergel' && window.PergelTool && window.PergelTool.finalizeDraw) window.PergelTool.finalizeDraw();
 
-if (isPhysicalTool) {
-    isDrawing = false;
-    
-    // 1. Önce araçlar çizimi hafızaya (drawnStrokes) kaydetsin
-    if (currentTool === 'ruler' && window.RulerTool && window.RulerTool.finalizeDraw) window.RulerTool.finalizeDraw();
-    if (currentTool === 'gonye' && window.GonyeTool && window.GonyeTool.finalizeDraw) window.GonyeTool.finalizeDraw();
-    if (currentTool === 'aciolcer' && window.AciolcerTool && window.AciolcerTool.finalizeDraw) window.AciolcerTool.finalizeDraw();
-    if (currentTool === 'pergel' && window.PergelTool && window.PergelTool.finalizeDraw) window.PergelTool.finalizeDraw();
-
-    // 2. TAHTAYA GÖNDER: Araçların oluşturduğu son çizgiyi yakala ve fırlat
-    setTimeout(() => {
-        const lastS = drawnStrokes[drawnStrokes.length - 1];
-        
-        if (lastS) {
-            // --- ID EKLEME (Zombi çizimleri engellemek için şart!) ---
-            if (!lastS.id) lastS.id = Date.now() + Math.random();
-            
-            if (typeof isConnected !== 'undefined' && isConnected) {
-                window.sendNetworkData({ type: 'yeni_cizim', stroke: lastS });
+        setTimeout(() => {
+            const lastS = drawnStrokes[drawnStrokes.length - 1];
+            if (lastS) {
+                if (!lastS.id) lastS.id = Date.now() + Math.random();
+                if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                    window.sendNetworkData({ type: 'yeni_cizim', stroke: lastS });
+                }
             }
-        }
-    }, 50); // Çizimin hafızaya girmesi için 50ms bekle
+        }, 50);
 
-    redrawAllStrokes();
-    return; 
-}
-
+        redrawAllStrokes();
+        return; 
+    }
 
     // --- B) TAŞIMA (MOVE) MANTIĞI ---
     if (currentTool === 'move' && isMoving) {
@@ -3335,367 +3320,192 @@ if (isPhysicalTool) {
         return;
     }
 
-   // --- C) NORMAL ÇİZGİLERİ KAYDET (TAM VE CANLI AKTARIMLI HALİ) ---
+    // --- C) NORMAL ÇİZGİLER (DOĞRU, IŞIN, SEGMENT) ---
     if (lineStartPoint && finalPos) {
         let strokeObj = null;
 
-        // 1. Düz Çizgi (Labelsiz)
         if (isDrawingLine) {
             strokeObj = { type: 'straightLine', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3 };
-        }
-        // 2. Doğru (Sonsuz Doğru - Çift Harf Etiketli)
+        } 
         else if (isDrawingInfinityLine) {
             const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
             strokeObj = { type: 'line', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3, label1: l1, label2: l2 };
-        }
-        // 3. Doğru Parçası (Çift Harf Etiketli)
+        } 
         else if (isDrawingSegment) {
             const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
             strokeObj = { type: 'segment', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3, label1: l1, label2: l2 };
-        }
-        // 4. Işın (Çift Harf Etiketli)
+        } 
         else if (isDrawingRay) {
             const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
             strokeObj = { type: 'ray', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3, label1: l1, label2: l2 };
         }
 
-        // Eğer bir obje oluştuysa sisteme işle ve tahtaya gönder
         if (strokeObj) {
-            // --- ID EKLEME ---
             strokeObj.id = Date.now() + Math.random(); 
-            
             drawnStrokes.push(strokeObj);
 
-// ... diğer çizgi tipleri (straightLine, line, segment, ray) ...
-else if (isDrawingRay) {
-    const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
-    const stroke = { type: 'ray', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3, label1: l1, label2: l2 };
-    drawnStrokes.push(stroke); 
-
-    // ŞURAYA EKLE:
-    if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-        window.sendNetworkData({ type: 'yeni_cizim', stroke: stroke });
-    }
-}
-
-            // --- CANLI SINIF FIRLATICI ---
-            if (typeof isConnected !== 'undefined' && isConnected) {
-                window.sendNetworkData({ 
-                    type: 'yeni_cizim', 
-                    stroke: strokeObj 
-                });
+            if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                window.sendNetworkData({ type: 'yeni_cizim', stroke: strokeObj });
             }
+            window.nextPointChar = nextPointChar;
+            if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
         }
     }
 
-    // --- D) ÇOKGENLERİ BİTİR ---
-if (currentTool && currentTool.startsWith('draw_polygon_')) {
-    if (window.tempPolygonData && window.tempPolygonData.center) {
-        const finalRadius = window.tempPolygonData.radius || 0;
-        if (finalRadius > 5) {
-            const currentType = window.tempPolygonData.type;
-            
-            // 1. Çokgeni veya Çemberi oluştur ve drawnStrokes listesine ekle
-            if (currentType === 0) window.PolygonTool.finalizeCircle(finalRadius);
-            else window.PolygonTool.finalizeDraw(finalRadius, window.tempPolygonData.rotation);
-            
-            // 2. Fırlatıcı (Aynı anda tahtaya gönder)
-            setTimeout(() => {
-                const lastS = drawnStrokes[drawnStrokes.length - 1];
-                if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected && lastS) {
-                    window.sendNetworkData({ type: 'yeni_cizim', stroke: lastS });
-                }
-            }, 50); // Çizimin listeye tam yerleşmesi için milisaniyelik bekleyiş
-
-            // 3. Arayüz temizliği
-            if (typeof polygonPreviewLabel !== 'undefined' && polygonPreviewLabel) {
-                polygonPreviewLabel.classList.add('hidden');
-            }
-            window.tempPolygonData.center = null;
-            if (window.PolygonTool && window.PolygonTool.handleDrawClick) {
-                window.PolygonTool.handleDrawClick(null, currentType);
-            }
-        }
-    }
-}
-
-
-// --- E) CANLANDIR (KUTU SNAPSHOT) BÖLÜMÜ (ULTRA HD VE CANLI AKTARIM) ---
-if (currentTool === 'snapshot' && snapshotStart && currentMousePos) {
-    const x = Math.round(Math.min(snapshotStart.x, currentMousePos.x));
-    const y = Math.round(Math.min(snapshotStart.y, currentMousePos.y));
-    const w = Math.round(Math.abs(currentMousePos.x - snapshotStart.x));
-    const h = Math.round(Math.abs(currentMousePos.y - snapshotStart.y));
-
-    if (w > 10 && h > 10) {
-        const bgLayer = document.getElementById('pdf-canvas') || document.querySelector('.pdf-page-canvas');
-        
-        // 1. ULTRA YÜKSEK ÇÖZÜNÜRLÜK AYARI
-        const dpr = window.devicePixelRatio || 1;
-        const KALITE = dpr * 10; 
-
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = w * KALITE;
-        tempCanvas.height = h * KALITE;
-        const tempCtx = tempCanvas.getContext('2d');
-        tempCtx.imageSmoothingEnabled = true;
-        tempCtx.imageSmoothingQuality = 'high';
-
-        // 2. RESMİ PDF VE CANVAS ÜZERİNDEN KESİP ALMA
-        if (bgLayer) {
-            const bgRect = bgLayer.getBoundingClientRect();
-            const canvasRect = canvas.getBoundingClientRect();
-            const offsetX = canvasRect.left - bgRect.left;
-            const offsetY = canvasRect.top - bgRect.top;
-            const oranX = bgLayer.width / bgRect.width;
-            const oranY = bgLayer.height / bgRect.height;
-            const pdfX = Math.round((x + offsetX) * oranX);
-            const pdfY = Math.round((y + offsetY) * oranY);
-            const pdfW = Math.round(w * oranX);
-            const pdfH = Math.round(h * oranY);
-
-            tempCtx.drawImage(bgLayer, pdfX, pdfY, pdfW, pdfH, 0, 0, tempCanvas.width, tempCanvas.height);
-        }
-        
-        if (canvas) {
-            const cRect = canvas.getBoundingClientRect();
-            const cOranX = canvas.width / cRect.width;
-            const cOranY = canvas.height / cRect.height;
-            tempCtx.drawImage(canvas, Math.round(x * cOranX), Math.round(y * cOranY), Math.round(w * cOranX), Math.round(h * cOranY), 0, 0, tempCanvas.width, tempCanvas.height);
-        }
-
-        const finalImage = tempCanvas.toDataURL('image/png', 1.0);
-        
-        // 3. MASKE (PDF ÜZERİNDEKİ BOŞLUĞU KAPATAN YAMA)
-        const maskStroke = {
-            type: 'lasso-mask',
-            points: [
-                { x: x, y: y }, { x: x + w, y: y }, 
-                { x: x + w, y: y + h }, { x: x, y: y + h }
-            ],
-            fillColor: (window.isToolThemeBlack) ? '#222222' : '#ffffff' 
-        };
-        drawnStrokes.push(maskStroke);
-
-// ... diğer çizgi tipleri (straightLine, line, segment, ray) ...
-else if (isDrawingRay) {
-    const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
-    const stroke = { type: 'ray', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3, label1: l1, label2: l2 };
-    drawnStrokes.push(stroke); 
-
-    // ŞURAYA EKLE:
-    if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-        window.sendNetworkData({ type: 'yeni_cizim', stroke: stroke });
-    }
-}
-
-        // 4. YENİ KOPYA NESNESİ (KESİLEN SORU)
-        const newImgStroke = {
-            type: 'image',
-            imgData: finalImage,
-            x: x, y: y,
-            width: w, height: h,
-            rotation: 0,
-            isBackground: false,
-            isBoxCopy: true, 
-            pageOwner: typeof currentPDFPage !== 'undefined' ? currentPDFPage : 1, 
-            imgObj: null 
-        };
-        
-// --- ID EKLEME ---
-        newImgStroke.id = Date.now() + Math.random()
-
-        const tempImg = new Image();
-        tempImg.src = finalImage;
-        tempImg.onload = () => {
-            newImgStroke.imgObj = tempImg;
-            redrawAllStrokes(); 
-        };
-        
-        drawnStrokes.push(newImgStroke);
-// ... diğer çizgi tipleri (straightLine, line, segment, ray) ...
-else if (isDrawingRay) {
-    const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
-    const stroke = { type: 'ray', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3, label1: l1, label2: l2 };
-    drawnStrokes.push(stroke); 
-
-    // ŞURAYA EKLE:
-    if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-        window.sendNetworkData({ type: 'yeni_cizim', stroke: stroke });
-    }
-}
-        
-        if (!window.boxCopies) window.boxCopies = [];
-        window.boxCopies.push(newImgStroke);
-
-        // --- CANLI SINIF FIRLATICI: KUTUYU VE YAMAYI TAHTAYA GÖNDER ---
-        if (typeof isConnected !== 'undefined' && isConnected) {
-            // Önce arkadaki boşluğu kapatan beyaz yamayı gönder
-            window.sendNetworkData({ type: 'yeni_cizim', stroke: maskStroke });
-            
-            // Sonra kestiğin yüksek kaliteli soruyu gönder
-            window.sendNetworkData({ type: 'yeni_cizim', stroke: newImgStroke });
-        }
-        // -------------------------------------------------------------
-        
-        if (typeof setActiveTool === 'function') setActiveTool('move');
-        else currentTool = 'move';
-        
-        selectedItem = newImgStroke;
-        snapshotStart = null;
-        redrawAllStrokes();
-    }
-}
-
-  // --- DİKDÖRTGENİ TAMAMLAMA VE SİSTEME KAYDETME (TEK NESNE + CANLI AKTARIM) ---
-if (isDrawingRectangle && rectStartPoint && finalPos) {
-    const widthPx = Math.abs(finalPos.x - rectStartPoint.x);
-    const heightPx = Math.abs(finalPos.y - rectStartPoint.y);
-
-    if (widthPx > 10 && heightPx > 10) {
-        const startX = Math.min(rectStartPoint.x, finalPos.x);
-        const startY = Math.min(rectStartPoint.y, finalPos.y);
-        const color = window.isToolThemeBlack ? '#000000' : (window.currentLineColor || '#000000');
-
-        // 1. 4 köşe harfini bir diziye alıyoruz
-        const rectLabels = [nextPointChar];
-        for (let i = 0; i < 3; i++) {
-            nextPointChar = advanceChar(nextPointChar);
-            rectLabels.push(nextPointChar);
-        }
-        nextPointChar = advanceChar(nextPointChar); // Bir sonraki çizim için harfi hazırla
-
-        // 2. DİKDÖRTGEN OBJESİNİ OLUŞTUR (Tek Nesne Modu)
-        const rectangleStroke = { 
-            type: 'rectangle', 
-            x: startX, 
-            y: startY, 
-            width: widthPx, 
-            height: heightPx, 
-            rotation: 0, 
-            color: color, 
-            labels: rectLabels,
-            showEdgeLabels: true, // CM değerlerini otomatik gösterir
-            showAngleLabels: false // Tıklayınca açılması için başlangıçta kapalı
-        };
-
-// --- ID EKLEME ---
-        rectangleStroke.id = Date.now() + Math.random();
-
-        // 3. TABLETİN KENDİ HAFIZASINA KAYDET
-        drawnStrokes.push(rectangleStroke);
-
-// ŞURAYA EKLE:
-if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-    window.sendNetworkData({ type: 'yeni_cizim', stroke: rectangleStroke }); // Not: 'rectangleStroke' değişken adın neyse onu kullan
-}
-
-// ... diğer çizgi tipleri (straightLine, line, segment, ray) ...
-else if (isDrawingRay) {
-    const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
-    const stroke = { type: 'ray', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3, label1: l1, label2: l2 };
-    drawnStrokes.push(stroke); 
-
-    // ŞURAYA EKLE:
-    if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-        window.sendNetworkData({ type: 'yeni_cizim', stroke: stroke });
-    }
-}
-
-        // --- CANLI SINIF FIRLATICI: Dikdörtgeni saniyesinde tahtaya gönder ---
-        if (typeof isConnected !== 'undefined' && isConnected) {
-            window.sendNetworkData({ 
-                type: 'yeni_cizim', 
-                stroke: rectangleStroke 
-            });
-        }
-        // -------------------------------------------------------------------
-
-        window.nextPointChar = nextPointChar; 
-    }
-}
-
-// --- AKILLI TAHTA NOKTA KOYMA YAMASI VE AKILLI ŞEKİL TANIMA (BİRLEŞTİRİLMİŞ VE CANLI) ---
-if (currentTool === 'pen') {
-    let lastStroke = drawnStrokes[drawnStrokes.length - 1];    
-    if (!lastStroke) return;
-
-    // 1. Sadece tek nokta konduysa (Akıllı tahtada görünmesi için yama)
-    if (lastStroke.type === 'pen' && lastStroke.path.length <= 3) {
-        const p = lastStroke.path[0];
-        lastStroke.path.push({ x: p.x + 0.1, y: p.y + 0.1 });
-        
-        // TAHTAYA NOKTAYI GÖNDER
-        if (typeof isConnected !== 'undefined' && isConnected) {
-            window.sendNetworkData({ type: 'yeni_cizim', stroke: lastStroke });
-        }
-    } 
-    // 2. Uzun bir çizim yapıldıysa şekli tahmin etmeye çalış
-    else if (lastStroke.type === 'pen') {
-        const correctedShape = akilliSekilTani(lastStroke);
-        
-        if (correctedShape) {
-            drawnStrokes.pop(); // Eğri büğrü çizimi yerel listeden sil
-            
-            // --- A) Eğer dönen şekil bir Dizi ise (Üçgen, Yamuk vb. çoklu çizgiler) ---
-            if (Array.isArray(correctedShape)) {
-                correctedShape.forEach(s => s.id = Date.now() + Math.random()); // HER BİRİNE ID VER
-                drawnStrokes.push(...correctedShape);
-// ŞURAYA EKLE:
-    if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-        window.sendNetworkData({ type: 'yeni_cizim', stroke: correctedShape });
-    }
-}
-
-// ... diğer çizgi tipleri (straightLine, line, segment, ray) ...
-else if (isDrawingRay) {
-    const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
-    const stroke = { type: 'ray', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3, label1: l1, label2: l2 };
-    drawnStrokes.push(stroke); 
-
-    // ŞURAYA EKLE:
-    if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-        window.sendNetworkData({ type: 'yeni_cizim', stroke: stroke });
-    }
-}
+    // --- D) ÇOKGENLER (POLYGON TOOL) ---
+    if (currentTool && currentTool.startsWith('draw_polygon_')) {
+        if (window.tempPolygonData && window.tempPolygonData.center) {
+            const finalRadius = window.tempPolygonData.radius || 0;
+            if (finalRadius > 5) {
+                const currentType = window.tempPolygonData.type;
                 
-                // TAHTAYA TÜM ÇİZGİLERİ GÖNDER
-                if (typeof isConnected !== 'undefined' && isConnected) {
-                    correctedShape.forEach(s => {
-                        window.sendNetworkData({ type: 'yeni_cizim', stroke: s });
-                    });
+                if (currentType === 0) window.PolygonTool.finalizeCircle(finalRadius);
+                else window.PolygonTool.finalizeDraw(finalRadius, window.tempPolygonData.rotation);
+                
+                setTimeout(() => {
+                    const lastS = drawnStrokes[drawnStrokes.length - 1];
+                    if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected && lastS) {
+                        window.sendNetworkData({ type: 'yeni_cizim', stroke: lastS });
+                    }
+                }, 50);
+
+                if (typeof polygonPreviewLabel !== 'undefined' && polygonPreviewLabel) polygonPreviewLabel.classList.add('hidden');
+                window.tempPolygonData.center = null;
+                if (window.PolygonTool && window.PolygonTool.handleDrawClick) window.PolygonTool.handleDrawClick(null, currentType);
+            }
+        }
+    }
+
+    // --- E) CANLANDIR (KUTU SNAPSHOT) ---
+    if (currentTool === 'snapshot' && snapshotStart && currentMousePos) {
+        const x = Math.round(Math.min(snapshotStart.x, currentMousePos.x));
+        const y = Math.round(Math.min(snapshotStart.y, currentMousePos.y));
+        const w = Math.round(Math.abs(currentMousePos.x - snapshotStart.x));
+        const h = Math.round(Math.abs(currentMousePos.y - snapshotStart.y));
+
+        if (w > 10 && h > 10) {
+            const bgLayer = document.getElementById('pdf-canvas') || document.querySelector('.pdf-page-canvas');
+            const dpr = window.devicePixelRatio || 1;
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = w * (dpr * 10);
+            tempCanvas.height = h * (dpr * 10);
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            if (bgLayer) {
+                const bgRect = bgLayer.getBoundingClientRect();
+                const canvasRect = canvas.getBoundingClientRect();
+                const oranX = bgLayer.width / bgRect.width;
+                const oranY = bgLayer.height / bgRect.height;
+                tempCtx.drawImage(bgLayer, Math.round((x + (canvasRect.left - bgRect.left)) * oranX), Math.round((y + (canvasRect.top - bgRect.top)) * oranY), Math.round(w * oranX), Math.round(h * oranY), 0, 0, tempCanvas.width, tempCanvas.height);
+            }
+            
+            const finalImage = tempCanvas.toDataURL('image/png', 1.0);
+            
+            const maskStroke = {
+                type: 'lasso-mask',
+                points: [{ x: x, y: y }, { x: x + w, y: y }, { x: x + w, y: y + h }, { x: x, y: y + h }],
+                fillColor: (window.isToolThemeBlack) ? '#222222' : '#ffffff',
+                id: Date.now() + Math.random()
+            };
+            drawnStrokes.push(maskStroke);
+
+            const newImgStroke = {
+                type: 'image',
+                imgData: finalImage,
+                x: x, y: y,
+                width: w, height: h,
+                id: Date.now() + Math.random(),
+                isBoxCopy: true
+            };
+            drawnStrokes.push(newImgStroke);
+            
+            if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                window.sendNetworkData({ type: 'yeni_cizim', stroke: maskStroke });
+                window.sendNetworkData({ type: 'yeni_cizim', stroke: newImgStroke });
+            }
+            
+            if (typeof setActiveTool === 'function') setActiveTool('move');
+            else currentTool = 'move';
+            selectedItem = newImgStroke;
+            snapshotStart = null;
+            redrawAllStrokes();
+        }
+    }
+
+    // --- F) DİKDÖRTGEN ARACI ---
+    if (isDrawingRectangle && rectStartPoint && finalPos) {
+        const widthPx = Math.abs(finalPos.x - rectStartPoint.x);
+        const heightPx = Math.abs(finalPos.y - rectStartPoint.y);
+
+        if (widthPx > 10 && heightPx > 10) {
+            const startX = Math.min(rectStartPoint.x, finalPos.x);
+            const startY = Math.min(rectStartPoint.y, finalPos.y);
+            const color = window.isToolThemeBlack ? '#000000' : (window.currentLineColor || '#000000');
+
+            const rectLabels = [nextPointChar];
+            for (let i = 0; i < 3; i++) {
+                nextPointChar = advanceChar(nextPointChar);
+                rectLabels.push(nextPointChar);
+            }
+            nextPointChar = advanceChar(nextPointChar);
+
+            const rectangleStroke = { 
+                type: 'rectangle', x: startX, y: startY, width: widthPx, height: heightPx, rotation: 0, 
+                color: color, labels: rectLabels, showEdgeLabels: true, showAngleLabels: false,
+                id: Date.now() + Math.random() 
+            };
+
+            drawnStrokes.push(rectangleStroke);
+
+            if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                window.sendNetworkData({ type: 'yeni_cizim', stroke: rectangleStroke });
+            }
+            window.nextPointChar = nextPointChar; 
+            if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
+        }
+    }
+
+    // --- G) AKILLI KALEM (PEN) VE ŞEKİL TANIMA ---
+    if (currentTool === 'pen') {
+        let lastStroke = drawnStrokes[drawnStrokes.length - 1];    
+        if (lastStroke) {
+            if (lastStroke.type === 'pen' && lastStroke.path.length <= 3) {
+                const p = lastStroke.path[0];
+                lastStroke.path.push({ x: p.x + 0.1, y: p.y + 0.1 });
+                if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                    window.sendNetworkData({ type: 'yeni_cizim', stroke: lastStroke });
                 }
             } 
-            // --- B) Eğer dönen şekil Tekil bir obje ise (Çember veya Dikdörtgen) ---
-            else {
-                correctedShape.id = Date.now() + Math.random(); // ID VER
-                drawnStrokes.push(correctedShape);
-// ... diğer çizgi tipleri (straightLine, line, segment, ray) ...
-else if (isDrawingRay) {
-    const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
-    const stroke = { type: 'ray', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3, label1: l1, label2: l2 };
-    drawnStrokes.push(stroke); 
-
-    // ŞURAYA EKLE:
-    if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-        window.sendNetworkData({ type: 'yeni_cizim', stroke: stroke });
-    }
-}
-                
-                // TAHTAYA ŞEKLİ GÖNDER
-                if (typeof isConnected !== 'undefined' && isConnected) {
-                    window.sendNetworkData({ type: 'yeni_cizim', stroke: correctedShape });
+            else if (lastStroke.type === 'pen') {
+                const correctedShape = akilliSekilTani(lastStroke);
+                if (correctedShape) {
+                    drawnStrokes.pop(); 
+                    if (Array.isArray(correctedShape)) {
+                        correctedShape.forEach(s => {
+                            s.id = Date.now() + Math.random();
+                            drawnStrokes.push(s);
+                            if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                                window.sendNetworkData({ type: 'yeni_cizim', stroke: s });
+                            }
+                        });
+                    } 
+                    else {
+                        correctedShape.id = Date.now() + Math.random(); 
+                        drawnStrokes.push(correctedShape);
+                        if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                            window.sendNetworkData({ type: 'yeni_cizim', stroke: correctedShape });
+                        }
+                    }
+                } 
+                else {
+                    if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                        window.sendNetworkData({ type: 'yeni_cizim', stroke: lastStroke });
+                    }
                 }
-            }
-        } 
-        // 3. Şekil tanınmadıysa (Normal karalama olarak kalsın)
-        else {
-            if (typeof isConnected !== 'undefined' && isConnected) {
-                window.sendNetworkData({ type: 'yeni_cizim', stroke: lastStroke });
             }
         }
     }
-}
+
     // --- GENEL SIFIRLAMA ---
     isDrawing = false;
     isDrawingLine = isDrawingInfinityLine = isDrawingSegment = isDrawingRay = false;
@@ -3703,36 +3513,24 @@ else if (isDrawingRay) {
     lineStartPoint = null;
     rectStartPoint = null;      
     snapTarget = null;
-    
-    // ==========================================
-    // YENİ: Kestiğimiz parça butonları iptal ediliyor
     window.isImageRotating = false;
     window.isImageResizing = false;
-    // ==========================================
-    
     if (typeof snapIndicator !== 'undefined' && snapIndicator) snapIndicator.style.display = 'none';
 
-   // --- 3. ADIM: KESKİN NİŞANCI LASSO NOKTA KOYMA VE KOPYALAMA (POINTERUP) ---
-    if (currentTool === 'lasso') {
-        if (!window.isDraggingLassoPoint) return;
-        window.isDraggingLassoPoint = false; // Nişangahı kapat
+    // --- H) KESKİN NİŞANCI LASSO (SERBEST KESİM) ---
+    if (currentTool === 'lasso' && window.isDraggingLassoPoint) {
+        window.isDraggingLassoPoint = false;
         
         if (!isDrawingLasso) {
-            // 1. İLK NOKTAYI ŞİMDİ KOY
             isDrawingLasso = true;
             lassoPoints = [{ x: currentMousePos.x, y: currentMousePos.y }];
         } else {
-            // DİKKAT: Hareketsiz tıklamaları da yakalamak için mesafeyi tam parmak kalkarken ölçüyoruz!
             let startPoint = lassoPoints[0];
-            const toleransScale = (typeof globalScale !== 'undefined' && globalScale > 0) ? globalScale : 1;
-            const kapanmaToleransi = 40 / toleransScale; 
-            let mesafe = Math.hypot(currentMousePos.x - startPoint.x, currentMousePos.y - startPoint.y);
+            const mesafe = Math.hypot(currentMousePos.x - startPoint.x, currentMousePos.y - startPoint.y);
             
-            if (mesafe < kapanmaToleransi) {
-                // 2. ŞEKLİ KAPAT VE KOPYALA (HEDEFE VURULDU!)
+            if (mesafe < 40) { 
                 lassoPoints.push({ x: startPoint.x, y: startPoint.y });
 
-                // --- A) ÇOKGEN KOPYALAMA (KIRPMA) ALGORİTMASI ---
                 let minX = Math.min(...lassoPoints.map(p => p.x));
                 let minY = Math.min(...lassoPoints.map(p => p.y));
                 let maxX = Math.max(...lassoPoints.map(p => p.x));
@@ -3741,16 +3539,13 @@ else if (isDrawingRay) {
                 let h = Math.max(10, maxY - minY);
 
                 const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = w;
-                tempCanvas.height = h;
+                tempCanvas.width = w; tempCanvas.height = h;
                 const tempCtx = tempCanvas.getContext('2d');
 
                 tempCtx.save();
                 tempCtx.beginPath();
                 tempCtx.moveTo(lassoPoints[0].x - minX, lassoPoints[0].y - minY);
-                for (let i = 1; i < lassoPoints.length; i++) {
-                    tempCtx.lineTo(lassoPoints[i].x - minX, lassoPoints[i].y - minY);
-                }
+                for (let i = 1; i < lassoPoints.length; i++) tempCtx.lineTo(lassoPoints[i].x - minX, lassoPoints[i].y - minY);
                 tempCtx.closePath();
                 tempCtx.clip(); 
 
@@ -3765,120 +3560,50 @@ else if (isDrawingRay) {
 
                 const finalImage = tempCanvas.toDataURL('image/png');
 
-
-                // --- B) AKILLI RENK SENSÖRÜ (YENİ EKLENDİ) ---
-                // Çokgenin geometrik merkezini hesapla
                 let cx = 0, cy = 0;
                 for (let p of lassoPoints) { cx += p.x; cy += p.y; }
-                cx /= lassoPoints.length;
-                cy /= lassoPoints.length;
+                cx /= lassoPoints.length; cy /= lassoPoints.length;
 
-                // Merkezden, ilk noktaya doğru bir vektör fırlat ve 10 piksel daha dışarı çık
-                let dx = lassoPoints[0].x - cx;
-                let dy = lassoPoints[0].y - cy;
+                let dx = lassoPoints[0].x - cx; let dy = lassoPoints[0].y - cy;
                 let dist = Math.hypot(dx, dy) || 1;
+                let sampleX = lassoPoints[0].x + (dx / dist) * 10; let sampleY = lassoPoints[0].y + (dy / dist) * 10;
                 
-                let sampleX = lassoPoints[0].x + (dx / dist) * 10;
-                let sampleY = lassoPoints[0].y + (dy / dist) * 10;
-                
-                // Varsayılan zemin rengi (Sensör okuyamazsa buna döner)
                 let detectedColor = (typeof window.isToolThemeBlack !== 'undefined' && window.isToolThemeBlack) ? '#222222' : '#ffffff'; 
 
                 try {
-                    // Ana canvas'tan o hedeflenen noktanın RGB renk kodunu em!
                     let pxl = canvas.getContext('2d').getImageData(sampleX, sampleY, 1, 1).data;
-                    // Eğer nokta tamamen şeffaf değilse (yani bir renk varsa) o rengi al
-                    if (pxl[3] > 0) { 
-                        detectedColor = `rgba(${pxl[0]}, ${pxl[1]}, ${pxl[2]}, ${pxl[3]/255})`;
-                    }
-                } catch (e) {
-                    // PDF'ler bazen CORS güvenlik duvarına takılırsa program çökmesin diye sessizce atla
-                    console.log("Renk okuma güvenlik duvarına takıldı, varsayılan renk kullanılıyor.");
+                    if (pxl[3] > 0) detectedColor = `rgba(${pxl[0]}, ${pxl[1]}, ${pxl[2]}, ${pxl[3]/255})`;
+                } catch (e) { console.log("Renk okuma güvenlik duvarına takıldı."); }
+
+                const maskStroke = { type: 'lasso-mask', points: lassoPoints.map(p => ({ x: p.x, y: p.y })), fillColor: detectedColor, id: Date.now() + Math.random() };
+                drawnStrokes.push(maskStroke); 
+
+                const newImgStroke = { type: 'image', imgData: finalImage, x: minX + 30, y: minY + 30, width: w, height: h, rotation: 0, isBackground: false, imgObj: null, id: Date.now() + Math.random() };
+                
+                const tempImg = new Image();
+                tempImg.onload = () => { newImgStroke.imgObj = tempImg; if (typeof redrawAllStrokes === 'function') redrawAllStrokes(); };
+                tempImg.src = finalImage;
+                drawnStrokes.push(newImgStroke);
+
+                if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                    window.sendNetworkData({ type: 'yeni_cizim', stroke: maskStroke });
+                    window.sendNetworkData({ type: 'yeni_cizim', stroke: newImgStroke });
                 }
 
-                // --- C) KESİLEN YERE BULUNAN RENKTE YAMA YAP (MASKE) ---
-const maskStroke = {
-    type: 'lasso-mask',
-    points: lassoPoints.map(p => ({ x: p.x, y: p.y })),
-    fillColor: detectedColor 
-};
-maskStroke.id = Date.now() + Math.random(); // BUNA KİMLİK EKLE
-drawnStrokes.push(maskStroke); 
-// ... diğer çizgi tipleri (straightLine, line, segment, ray) ...
-else if (isDrawingRay) {
-    const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
-    const stroke = { type: 'ray', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3, label1: l1, label2: l2 };
-    drawnStrokes.push(stroke); 
-
-    // ŞURAYA EKLE:
-    if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-        window.sendNetworkData({ type: 'yeni_cizim', stroke: stroke });
-    }
-}
-
-// --- D) KOPYAYI EKRANA YERLEŞTİR (LASSO CANLI AKTARIMLI) ---
-const newImgStroke = {
-    type: 'image',
-    imgData: finalImage,
-    x: minX + 30,  
-    y: minY + 30,  
-    width: w, 
-    height: h,
-    rotation: 0,
-    isBackground: false,
-    imgObj: null 
-};
-newImgStroke.id = Date.now() + Math.random(); // BUNA KİMLİK EKLE
-
-const tempImg = new Image();
-tempImg.onload = () => {
-    newImgStroke.imgObj = tempImg;
-    if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
-    else if (window.redrawAllStrokes) window.redrawAllStrokes();
-};
-tempImg.src = finalImage;
-
-// 1. Tabletin kendi listesine ekle
-drawnStrokes.push(newImgStroke);
-
-// --- CANLI SINIF FIRLATICI: LASSO KESİMİNİ TAHTAYA GÖNDER ---
-if (typeof isConnected !== 'undefined' && isConnected) {
-    // Önce kesilen yerin arkasında kalan yamayı (maske) gönder
-    if (typeof maskStroke !== 'undefined') {
-        window.sendNetworkData({ type: 'yeni_cizim', stroke: maskStroke });
-    }
-    
-    // Sonra kestiğin resmin kendisini gönder
-    window.sendNetworkData({ type: 'yeni_cizim', stroke: newImgStroke });
-}
-// ---------------------------------------------------------
-
-// Modu Taşı yap
-if (typeof setActiveTool === 'function') setActiveTool('move');
-else currentTool = 'move';
-
-selectedItem = newImgStroke;
-
-// İşlemi sıfırla
-isDrawingLasso = false;
-window.lassoIsClosing = false;
-currentMousePos = null;
-lassoPoints = []; 
-// ------------------------------------------------------------- 
-                // -------------------------------------------------------------
+                if (typeof setActiveTool === 'function') setActiveTool('move'); else currentTool = 'move';
+                selectedItem = newImgStroke;
+                isDrawingLasso = false; window.lassoIsClosing = false; currentMousePos = null; lassoPoints = []; 
             } else {
-                // 3. HEDEF VURULMADI: YENİ BİR KÖŞE DAHA EKLE
                 lassoPoints.push({ x: currentMousePos.x, y: currentMousePos.y });
             }
         }
-        
         redrawAllStrokes();
         return;
     } else {
         redrawAllStrokes();
     }
-
-}, { passive: false }); // <--- pointerup fonksiyonu burada bitiyor
+}, { passive: false }); // <--- pointerup fonksiyonu burada BİTTİ
+// ==============================================================================
 
 
 canvas.addEventListener('wheel', (e) => {
@@ -5252,9 +4977,9 @@ window.temizleLassoVeKopyalar = function() {
         }
         
         // Eğer seçili olan şey silinen bir şeyse seçimi iptal et
-        if (typeof selectedItem !== 'undefined' && selectedItem && !selectedItem.isBoxCopy) {
-             window.selectedItem = null;
-        }
+if (typeof window.selectedItem !== 'undefined' && window.selectedItem && !window.selectedItem.isBoxCopy) {
+    window.selectedItem = null;
+}
         
         // Sadece bir şey silindiyse ekranı tazele
         if (silinenOlduMu && typeof window.redrawAllStrokes === 'function') {
