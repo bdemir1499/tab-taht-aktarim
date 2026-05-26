@@ -5053,49 +5053,60 @@ myPeer.on('connection', function(conn) {
     const btnAccept = document.getElementById('btn-conn-accept');
     const btnReject = document.getElementById('btn-conn-reject');
     
-    // 1. GÜVENLİK KİLİDİ: HTML elementleri eksikse kodun çökmesini engeller
     if (requestModal && requestText && btnAccept && btnReject) {
         
         requestText.innerText = `Oda kodu "${conn.peer}" olan bir cihaz bağlanmak istiyor. Onaylıyor musun?`;
-        
-        // Kutuyu görünür yap (Projedeki genel yapıya uyumlu)
         requestModal.classList.remove('hidden');
         requestModal.style.display = 'flex';
         
-        // --- EVET BUTONUNA BASILINCA ---
+        // --- EVET BUTONUNA BASILINCA (ZIRHLI VE GÜVENLİ SÜRÜM) ---
         btnAccept.onclick = function() {
-            myConnection = conn; 
-// --- YENİ EKLENECEK KISIM ---
-            window.aktifBaglantilar[conn.peer] = conn; // Listeye ekle
-            conn.on('data', veriGeldigindeİsle);        // Veri akışını başlat
-            conn.on('close', function() {              // Koptuğunda listeden sil
-                delete window.aktifBaglantilar[conn.peer];
-            });
-            // -----------------------------
+            try {
+                myConnection = conn; 
+                
+                // Liste yoksa oluştur ve tableti listeye ekle
+                if (typeof window.aktifBaglantilar === 'undefined') {
+                    window.aktifBaglantilar = {};
+                }
+                window.aktifBaglantilar[conn.peer] = conn; 
+                
+                // Veri dinleyiciyi başlat
+                if (typeof veriGeldigindeİsle === 'function') {
+                    conn.on('data', veriGeldigindeİsle);
+                } else {
+                    console.error("KRİTİK HATA: 'veriGeldigindeİsle' fonksiyonu bulunamadı!");
+                }
 
+                // Koparsa listeden sil
+                conn.on('close', function() {              
+                    delete window.aktifBaglantilar[conn.peer];
+                });
 
-            if (typeof setupConnectionEvents === 'function') {
-                setupConnectionEvents();
+                if (typeof setupConnectionEvents === 'function') {
+                    setupConnectionEvents();
+                }
+                
+                console.log("Cihaz başarıyla bağlandı:", conn.peer);
+            } catch (err) {
+                console.error("Bağlantı onaylanırken hata oluştu:", err);
+            } finally {
+                // KUTU KESİN KAPANACAK
+                requestModal.classList.add('hidden'); 
+                requestModal.style.display = 'none'; 
             }
-            // Kutuyu kesin olarak kapat
-            requestModal.classList.add('hidden'); 
-            requestModal.style.display = 'none'; 
         };
         
         // --- REDDET BUTONUNA BASILINCA ---
         btnReject.onclick = function() {
             conn.close(); // Bağlantıyı kes
-            // Kutuyu kesin olarak kapat
             requestModal.classList.add('hidden'); 
             requestModal.style.display = 'none'; 
         };
         
     } else {
-        // Hata durumunda ekranı dondurmak yerine konsola net bir uyarı basar
         console.error("HATA: Kapı zili modalı veya onay butonları HTML'de bulunamadı! ID'leri kontrol edin.");
     }
 });
-
 
 // 3. Sistem sunucuya başarıyla bağlandığında kodumuzu HTML panele yazdır
 myPeer.on('open', function(id) {
