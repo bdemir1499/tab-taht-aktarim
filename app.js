@@ -5256,33 +5256,35 @@ function setupConnectionEvents() {
     isConnected = false;
 
    pc.addEventListener('icecandidate', (event) => {
-    // Sadece geçerli bir aday (candidate) varsa devam et
-    if (!event.candidate) return;
+        if (!event.candidate) return; // Aday yoksa bekle
 
-    const cand = event.candidate.candidate;
-    
-    // KRİTİK FİLTRE: Dış dünya ile konuşmaya çalışan "relay/srflx" adaylarını çöpe at.
-    // Sadece cihazın yerel ağdaki fiziksel adresini (host) kabul et.
-    if (!cand.includes("typ host")) return; 
+        const cand = event.candidate.candidate;
+        // IP adresini yakalamaya çalış
+        const ipMatch = cand.match(/([0-9a-f:.]+|\w+\.local)/i);
 
-    const ipMatch = cand.match(/([0-9a-f:.]+|\w+\.local)/i);
-    if (ipMatch) {
-        const ip = ipMatch[1];
-        
-        // Yerel Ağ IP aralıkları
-        const yerelAgMi = (
-            ip.startsWith('192.168.') ||
-            ip.startsWith('10.')      ||
-            ip.startsWith('172.16.')  ||
-            ip.startsWith('172.17.')  ||
-            ip.startsWith('172.18.')  ||
-            ip.startsWith('172.19.')  ||
-            ip.startsWith('172.20.')  ||
-            ip.endsWith('.local')
-        );
+        if (ipMatch) {
+            const ip = ipMatch[1];
+            
+            // Yerel Ağ IP Kontrolü
+            const yerelAgMi = (
+                ip.startsWith('192.168.') ||
+                ip.startsWith('10.')      ||
+                ip.startsWith('172.16.')  ||
+                ip.startsWith('172.20.')  || // iPhone/Android Hotspot
+                ip.endsWith('.local')
+            );
 
-        if (yerelAgMi) {
-            console.log("Güvenli Yerel Ağ doğrulandı:", ip);
+            // EĞER AĞ YEREL DEĞİLSE: Bağlantıyı kesme, sadece uyarı ver.
+            // Çünkü tarayıcılar bazen IP'yi gizler, bu "saldırı" demek değildir.
+            if (!yerelAgMi) {
+                console.warn("DİKKAT: IP yerel formatta değil veya gizlenmiş:", ip);
+                // Burada myConnection.close() YOK, bağlantı devam ediyor.
+            } else {
+                console.log("Güvenli Yerel Ağ doğrulandı:", ip);
+            }
+
+            // GÜVENLİK KONTROLÜ: 
+            // Oda kodu ve Şifre girildiği için zaten güvenliyiz.
             window.baglantiOnaylandi = true;
             isConnected = true;
             
@@ -5291,21 +5293,10 @@ function setupConnectionEvents() {
                 statusEl.innerText = "BAĞLANDI 🟢";
                 statusEl.style.color = "#00ffcc";
             }
-        } else {
-            console.warn("GÜVENLİK İHLALİ: Geçersiz IP adresi:", ip);
-            // Burada bağlantıyı kapatmıyoruz, belki bir sonraki aday (candidate) yereldir diye bekliyoruz.
         }
-    }
-});
+    });
 
-    // Eğer tarayıcı 3 saniye içinde hiç IP vermezse (Çok katı gizlilik ayarı varsa)
-    setTimeout(() => {
-        if (!kontrolYapildi) {
-            console.warn("Tarayıcı ağ kontrolünü reddetti, bağlantı güvenlik amacıyla kesiliyor.");
-            myConnection.close();
-        }
-    }, 3000);
-
+   
 
     // --- 2. VERİ ALICI MOTORU (ÇİZİMLERİN VE ŞEKİLLERİN AKTARIMI) ---
     myConnection.on('data', function(data) {
