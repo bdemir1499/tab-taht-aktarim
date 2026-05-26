@@ -5121,26 +5121,35 @@ let myPeer = null;
 let myConnection = null;
 let isConnected = false;
 
-// 1. Karışmayan 5 haneli rastgele bir Oda Kodu oluştur
+// --- 1. AĞ AYARLARI VE KOD ÜRETİCİ ---
 const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'; 
 let myRoomCode = '';
 for (let i = 0; i < 5; i++) {
     myRoomCode += chars.charAt(Math.floor(Math.random() * chars.length));
 }
-
-// --- PEERJS BAŞLANGIÇ VE CİHAZ MODU AYARI ---
 const isTablet = window.location.href.includes("tablet");
 
-// --- YEREL AĞ ZORUNLULUĞU (SADECE AYNI Wİ-Fİ/OKUL AĞI) ---
-
+// --- 2. PEERJS BAŞLANGIÇ VE CİHAZ MODU AYARI ---
 if (isTablet) {
+    // Tablet için PeerJS
     myPeer = new Peer();
+    myPeer.on('open', (id) => {
+        console.log("Tablet Peer Hazır. Kimliğim:", id);
+    });
 } else {
+    // PC (Tahta) için PeerJS
     myPeer = new Peer(myRoomCode);
     window.sessionPassword = Math.floor(1000 + Math.random() * 9000).toString();
+    myPeer.on('open', (id) => {
+        console.log("Tahta Peer Hazır. Oda Kodu:", id);
+        const idSaha = document.getElementById('my-peer-id');
+        const pinSaha = document.getElementById('my-pin-code');
+        if(idSaha) idSaha.innerText = id;
+        if(pinSaha) pinSaha.innerText = window.sessionPassword;
+    });
 }
 
-// --- YENİ VE AKILLI: BAĞLANTI ONAY SİSTEMİ (KAPI ZİLİ) ---
+// --- 3. BAĞLANTI İSTEK DİNLEYİCİSİ (KAPI ZİLİ) ---
 myPeer.on('connection', function(conn) {
     console.log("Bir cihaz bağlanmak istiyor:", conn.peer);
     
@@ -5150,57 +5159,37 @@ myPeer.on('connection', function(conn) {
     const btnReject = document.getElementById('btn-conn-reject');
     
     if (requestModal && requestText && btnAccept && btnReject) {
-        
         requestText.innerText = `Oda kodu "${conn.peer}" olan bir cihaz bağlanmak istiyor. Onaylıyor musun?`;
         requestModal.classList.remove('hidden');
         requestModal.style.display = 'flex';
         
-        // --- EVET BUTONUNA BASILINCA (TAM DÜZELTİLMİŞ HALİ) ---
         btnAccept.onclick = function() {
             try {
                 myConnection = conn; 
-                
-                // Liste yoksa oluştur ve tableti listeye ekle
-                if (typeof window.aktifBaglantilar === 'undefined') {
-                    window.aktifBaglantilar = {};
-                }
+                if (typeof window.aktifBaglantilar === 'undefined') window.aktifBaglantilar = {};
                 window.aktifBaglantilar[conn.peer] = conn; 
                 
-                // İŞTE HATAYI ÇÖZEN KISIM (window. eklendi)
                 if (typeof window.veriGeldigindeİsle === 'function') {
                     conn.on('data', window.veriGeldigindeİsle);
-                } else {
-                    console.error("KRİTİK HATA: 'window.veriGeldigindeİsle' fonksiyonu bulunamadı! En üste eklediğinden emin ol.");
                 }
 
-                // Koparsa listeden sil
-                conn.on('close', function() {              
-                    delete window.aktifBaglantilar[conn.peer];
-                });
+                conn.on('close', function() { delete window.aktifBaglantilar[conn.peer]; });
 
-                if (typeof setupConnectionEvents === 'function') {
-                    setupConnectionEvents();
-                }
-                
+                if (typeof setupConnectionEvents === 'function') setupConnectionEvents();
                 console.log("Cihaz başarıyla bağlandı:", conn.peer);
             } catch (err) {
-                console.error("Bağlantı onaylanırken hata oluştu:", err);
+                console.error("Bağlantı hatası:", err);
             } finally {
-                // KUTU KESİN KAPANACAK
                 requestModal.classList.add('hidden'); 
                 requestModal.style.display = 'none'; 
             }
         };
         
-        // --- REDDET BUTONUNA BASILINCA ---
         btnReject.onclick = function() {
-            conn.close(); // Bağlantıyı kes
+            conn.close();
             requestModal.classList.add('hidden'); 
             requestModal.style.display = 'none'; 
         };
-        
-    } else {
-        console.error("HATA: Kapı zili modalı veya onay butonları HTML'de bulunamadı! ID'leri kontrol edin.");
     }
 });
 
@@ -5225,22 +5214,32 @@ myPeer.on('open', function(id) {
 });
 
 
-// 5. TABLET ROLÜ: Bağlanma butonu
-document.getElementById('connect-btn').addEventListener('click', () => {
-    const targetCode = document.getElementById('connect-input').value.trim();
-    const passwordInput = document.getElementById('session-pass-input').value.trim();
+// 5. TABLET ROLÜ: Bağlanma butonu (Güvenli Yükleme)
+document.addEventListener('DOMContentLoaded', () => {
+    const connectBtn = document.getElementById('connect-btn');
+    if (connectBtn) {
+        connectBtn.addEventListener('click', () => {
+            const targetCode = document.getElementById('connect-input').value.trim();
+            const passwordInput = document.getElementById('session-pass-input').value.trim();
 
-    if (targetCode.length === 5 && passwordInput.length > 0) {
-        window.sessionPassword = passwordInput; 
-        document.getElementById('connection-status').innerText = "Bağlanıyor ⏳";
-        
-        myConnection = myPeer.connect(targetCode);
-        setupConnectionEvents();
-    } else {
-        alert("Bağlantı reddedildi! Lütfen hem 5 haneli Oda Kodunu hem de Tahta Şifresini eksiksiz girin.");
+            if (targetCode.length === 5 && passwordInput.length > 0) {
+                // PeerJS hazır değilse (hata verirse) diye bir kontrol ekliyoruz
+                if (!myPeer || myPeer.destroyed) {
+                    alert("Ağ bağlantısı henüz kurulmadı, lütfen 2 saniye bekleyip tekrar dene.");
+                    return;
+                }
+
+                window.sessionPassword = passwordInput; 
+                document.getElementById('connection-status').innerText = "Bağlanıyor ⏳";
+                
+                myConnection = myPeer.connect(targetCode);
+                setupConnectionEvents();
+            } else {
+                alert("Lütfen 5 haneli Oda Kodunu ve Tahta Şifresini eksiksiz girin.");
+            }
+        });
     }
 });
-
 
 function setupConnectionEvents() {
     // --- 1. SIKI YÖNETİM: AYNI Wİ-Fİ / YEREL AĞ KONTROLÜ (GÜNCELLENDİ) ---
@@ -5253,39 +5252,45 @@ function setupConnectionEvents() {
         if (kontrolYapildi || !event.candidate) return;
 
         const kandidat = event.candidate.candidate;
-        // Hem normal IP'leri (192.168...) hem de tarayıcının gizlediği yerel IP'leri (.local) yakalar
         const ipMatch = kandidat.match(/([0-9a-f:.]+|\w+\.local)/i);
 
         if (ipMatch) {
             const ip = ipMatch[1];
             
-            // 1. Standart Yerel Ağ IP'leri veya 2. Tarayıcı mDNS (.local) Koruması
+            // GÜNCEL KONTROL: Hotspot ve tüm yerel ağları kapsar
             const yerelAgMi = (
                 ip.startsWith('192.168.') ||
                 ip.startsWith('10.')      ||
-                /^172\.(1[6-9]|2[0-9]|3[01])\./.test(ip) ||
-                ip.endsWith('.local') // YENİ: Tarayıcı IP'yi gizlese bile aynı Wi-Fi'de olduğunu doğrular!
+                ip.startsWith('172.16.')  ||
+                ip.startsWith('172.17.')  ||
+                ip.startsWith('172.18.')  ||
+                ip.startsWith('172.19.')  ||
+                ip.startsWith('172.20.')  || // iPhone hotspot aralığı
+                ip.endsWith('.local')
             );
 
             kontrolYapildi = true;
 
-            // FARKLI ŞEHİR / FARKLI İNTERNET TESPİT EDİLDİ! (BAĞLANTIYI KOPART)
             if (!yerelAgMi) {
-                console.warn("GÜVENLİK İHLALİ: Dış ağdan bağlantı engellendi!", ip);
+                // HATA AYIKLAMA İÇİN: Reddedilen IP'yi konsola yazdırıyoruz
+                console.warn("GÜVENLİK İHLALİ: Reddedilen IP adresi: " + ip);
+                
                 myConnection.close();
                 
                 const statusEl = document.getElementById('connection-status');
                 if (statusEl) {
-                    statusEl.innerText = "❌ Sadece okul ağından bağlanılabilir!";
+                    statusEl.innerText = "❌ Bağlantı yerel değil! (" + ip + ")";
                     statusEl.style.color = "#ff4444";
                 }
                 return;
             }
 
-            // AYNI Wİ-Fİ ONAYLANDI! (ÇİZİM VE DOSYA İZNİ VER)
-            console.log("Aynı ağ (Wi-Fi) doğrulandı, bağlantı güvenli:", ip);
+            // AYNI Wİ-Fİ ONAYLANDI!
+            console.log("Aynı ağ (Wi-Fi) doğrulandı, güvenli IP:", ip);
             window.baglantiOnaylandi = true;
             isConnected = true;
+            
+            // ... (Fonksiyonun geri kalanı aynı)
             
             const statusEl = document.getElementById('connection-status');
             if (statusEl) {
