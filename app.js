@@ -5243,105 +5243,76 @@ document.getElementById('connect-btn').addEventListener('click', () => {
 
 
 function setupConnectionEvents() {
-
-    // --- YEREL AĞ IP KONTROLÜ ---
-    const pc = myConnection.peerConnection;
-    let kontrolYapildi = false;
-    let baglantiOnaylandi = false;
-
-    pc.addEventListener('icecandidate', (event) => {
-        if (kontrolYapildi) return;
-        if (!event.candidate) return;
-
-        const kandidat = event.candidate.candidate;
-        const ipMatch = kandidat.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/);
-
-        if (ipMatch) {
-            const ip = ipMatch[1];
-            const yerelAgMi = (
-                ip.startsWith('192.168.') ||
-                ip.startsWith('10.')      ||
-                /^172\.(1[6-9]|2[0-9]|3[01])\./.test(ip)
-            );
-
-            kontrolYapildi = true;
-
-            if (!yerelAgMi) {
-                console.warn("Yerel ağ dışı bağlantı engellendi:", ip);
-                myConnection.close();
-                const statusEl = document.getElementById('connection-status');
-                if (statusEl) {
-                    statusEl.innerText = "❌ Sadece okul ağından bağlanılabilir!";
-                    statusEl.style.color = "#ff4444";
-                }
-                isConnected = false;
-                return;
-            }
-
-            console.log("Yerel ağ bağlantısı onaylandı:", ip);
-            baglantiOnaylandi = true;
-        }
-    });
-
-    // YENİ:
-setTimeout(() => {
-    if (!baglantiOnaylandi && !kontrolYapildi) {
-        console.warn("IP okunamadı, şifre korumasına güveniliyor.");
-        baglantiOnaylandi = true;
-        isConnected = true;
-        const statusEl = document.getElementById('connection-status');
-        if (statusEl) {
-            statusEl.innerText = "BAĞLANDI 🟢";
-            statusEl.style.color = "#00ffcc";
-        }
+    // --- 1. IP VE TARAYICI ENGELİNİ (TRACKING PREVENTION) BYPASS EDİYORUZ ---
+    // Oda kodu ve şifre girildiği an bağlantı tereddütsüz onaylanır.
+    window.baglantiOnaylandi = true;
+    isConnected = true;
+    
+    // Ekrana anında bağlandı yazısını ver
+    const statusEl = document.getElementById('connection-status');
+    if (statusEl) {
+        statusEl.innerText = "BAĞLANDI 🟢";
+        statusEl.style.color = "#00ffcc";
     }
-    // IP geldi ama baglantiOnaylandi hala false ise (yerel ag onaylandı ama flag set edilmedi)
-    if (kontrolYapildi && !baglantiOnaylandi) {
-        baglantiOnaylandi = true;
-        isConnected = true;
-        const statusEl = document.getElementById('connection-status');
-        if (statusEl) {
-            statusEl.innerText = "BAĞLANDI 🟢";
-            statusEl.style.color = "#00ffcc";
-        }
-    }
-}, 5000);
 
-
-    // --- IP KONTROLÜ BİTİŞ ---
-
-    // --- BAĞLANINCA OTOMATİK KAPAT ---
+    // Arayüz panelini küçült
     if (typeof window.kucultPanel === 'function') {
         window.kucultPanel();
     }
 
-    // isConnected = true; BURAYA YAZMA, IP onaylanınca aşağıda yazılacak
+    // --- 2. VERİ ALICI MOTORU ---
+    myConnection.on('data', function(data) {
+        if (!data || !data.type) return;
 
-    const statusEl = document.getElementById('connection-status');
+        // DİL SEÇİMİ HER ZAMAN GEÇSİN
+        if (data.type === 'dil_secimi') { 
+            if (typeof setLanguage === 'function') setLanguage(data.lang);
+            const overlay = document.getElementById('language-overlay');
+            if (overlay) overlay.style.display = 'none';
+            return;
+        }
 
-    // IP onaylandıktan SONRA bağlantıyı aç
-    pc.addEventListener('icecandidate', (event) => {
-        if (!event.candidate) return;
-        const kandidat = event.candidate.candidate;
-        const ipMatch = kandidat.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/);
-        if (ipMatch) {
-            const ip = ipMatch[1];
-            const yerelAgMi = (
-                ip.startsWith('192.168.') ||
-                ip.startsWith('10.')      ||
-                /^172\.(1[6-9]|2[0-9]|3[01])\./.test(ip)
-            );
-            if (yerelAgMi && !isConnected) {
-                // SADECE yerel ağ onaylanınca bağlantıyı aç
-                isConnected = true;
-                if (statusEl) {
-                    statusEl.innerText = "BAĞLANDI 🟢";
-                    statusEl.style.color = "#00ffcc";
+        // ÇÖKME ÖNLEYİCİ: Çizim hafızası yoksa anında yarat
+        if (!window.drawnStrokes) window.drawnStrokes = [];
+
+        // --- TOPLU ŞEKİL ALICISI (ÇOKGENLER VE ÜÇGENLER İÇİN) ---
+        if (data.type === 'akilli_sekil_toplu') {
+            if (data.strokes && Array.isArray(data.strokes)) {
+                data.strokes.forEach(s => {
+                    const isDuplicate = s.id && window.drawnStrokes.some(ds => ds.id === s.id);
+                    if (!isDuplicate) window.drawnStrokes.push(s);
+                });
+            }
+            if (window.redrawAllStrokes) window.redrawAllStrokes();
+            return; 
+        }
+
+        // --- TEKİL ÇİZİM ALICISI (NORMAL KALEM, ÇEMBER, KUTU) ---
+        if (data.type === 'yeni_cizim') {
+            const stroke = data.stroke;
+            if (!stroke) return;
+            
+            if (stroke.type === 'image' && stroke.imgData) {
+                const tempImg = new Image();
+                tempImg.src = stroke.imgData;
+                tempImg.onload = () => {
+                    stroke.imgObj = tempImg;
+                    window.drawnStrokes.push(stroke);
+                    if (window.redrawAllStrokes) window.redrawAllStrokes();
+                };
+            } 
+            else {
+                const isDuplicate = stroke.id && window.drawnStrokes.some(s => s.id === stroke.id);
+                if (!isDuplicate) {
+                    window.drawnStrokes.push(stroke);
+                    if (window.redrawAllStrokes) window.redrawAllStrokes();
                 }
             }
+            return;
         }
-    });
 
+        // ====== BURADAN SONRASINA DOKUNMA ======
+        // (Eski kodundaki data.type === 'arac_senkron' gibi satırlar burada aynı şekilde kalacak)
    myConnection.on('data', function(data) {
         if (!data || !data.type) return;
 
