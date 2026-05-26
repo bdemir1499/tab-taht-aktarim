@@ -57,13 +57,20 @@
     <div id="connection-status" style="font-size: 13px; margin-top: 10px; color: #ffeb3b; text-align: center; font-weight: 600;">Bağlantı Bekleniyor...</div>
 </div>
     
-
-
-
- 
+<script>
     // =========================================================
     // --- PC / TABLET AYRIMLI CANLI SINIF PANEL MOTORU ---
     // =========================================================
+    
+    // Global Panel Küçültme Fonksiyonu
+    window.kucultPanel = function() {
+        const pnl = document.getElementById('network-panel');
+        const mBtn = document.getElementById('network-mini-btn');
+        if(pnl) pnl.style.display = 'none';
+        if(mBtn) mBtn.style.display = 'block';
+        sessionStorage.setItem('sinifDurumu', 'kapali');
+    };
+
     document.addEventListener('DOMContentLoaded', () => {
         const cBtn = document.getElementById('network-close-btn');
         const mBtn = document.getElementById('network-mini-btn');
@@ -91,12 +98,11 @@
         // DİL BUTONLARINA TIKLANDIĞINDA
         document.querySelectorAll('.lang-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                // Dil seçim ekranını kapat (Senin uygulamanın orijinal kodu tetiklensin)
+                // Dil seçim ekranını kapat
                 const overlay = document.getElementById('language-overlay');
                 if (overlay) overlay.style.display = 'none';
 
-                // KRİTİK KONTROL: Eğer bir bağlantı yoksa (Yani burası Tahta/PC ise)
-                // Kodu görebilmek için paneli KÜÇÜLTMÜYORUZ, açık bırakıyoruz!
+                // KRİTİK KONTROL: Tahtada paneli KÜÇÜLTMÜYORUZ, açık kalıyor!
                 if (typeof isConnected !== 'undefined' && isConnected) {
                     kucult();
                 }
@@ -104,7 +110,6 @@
         });
     });
 </script>
-
 
 <div id="language-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 20000; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: 'Fredoka', sans-serif; overflow-y: auto; padding: 20px;">
     <h2 style="color: white; margin-bottom: 20px; text-align: center;">Dil Seçiniz / Select Language</h2>
