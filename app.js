@@ -5190,6 +5190,13 @@ myPeer.on('connection', function(conn) {
 
                 conn.on('close', function() { delete window.aktifBaglantilar[conn.peer]; });
 
+                // UI Güncelleme: Hemen "BAĞLANDI" yazısını göster
+                const statusEl = document.getElementById('connection-status');
+                if (statusEl) {
+                    statusEl.innerText = "BAĞLANDI 🟢";
+                    statusEl.style.color = "#00ffcc";
+                }
+
                 if (typeof setupConnectionEvents === 'function') setupConnectionEvents();
                 console.log("Cihaz başarıyla bağlandı:", conn.peer);
             } catch (err) {
@@ -5205,8 +5212,6 @@ myPeer.on('connection', function(conn) {
             requestModal.classList.add('hidden'); 
             requestModal.style.display = 'none'; 
         };
-    }
-});
 
 // 3. Sistem sunucuya başarıyla bağlandığında kodumuzu HTML panele yazdır
 myPeer.on('open', function(id) {
