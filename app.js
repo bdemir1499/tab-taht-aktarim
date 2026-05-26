@@ -5345,35 +5345,33 @@ setTimeout(() => {
    myConnection.on('data', function(data) {
         if (!data || !data.type) return;
 
-        // DİL SEÇİMİ HER ZAMAN GEÇSİN (Güvenlik beklemez)
+        // ÇÖKME ÖNLEYİCİ: Eğer PC tarafında çizim hafızası henüz yoksa hemen oluştur
+        if (!window.drawnStrokes) window.drawnStrokes = [];
+
+        // DİL SEÇİMİ HER ZAMAN GEÇSİN
         if (data.type === 'dil_secimi') { 
             if (typeof setLanguage === 'function') setLanguage(data.lang);
             const overlay = document.getElementById('language-overlay');
             if (overlay) overlay.style.display = 'none';
             return;
         }
-        
-        // --- DİKKAT: IP GÜVENLİK DUVARI (baglantiOnaylandi) BURADAN TAMAMEN KALDIRILDI ---
 
         // --- 1. TOPLU ŞEKİL ALICISI (ÇOKGENLER, YAMUK VE ÜÇGENLER İÇİN) ---
         if (data.type === 'akilli_sekil_toplu') {
-            if (!window.drawnStrokes) window.drawnStrokes = [];
-            
             if (data.strokes && Array.isArray(data.strokes)) {
                 data.strokes.forEach(s => {
                     const isDuplicate = s.id && window.drawnStrokes.some(ds => ds.id === s.id);
-                    if (!isDuplicate) {
-                        window.drawnStrokes.push(s);
-                    }
+                    if (!isDuplicate) window.drawnStrokes.push(s);
                 });
             }
             if (window.redrawAllStrokes) window.redrawAllStrokes();
             return; // İşlem bitince alt satırlara inmesini engelle
         }
 
-        // --- 2. TEKİL ÇİZİM ALICISI (NORMAL KALEM, ÇEMBER, KUTU KOPYASI) ---
+        // --- 2. TEKİL ÇİZİM ALICISI (NORMAL KALEM, ÇEMBER, DÜZ ÇİZGİ) ---
         if (data.type === 'yeni_cizim') {
             const stroke = data.stroke;
+            if (!stroke) return;
             
             if (stroke.type === 'image' && stroke.imgData) {
                 const tempImg = new Image();
@@ -5393,6 +5391,8 @@ setTimeout(() => {
             }
             return;
         }
+
+        // ... (Bu satırdan sonrası 'arac_senkron' vs. diyerek kendi kodundaki gibi devam ediyor, oraya dokunma)
 
         if (data.type === 'arac_senkron') {
             const el = document.querySelector(data.selector);
@@ -5587,15 +5587,15 @@ setTimeout(() => {
 } // setupConnectionEvents fonksiyonunu kapatan parantez// 
 
 // =========================================================
-// 7. GÜVENLİ VERİ FIRLATMA FONKSİYONU
+// 7. GÜVENLİ VERİ FIRLATMA FONKSİYONU (GÜNCELLENDİ)
 // =========================================================
 window.sendNetworkData = function(dataPackage) {
-    if (isConnected && myConnection) {
-        // Artık paket güvenli, yola çıkabilir!
+    // Tarayıcının IP gizleme (Tracking Prevention) engeline takılmamak için
+    // isConnected değişkenini beklemeden, bağlantı açıksa direkt gönderiyoruz!
+    if (myConnection && myConnection.open) {
         myConnection.send(dataPackage);
     }
 };
-
 // =========================================================
 // --- PANEL GİZLE/GÖSTER MANTIĞI ---
 // =========================================================
