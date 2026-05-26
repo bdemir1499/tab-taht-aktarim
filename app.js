@@ -3548,37 +3548,29 @@ canvas.addEventListener('pointerup', (e) => {
 
             // Eğer sadece tek bir tık (nokta) atıldıysa
             if (lastStroke.path && lastStroke.path.length <= 3) {
-                const p = lastStroke.path[0];
-                if (p) lastStroke.path.push({ x: p.x + 0.1, y: p.y + 0.1 });
-                if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-                    window.sendNetworkData({ type: 'yeni_cizim', stroke: lastStroke });
-                }
+                 if (lastStroke.path[0]) lastStroke.path.push({ x: lastStroke.path[0].x + 0.1, y: lastStroke.path[0].y + 0.1 });
+                 if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                     window.sendNetworkData({ type: 'yeni_cizim', stroke: lastStroke });
+                 }
             } 
             // Şekil çizimi ise (Akıllı Şekil devreye girer)
             else {
                 let correctedShape = null;
-                
                 if (typeof akilliSekilTani === 'function') {
-                    try {
-                        correctedShape = akilliSekilTani(lastStroke);
-                    } catch(err) {
-                        console.warn("Şekil tanıma hatası, normal devam ediliyor.");
-                    }
+                    try { correctedShape = akilliSekilTani(lastStroke); } catch(err) {}
                 }
 
                 if (correctedShape) {
                     drawnStrokes.pop(); // Tabletteki bozuk çizimi sil
                     
-                    // A) ÇOKLU ÇİZGİ İSE (Üçgen, Yamuk, vb.) -> TOPLU PAKET YOLLA
                     if (Array.isArray(correctedShape)) {
                         correctedShape.forEach(s => s.id = Date.now() + Math.random());
-                        drawnStrokes.push(...correctedShape); // Tablete ekle
+                        drawnStrokes.push(...correctedShape);
                         
                         if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
                             window.sendNetworkData({ type: 'akilli_sekil_toplu', strokes: correctedShape });
                         }
                     } 
-                    // B) TEKİL ŞEKİL İSE (Kutu, Çember vb.) -> NORMAL PAKET YOLLA
                     else {
                         correctedShape.id = Date.now() + Math.random(); 
                         drawnStrokes.push(correctedShape);
@@ -3588,10 +3580,19 @@ canvas.addEventListener('pointerup', (e) => {
                         }
                     }
                 } 
-                // C) ŞEKİL TANINMADI, SADECE KARALAMA İSE
+                // C) ŞEKİL TANINMADI, SADECE KARALAMA İSE (GÜVENLİ GÖNDERİM)
                 else {
+                    const safePenStroke = {
+                        type: 'pen',
+                        id: lastStroke.id,
+                        color: lastStroke.color,
+                        baseWidth: lastStroke.baseWidth,
+                        // Çizimi saf koordinatlara indirgiyoruz, fazlalıkları siliyoruz
+                        path: lastStroke.path.map(p => ({ x: p.x, y: p.y, p: p.p })) 
+                    };
+                    
                     if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-                        window.sendNetworkData({ type: 'yeni_cizim', stroke: lastStroke });
+                        window.sendNetworkData({ type: 'yeni_cizim', stroke: safePenStroke });
                     }
                 }
             }
@@ -5341,43 +5342,57 @@ setTimeout(() => {
     });
 
     myConnection.on('data', function(data) {
-    if (!data || !data.type) return;
+        if (!data || !data.type) return;
 
-// DİL SEÇİMİ HER ZAMAN GEÇSİN (bağlantı onayı bekleme)
-    if (data.type === 'dil_secimi') { 
-    if (typeof setLanguage === 'function') setLanguage(data.lang);
-    // Dil ekranını kapat, çizim alanına geç
-    const overlay = document.getElementById('language-overlay');
-    if (overlay) overlay.style.display = 'none';
-    return;
-}
-    
-    
-       // --- 1. ÇİZİM, PDF VE RESİM AKTARIMI (GÜNCELLENMİŞ) ---
-if (data.type === 'yeni_cizim') {
-    const stroke = data.stroke;
-    
-    // Gelen veri yüksek çözünürlüklü kopyalama/kesme ise (Resim)
-    if (stroke.type === 'image' && stroke.imgData) {
-        const tempImg = new Image();
-        tempImg.src = stroke.imgData;
-        tempImg.onload = () => {
-            stroke.imgObj = tempImg;
-            window.drawnStrokes.push(stroke);
-            if (window.redrawAllStrokes) window.redrawAllStrokes();
-        };
-    } 
-    // Normal çizimler (Kalem, Çizgi, Çokgen, Dikdörtgen vb.)
-    else {
-        // ID kontrolünü basitleştirdik, eğer ID varsa çakışmayı önle, yoksa direkt ekle
-        const isDuplicate = stroke.id && window.drawnStrokes.some(s => s.id === stroke.id);
-        
-        if (!isDuplicate) {
-            window.drawnStrokes.push(stroke);
-            if (window.redrawAllStrokes) window.redrawAllStrokes();
+        // DİL SEÇİMİ HER ZAMAN GEÇSİN
+        if (data.type === 'dil_secimi') { 
+            if (typeof setLanguage === 'function') setLanguage(data.lang);
+            const overlay = document.getElementById('language-overlay');
+            if (overlay) overlay.style.display = 'none';
+            return;
         }
-    }
-}
+        
+        // GÜVENLİK DUVARI: IP henüz onaylanmadıysa hiçbir veriyi işleme
+        if (!baglantiOnaylandi) return;
+
+        // --- 1. TOPLU ŞEKİL ALICISI (ÇOKGENLER, YAMUK VE ÜÇGENLER İÇİN) ---
+        if (data.type === 'akilli_sekil_toplu') {
+            if (!window.drawnStrokes) window.drawnStrokes = [];
+            
+            if (data.strokes && Array.isArray(data.strokes)) {
+                data.strokes.forEach(s => {
+                    const isDuplicate = s.id && window.drawnStrokes.some(ds => ds.id === s.id);
+                    if (!isDuplicate) {
+                        window.drawnStrokes.push(s);
+                    }
+                });
+            }
+            if (window.redrawAllStrokes) window.redrawAllStrokes();
+            return; // İşlem bitince alt satırlara inmesini engelle
+        }
+
+        // --- 2. TEKİL ÇİZİM ALICISI (NORMAL KALEM, ÇEMBER, KUTU KOPYASI) ---
+        if (data.type === 'yeni_cizim') {
+            const stroke = data.stroke;
+            
+            if (stroke.type === 'image' && stroke.imgData) {
+                const tempImg = new Image();
+                tempImg.src = stroke.imgData;
+                tempImg.onload = () => {
+                    stroke.imgObj = tempImg;
+                    window.drawnStrokes.push(stroke);
+                    if (window.redrawAllStrokes) window.redrawAllStrokes();
+                };
+            } 
+            else {
+                const isDuplicate = stroke.id && window.drawnStrokes.some(s => s.id === stroke.id);
+                if (!isDuplicate) {
+                    window.drawnStrokes.push(stroke);
+                    if (window.redrawAllStrokes) window.redrawAllStrokes();
+                }
+            }
+            return;
+        }
 
 if (data.type === 'akilli_sekil_toplu') {
             if (!window.drawnStrokes) window.drawnStrokes = [];
