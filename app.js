@@ -5117,7 +5117,7 @@ myPeer.on('connection', function(conn) {
         requestModal.classList.remove('hidden');
         requestModal.style.display = 'flex';
         
-        // --- EVET BUTONUNA BASILINCA (ZIRHLI VE GÜVENLİ SÜRÜM) ---
+        // --- EVET BUTONUNA BASILINCA (TAM DÜZELTİLMİŞ HALİ) ---
         btnAccept.onclick = function() {
             try {
                 myConnection = conn; 
@@ -5128,11 +5128,11 @@ myPeer.on('connection', function(conn) {
                 }
                 window.aktifBaglantilar[conn.peer] = conn; 
                 
-                // Veri dinleyiciyi başlat
-                if (typeof veriGeldigindeİsle === 'function') {
+                // İŞTE HATAYI ÇÖZEN KISIM (window. eklendi)
+                if (typeof window.veriGeldigindeİsle === 'function') {
                     conn.on('data', window.veriGeldigindeİsle);
                 } else {
-                    console.error("KRİTİK HATA: 'veriGeldigindeİsle' fonksiyonu bulunamadı!");
+                    console.error("KRİTİK HATA: 'window.veriGeldigindeİsle' fonksiyonu bulunamadı! En üste eklediğinden emin ol.");
                 }
 
                 // Koparsa listeden sil
