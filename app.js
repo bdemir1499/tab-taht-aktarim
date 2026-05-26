@@ -5255,46 +5255,27 @@ function setupConnectionEvents() {
     window.baglantiOnaylandi = false;
     isConnected = false;
 
-   pc.addEventListener('icecandidate', (event) => {
-        if (!event.candidate) return; // Aday yoksa bekle
+  pc.addEventListener('icecandidate', (event) => {
+    if (!event.candidate) return;
 
-        const cand = event.candidate.candidate;
-        // IP adresini yakalamaya çalış
-        const ipMatch = cand.match(/([0-9a-f:.]+|\w+\.local)/i);
+    const cand = event.candidate.candidate;
+    const ipMatch = cand.match(/([0-9a-f:.]+|\w+\.local)/i);
 
-        if (ipMatch) {
-            const ip = ipMatch[1];
-            
-            // Yerel Ağ IP Kontrolü
-            const yerelAgMi = (
-                ip.startsWith('192.168.') ||
-                ip.startsWith('10.')      ||
-                ip.startsWith('172.16.')  ||
-                ip.startsWith('172.20.')  || // iPhone/Android Hotspot
-                ip.endsWith('.local')
-            );
-
-            // EĞER AĞ YEREL DEĞİLSE: Bağlantıyı kesme, sadece uyarı ver.
-            // Çünkü tarayıcılar bazen IP'yi gizler, bu "saldırı" demek değildir.
-            if (!yerelAgMi) {
-                console.warn("DİKKAT: IP yerel formatta değil veya gizlenmiş:", ip);
-                // Burada myConnection.close() YOK, bağlantı devam ediyor.
-            } else {
-                console.log("Güvenli Yerel Ağ doğrulandı:", ip);
-            }
-
-            // GÜVENLİK KONTROLÜ: 
-            // Oda kodu ve Şifre girildiği için zaten güvenliyiz.
-            window.baglantiOnaylandi = true;
-            isConnected = true;
-            
-            const statusEl = document.getElementById('connection-status');
-            if (statusEl) {
-                statusEl.innerText = "BAĞLANDI 🟢";
-                statusEl.style.color = "#00ffcc";
-            }
+    if (ipMatch) {
+        const ip = ipMatch[1];
+        console.log("Ağ adayı bulundu:", ip); // Artık sadece logluyoruz, kesmiyoruz.
+        
+        // Zaten şifre/oda kodu korumamız var, burayı manuel onay moduna aldık:
+        window.baglantiOnaylandi = true;
+        isConnected = true;
+        
+        const statusEl = document.getElementById('connection-status');
+        if (statusEl) {
+            statusEl.innerText = "BAĞLANDI 🟢";
+            statusEl.style.color = "#00ffcc";
         }
-    });
+    }
+});
 
    
 
