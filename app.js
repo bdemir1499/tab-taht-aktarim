@@ -651,33 +651,41 @@ window.veriGeldigindeİsle = function(data) {
         return;
     }
 
-    // 3. NORMAL TEKİL ÇİZİMLER (Düz çizgi, dikdörtgen, çember, kalem)
+    // 3. NORMAL TEKİL VE ÇOKLU ÇİZİM ALICISI (BİRLEŞTİRİLMİŞ)
     if (data.type === 'yeni_cizim') {
         const stroke = data.stroke;
-        
-        // GÜVENLİK YAMASI: Eğer paket yanlışlıkla "yeni_cizim" olarak geldiyse ama içinde dizi (Array) varsa
+        if (!stroke) return;
+
+        // DURUM A: Eğer gelen veri bir dizi (Array) ise (Akıllı şekil parçaları)
         if (Array.isArray(stroke)) {
             stroke.forEach(s => {
-                if (!window.drawnStrokes.some(ex => ex.id === s.id)) window.drawnStrokes.push(s);
+                if (s.id && !window.drawnStrokes.some(ex => ex.id === s.id)) {
+                    window.drawnStrokes.push(s);
+                }
             });
             if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
             return;
         }
 
-        // Zombi kontrolü
-        if (!window.drawnStrokes.some(s => s.id && s.id === stroke.id)) {
-            if (stroke.type === 'image' && stroke.imgData) {
-                const tempImg = new Image();
-                tempImg.src = stroke.imgData;
-                tempImg.onload = () => { 
-                    stroke.imgObj = tempImg; 
-                    window.drawnStrokes.push(stroke); 
-                    if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes(); 
-                };
-            } else {
-                window.drawnStrokes.push(stroke);
-                if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
-            }
+        // DURUM B: Tekil çizim (Kalem, Çember, Dikdörtgen veya Resim)
+        // Zombi (Mükerrer) kontrolü
+        const isDuplicate = stroke.id && window.drawnStrokes.some(s => s.id === stroke.id);
+        if (isDuplicate) return;
+
+        // Resim mi?
+        if (stroke.type === 'image' && stroke.imgData) {
+            const tempImg = new Image();
+            tempImg.src = stroke.imgData;
+            tempImg.onload = () => { 
+                stroke.imgObj = tempImg; 
+                window.drawnStrokes.push(stroke); 
+                if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes(); 
+            };
+        } 
+        // Normal çizim mi?
+        else {
+            window.drawnStrokes.push(stroke);
+            if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
         }
         return;
     }
@@ -3330,9 +3338,8 @@ window.sendNetworkData({
 }, { passive: false }); // <--- TÜM FONKSİYON ŞİMDİ BURADA KAPANIYOR
 
 
-// ==============================================================================
 // --- POINTER UP (TÜM ÇİZİM VE ARAÇ İŞLEMLERİNİN BİTİŞİ) ---
-// ==============================================================================
+
 canvas.addEventListener('pointerup', (e) => {
     isDrawing = false;
     
@@ -5302,6 +5309,8 @@ function setupConnectionEvents() {
 
     // --- 2. VERİ ALICI MOTORU (ÇİZİMLERİN VE ŞEKİLLERİN AKTARIMI) ---
     myConnection.on('data', function(data) {
+// --- DEDEKTİF SATIRI ---
+        console.log("PC'YE GELEN PAKET TÜRÜ:", data.type);
         if (!data || !data.type) return;
 
         // ÇÖKME ÖNLEYİCİ: Eğer PC tarafında çizim hafızası henüz yoksa hemen oluştur
@@ -5330,29 +5339,7 @@ function setupConnectionEvents() {
             return; 
         }
 
-        // --- TEKİL ÇİZİM/DOSYA ALICISI (KALEM, ÇEMBER, RESİM, KUTU) ---
-        if (data.type === 'yeni_cizim') {
-            const stroke = data.stroke;
-            if (!stroke) return;
-            
-            if (stroke.type === 'image' && stroke.imgData) {
-                const tempImg = new Image();
-                tempImg.src = stroke.imgData;
-                tempImg.onload = () => {
-                    stroke.imgObj = tempImg;
-                    window.drawnStrokes.push(stroke);
-                    if (window.redrawAllStrokes) window.redrawAllStrokes();
-                };
-            } 
-            else {
-                const isDuplicate = stroke.id && window.drawnStrokes.some(s => s.id === stroke.id);
-                if (!isDuplicate) {
-                    window.drawnStrokes.push(stroke);
-                    if (window.redrawAllStrokes) window.redrawAllStrokes();
-                }
-            }
-            return;
-        }
+        
 
         // --- FİZİKSEL ARAÇLAR VE DİĞER FONKSİYONLAR ---
         if (data.type === 'arac_senkron') {
