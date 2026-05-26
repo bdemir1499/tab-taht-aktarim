@@ -3523,21 +3523,40 @@ canvas.addEventListener('pointerup', (e) => {
         }
     }
 
-    // --- G) AKILLI KALEM (PEN) VE ŞEKİL TANIMA ---
+   // --- G) AKILLI KALEM (PEN) VE ŞEKİL TANIMA (GÜVENLİ SÜRÜM) ---
     if (currentTool === 'pen') {
         let lastStroke = drawnStrokes[drawnStrokes.length - 1];    
-        if (lastStroke) {
-            if (lastStroke.type === 'pen' && lastStroke.path.length <= 3) {
+        
+        if (lastStroke && lastStroke.type === 'pen') {
+            // 1. Zombi çizim olmaması için kimlik (ID) veriyoruz
+            if (!lastStroke.id) lastStroke.id = Date.now() + Math.random();
+
+            // 2. Sadece tıklama (nokta) ise
+            if (lastStroke.path && lastStroke.path.length <= 3) {
                 const p = lastStroke.path[0];
-                lastStroke.path.push({ x: p.x + 0.1, y: p.y + 0.1 });
+                if (p) lastStroke.path.push({ x: p.x + 0.1, y: p.y + 0.1 });
+                
                 if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
                     window.sendNetworkData({ type: 'yeni_cizim', stroke: lastStroke });
                 }
             } 
-            else if (lastStroke.type === 'pen') {
-                const correctedShape = akilliSekilTani(lastStroke);
+            // 3. Uzun karalama veya Şekil çizimi ise
+            else {
+                let correctedShape = null;
+                
+                // HATA ÖNLEYİCİ: Akıllı şekil tanıma fonksiyonu var mı kontrol et
+                if (typeof akilliSekilTani === 'function') {
+                    try {
+                        correctedShape = akilliSekilTani(lastStroke);
+                    } catch(err) {
+                        console.warn("Şekil tanınırken bir hata oldu, normal çizim olarak devam edilecek.", err);
+                    }
+                }
+
+                // Eğer akıllı sistem bunu bir şekle (kare, üçgen vb) çevirdiyse
                 if (correctedShape) {
-                    drawnStrokes.pop(); 
+                    drawnStrokes.pop(); // Eski yamuk çizimi sil
+                    
                     if (Array.isArray(correctedShape)) {
                         correctedShape.forEach(s => {
                             s.id = Date.now() + Math.random();
@@ -3546,8 +3565,7 @@ canvas.addEventListener('pointerup', (e) => {
                                 window.sendNetworkData({ type: 'yeni_cizim', stroke: s });
                             }
                         });
-                    } 
-                    else {
+                    } else {
                         correctedShape.id = Date.now() + Math.random(); 
                         drawnStrokes.push(correctedShape);
                         if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
@@ -3555,6 +3573,7 @@ canvas.addEventListener('pointerup', (e) => {
                         }
                     }
                 } 
+                // Şekil değilse, sadece normal bir karalamaysa (İşte senin kalem çizimin!)
                 else {
                     if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
                         window.sendNetworkData({ type: 'yeni_cizim', stroke: lastStroke });
