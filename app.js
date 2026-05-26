@@ -1773,27 +1773,35 @@ function undoLastStroke() {
 }
 
 function clearAllStrokes() {
+    // 1. Ses çal (varsa)
     if (drawnStrokes.length > 0) {
-        if (window.audio_clear) window.audio_clear.play(); // Varsa ses
+        if (window.audio_clear) window.audio_clear.play();
     }
 
-    // --- DEĞİŞİKLİK BURADA: Sadece arka plan OLMAYANLARI temizle ---
+    // 2. Tabletin yerel hafızasını temizle (Arka planları koru)
     drawnStrokes = drawnStrokes.filter(stroke => stroke.isBackground === true);
     window.drawnStrokes = drawnStrokes; 
 
-    // --- CANLI SINIF: TAHTAYA "HEPSİNİ TEMİZLE" EMRE GÖNDER ---
+    // 3. Tarayıcıdaki eski kayıtları temizle (Eğer PC veya Tablette localStorage kullanıyorsan)
+    if (window.localStorage) {
+        window.localStorage.removeItem('drawnStrokes');
+    }
+
+    // 4. PC'ye "hepsini_sil" komutunu gönder
     if (typeof isConnected !== 'undefined' && isConnected) {
         window.sendNetworkData({ type: 'hepsini_sil' });
+        console.log("Temizleme komutu PC'ye gönderildi.");
     }
-    // ---------------------------------------------------------
-    
-    // Harf sayacını sıfırla
+
+    // 5. Harf sayacını sıfırla
     nextPointChar = 'A';
     window.nextPointChar = 'A';
-    
-    redrawAllStrokes();
-}
 
+    // 6. Ekranı tamamen yenile
+    if (typeof redrawAllStrokes === 'function') {
+        redrawAllStrokes();
+    }
+}
 
 function findHit(pos) {
     for (let i = drawnStrokes.length - 1; i >= 0; i--) {
@@ -5363,7 +5371,20 @@ function setupConnectionEvents() {
         }
 
         if (data.type === 'geri_al') { window.drawnStrokes.pop(); if (window.redrawAllStrokes) window.redrawAllStrokes(); }
-        if (data.type === 'hepsini_sil') { window.drawnStrokes.length = 0; if (window.redrawAllStrokes) window.redrawAllStrokes(); }
+        else if (data.type === 'hepsini_sil') { 
+            // 1. Diziyi tamamen temizle
+            window.drawnStrokes = []; 
+            
+            // 2. PC tarafındaki kayıtlı veriyi de temizle (LocalStorage)
+            if (window.localStorage) {
+                window.localStorage.removeItem('drawnStrokes'); 
+            }
+            
+            // 3. Ekranı yenile
+            if (window.redrawAllStrokes) window.redrawAllStrokes(); 
+            
+            console.log("PC: Silme komutu alındı ve hafıza temizlendi.");
+        }
         
         if (data.type === 'pdf_yukle') { 
             try {
