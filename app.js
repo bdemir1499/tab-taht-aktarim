@@ -3585,10 +3585,11 @@ canvas.addEventListener('pointerup', (e) => {
                     const safePenStroke = {
                         type: 'pen',
                         id: lastStroke.id,
-                        color: lastStroke.color,
-                        baseWidth: lastStroke.baseWidth,
-                        // Çizimi saf koordinatlara indirgiyoruz, fazlalıkları siliyoruz
-                        path: lastStroke.path.map(p => ({ x: p.x, y: p.y, p: p.p })) 
+                        color: lastStroke.color || '#000000',
+                        baseWidth: lastStroke.baseWidth || 3,
+                        width: lastStroke.width || lastStroke.baseWidth || 3, // Çizgi kalınlığı garanti altına alındı
+                        isBackground: false,
+                        path: lastStroke.path.map(p => ({ x: p.x, y: p.y, p: p.p || 1 })) 
                     };
                     
                     if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
@@ -5341,10 +5342,10 @@ setTimeout(() => {
         }
     });
 
-    myConnection.on('data', function(data) {
+   myConnection.on('data', function(data) {
         if (!data || !data.type) return;
 
-        // DİL SEÇİMİ HER ZAMAN GEÇSİN
+        // DİL SEÇİMİ HER ZAMAN GEÇSİN (Güvenlik beklemez)
         if (data.type === 'dil_secimi') { 
             if (typeof setLanguage === 'function') setLanguage(data.lang);
             const overlay = document.getElementById('language-overlay');
@@ -5352,8 +5353,7 @@ setTimeout(() => {
             return;
         }
         
-        // GÜVENLİK DUVARI: IP henüz onaylanmadıysa hiçbir veriyi işleme
-        if (!baglantiOnaylandi) return;
+        // --- DİKKAT: IP GÜVENLİK DUVARI (baglantiOnaylandi) BURADAN TAMAMEN KALDIRILDI ---
 
         // --- 1. TOPLU ŞEKİL ALICISI (ÇOKGENLER, YAMUK VE ÜÇGENLER İÇİN) ---
         if (data.type === 'akilli_sekil_toplu') {
@@ -5392,20 +5392,6 @@ setTimeout(() => {
                 }
             }
             return;
-        }
-
-if (data.type === 'akilli_sekil_toplu') {
-            if (!window.drawnStrokes) window.drawnStrokes = [];
-            
-            if (data.strokes && Array.isArray(data.strokes)) {
-                data.strokes.forEach(s => {
-                    const isDuplicate = s.id && window.drawnStrokes.some(ds => ds.id === s.id);
-                    if (!isDuplicate) {
-                        window.drawnStrokes.push(s);
-                    }
-                });
-            }
-            if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
 
         if (data.type === 'arac_senkron') {
