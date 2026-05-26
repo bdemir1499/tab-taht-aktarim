@@ -638,28 +638,43 @@ window.veriGeldigindeİsle = function(data) {
         return;
     }
 
-    // 2. YENİ ÇİZİM GELDİĞİNDE (Çizgi, Kutu, Kalem, Lasso Kopyası vb.)
+    // 2. YENİ ÇİZİM GELDİĞİNDE (Çoklu Nesne Destekli Sürüm)
     if (data.type === 'yeni_cizim') {
-        const stroke = data.stroke;
+        // Gelen veri tekil mi yoksa akıllı şekil tanıma gibi çoklu paket mi?
+        const strokeData = data.stroke;
         
-        // Çift ID (Yankı/Zombi) kontrolü: Bu çizim zaten varsa ekleme
-        if (!window.drawnStrokes.some(s => s.id && s.id === stroke.id)) {
-            
-            // Eğer gelen şey kopyalanmış bir resim/kutu ise
-            if (stroke.type === 'image' && stroke.imgData) {
-                const tempImg = new Image();
-                tempImg.src = stroke.imgData;
-                tempImg.onload = () => { 
-                    stroke.imgObj = tempImg; 
-                    window.drawnStrokes.push(stroke); 
-                    if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes(); 
-                };
-            } 
-            // Normal çizim veya maske ise
-            else {
-                window.drawnStrokes.push(stroke);
-                if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
+        // --- A) Eğer gelen tekil bir nesneyse (cetvel, normal kalem vb.) ---
+        if (typeof strokeData === 'object' && !Array.isArray(strokeData)) {
+            // Yankı (Zombi) kontrolü: ID zaten varsa ekleme
+            if (!window.drawnStrokes.some(s => s.id && s.id === strokeData.id)) {
+                
+                // Resim/Kutu kontrolü
+                if (strokeData.type === 'image' && strokeData.imgData) {
+                    const tempImg = new Image();
+                    tempImg.src = strokeData.imgData;
+                    tempImg.onload = () => { 
+                        strokeData.imgObj = tempImg; 
+                        window.drawnStrokes.push(strokeData); 
+                        if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes(); 
+                    };
+                } 
+                // Normal çizim
+                else {
+                    window.drawnStrokes.push(strokeData);
+                    if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
+                }
             }
+        } 
+        // --- B) İŞTE KRİTİK EKLENTİ: Eğer çoklu bir paket ise (Düzeltilmiş üçgen, kare vb.) ---
+        else if (Array.isArray(strokeData)) {
+            // Paketin içini aç ve her bir çizgiyi tek tek PC hafızasına ekle
+            strokeData.forEach(s => {
+                if (!window.drawnStrokes.some(existS => existS.id === s.id)) {
+                    window.drawnStrokes.push(s);
+                }
+            });
+            // Hepsini ekledikten sonra bir kere ekranı tazele
+            if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
         }
     }
 
