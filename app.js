@@ -5248,67 +5248,48 @@ function setupConnectionEvents() {
     window.baglantiOnaylandi = false;
     isConnected = false;
 
-    pc.addEventListener('icecandidate', (event) => {
-        if (kontrolYapildi || !event.candidate) return;
+   pc.addEventListener('icecandidate', (event) => {
+    // Sadece geçerli bir aday (candidate) varsa devam et
+    if (!event.candidate) return;
 
-        const kandidat = event.candidate.candidate;
-        const ipMatch = kandidat.match(/([0-9a-f:.]+|\w+\.local)/i);
+    const cand = event.candidate.candidate;
+    
+    // KRİTİK FİLTRE: Dış dünya ile konuşmaya çalışan "relay/srflx" adaylarını çöpe at.
+    // Sadece cihazın yerel ağdaki fiziksel adresini (host) kabul et.
+    if (!cand.includes("typ host")) return; 
 
-        if (ipMatch) {
-            const ip = ipMatch[1];
-            
-            // GÜNCEL KONTROL: Hotspot ve tüm yerel ağları kapsar
-            const yerelAgMi = (
-                ip.startsWith('192.168.') ||
-                ip.startsWith('10.')      ||
-                ip.startsWith('172.16.')  ||
-                ip.startsWith('172.17.')  ||
-                ip.startsWith('172.18.')  ||
-                ip.startsWith('172.19.')  ||
-                ip.startsWith('172.20.')  || // iPhone hotspot aralığı
-                ip.endsWith('.local')
-            );
+    const ipMatch = cand.match(/([0-9a-f:.]+|\w+\.local)/i);
+    if (ipMatch) {
+        const ip = ipMatch[1];
+        
+        // Yerel Ağ IP aralıkları
+        const yerelAgMi = (
+            ip.startsWith('192.168.') ||
+            ip.startsWith('10.')      ||
+            ip.startsWith('172.16.')  ||
+            ip.startsWith('172.17.')  ||
+            ip.startsWith('172.18.')  ||
+            ip.startsWith('172.19.')  ||
+            ip.startsWith('172.20.')  ||
+            ip.endsWith('.local')
+        );
 
-            kontrolYapildi = true;
-
-            if (!yerelAgMi) {
-                console.warn("DİKKAT: IP adresi yerel ağ formatında değil: " + ip);
-                
-                // Eğer IP, 'mDNS' (örn: xxxx.local) formatındaysa veya 
-                // IP adresi hiç okunamadıysa bağlantıyı KESME, sadece uyarı ver ve devam et
-                if (ip.includes('.local') || ip.length > 0) {
-                     console.log("Güvenlik kalkanı aşıldı, IP adresi farklı ama devam ediliyor: " + ip);
-                     window.baglantiOnaylandi = true;
-                     isConnected = true;
-                } else {
-                     myConnection.close();
-                     const statusEl = document.getElementById('connection-status');
-                     if (statusEl) {
-                         statusEl.innerText = "❌ Bağlantı hatası: " + ip;
-                         statusEl.style.color = "#ff4444";
-                     }
-                     return;
-                }
-            }
-
-            // AYNI Wİ-Fİ ONAYLANDI!
-            console.log("Aynı ağ (Wi-Fi) doğrulandı, güvenli IP:", ip);
+        if (yerelAgMi) {
+            console.log("Güvenli Yerel Ağ doğrulandı:", ip);
             window.baglantiOnaylandi = true;
             isConnected = true;
-            
-            // ... (Fonksiyonun geri kalanı aynı)
             
             const statusEl = document.getElementById('connection-status');
             if (statusEl) {
                 statusEl.innerText = "BAĞLANDI 🟢";
                 statusEl.style.color = "#00ffcc";
             }
-
-            if (typeof window.kucultPanel === 'function') {
-                window.kucultPanel();
-            }
+        } else {
+            console.warn("GÜVENLİK İHLALİ: Geçersiz IP adresi:", ip);
+            // Burada bağlantıyı kapatmıyoruz, belki bir sonraki aday (candidate) yereldir diye bekliyoruz.
         }
-    });
+    }
+});
 
     // Eğer tarayıcı 3 saniye içinde hiç IP vermezse (Çok katı gizlilik ayarı varsa)
     setTimeout(() => {
