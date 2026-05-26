@@ -5249,46 +5249,44 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function setupConnectionEvents() {
-    // --- 1. SIKI YÖNETİM: AYNI Wİ-Fİ / YEREL AĞ KONTROLÜ (GÜNCELLENDİ) ---
+    // --- 1. SIKI YÖNETİM: AYNI Wİ-Fİ / YEREL AĞ KONTROLÜ ---
     const pc = myConnection.peerConnection;
     let kontrolYapildi = false;
     window.baglantiOnaylandi = false;
     isConnected = false;
 
-  pc.addEventListener('icecandidate', (event) => {
-    if (!event.candidate) return;
+    pc.addEventListener('icecandidate', (event) => {
+        if (!event.candidate) return;
 
-    const cand = event.candidate.candidate;
-    const ipMatch = cand.match(/([0-9a-f:.]+|\w+\.local)/i);
+        const cand = event.candidate.candidate;
+        const ipMatch = cand.match(/([0-9a-f:.]+|\w+\.local)/i);
 
-    if (ipMatch) {
-        const ip = ipMatch[1];
-        console.log("Ağ adayı bulundu:", ip); // Artık sadece logluyoruz, kesmiyoruz.
-        
-        // Zaten şifre/oda kodu korumamız var, burayı manuel onay moduna aldık:
-        window.baglantiOnaylandi = true;
-        isConnected = true;
-        
-        const statusEl = document.getElementById('connection-status');
-        if (statusEl) {
-            statusEl.innerText = "BAĞLANDI 🟢";
-            statusEl.style.color = "#00ffcc";
+        if (ipMatch) {
+            const ip = ipMatch[1];
+            console.log("Ağ adayı bulundu:", ip);
+            
+            // Bağlantı onayını ver
+            window.baglantiOnaylandi = true;
+            isConnected = true;
+            
+            const statusEl = document.getElementById('connection-status');
+            if (statusEl) {
+                statusEl.innerText = "BAĞLANDI 🟢";
+                statusEl.style.color = "#00ffcc";
+            }
         }
-    }
-});
+    });
 
-   
-
-    // --- 2. VERİ ALICI MOTORU (ÇİZİMLERİN VE ŞEKİLLERİN AKTARIMI) ---
+    // --- 2. VERİ ALICI MOTORU ---
     myConnection.on('data', function(data) {
-// --- DEDEKTİF SATIRI ---
-        console.log("PC'YE GELEN PAKET TÜRÜ:", data.type);
+        // --- DEDEKTİF SATIRI ---
+        console.log("PC'YE GELEN PAKET TÜRÜ:", data ? data.type : "Bilinmeyen");
         if (!data || !data.type) return;
 
-        // ÇÖKME ÖNLEYİCİ: Eğer PC tarafında çizim hafızası henüz yoksa hemen oluştur
+        // ÇÖKME ÖNLEYİCİ: Çizim hafızası
         if (!window.drawnStrokes) window.drawnStrokes = [];
 
-        // DİL SEÇİMİ HER ZAMAN GEÇSİN
+        // DİL SEÇİMİ
         if (data.type === 'dil_secimi') { 
             if (typeof setLanguage === 'function') setLanguage(data.lang);
             const overlay = document.getElementById('language-overlay');
@@ -5296,10 +5294,10 @@ function setupConnectionEvents() {
             return;
         }
 
-        // GÜVENLİK DUVARI: Aynı Wi-Fi'de değilse hiçbir çizim/dosya kabul etme!
+        // GÜVENLİK DUVARI
         if (!window.baglantiOnaylandi) return;
 
-        // --- TOPLU ŞEKİL ALICISI (ÇOKGENLER VE ÜÇGENLER) ---
+        // --- A) TOPLU ŞEKİL ALICISI (ÇOKGENLER VE ÜÇGENLER) ---
         if (data.type === 'akilli_sekil_toplu') {
             if (data.strokes && Array.isArray(data.strokes)) {
                 data.strokes.forEach(s => {
@@ -5311,9 +5309,31 @@ function setupConnectionEvents() {
             return; 
         }
 
-        
+        // --- B) TEKİL ÇİZİM/KALEM/RESİM ALICISI ---
+        if (data.type === 'yeni_cizim') {
+            const stroke = data.stroke;
+            if (!stroke) return;
+            
+            // Zombi (Mükerrer) kontrolü
+            const isDuplicate = stroke.id && window.drawnStrokes.some(s => s.id === stroke.id);
+            if (!isDuplicate) {
+                if (stroke.type === 'image' && stroke.imgData) {
+                    const tempImg = new Image();
+                    tempImg.src = stroke.imgData;
+                    tempImg.onload = () => { 
+                        stroke.imgObj = tempImg; 
+                        window.drawnStrokes.push(stroke); 
+                        if (window.redrawAllStrokes) window.redrawAllStrokes(); 
+                    };
+                } else {
+                    window.drawnStrokes.push(stroke);
+                    if (window.redrawAllStrokes) window.redrawAllStrokes();
+                }
+            }
+            return;
+        }
 
-        // --- FİZİKSEL ARAÇLAR VE DİĞER FONKSİYONLAR ---
+        // --- C) FİZİKSEL ARAÇLAR VE DİĞER FONKSİYONLAR ---
         if (data.type === 'arac_senkron') {
             const el = document.querySelector(data.selector);
             if (el) {
@@ -5375,7 +5395,6 @@ function setupConnectionEvents() {
             bgStrokes.forEach(bg => { bg.x = data.x; bg.y = data.y; bg.width = data.width; bg.height = data.height; });
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
-
 
         if (data.type === 'arac_state_senkron') {
             let toolObj = null, el = null;
@@ -5455,12 +5474,7 @@ function setupConnectionEvents() {
             }
             else if (arac === 'cizim_onizleme') {
                 window.drawnStrokes = window.drawnStrokes.filter(s => s.type !== 'preview');
-                const previewObj = {
-                    type: 'preview',
-                    isTemporaryPreview: true, 
-                    payload: p,
-                    id: 'temp-preview-id'
-                };
+                const previewObj = { type: 'preview', isTemporaryPreview: true, payload: p, id: 'temp-preview-id' };
                 window.drawnStrokes.push(previewObj);
                 if (window.redrawAllStrokes) window.redrawAllStrokes();
             }
@@ -5503,9 +5517,7 @@ function setupConnectionEvents() {
         if (connectInput) connectInput.style.display = "block";
         if (connectBtn) connectBtn.style.display = "block";
     });
-
 }
-
 // =========================================================
 // 7. GÜVENLİ VERİ FIRLATMA FONKSİYONU (GÜNCELLENDİ)
 // =========================================================
