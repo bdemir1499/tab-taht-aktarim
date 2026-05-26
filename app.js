@@ -5352,12 +5352,7 @@ setTimeout(() => {
     return;
 }
     
-    // GÜVENLİK DUVARI: IP henüz onaylanmadıysa hiçbir veriyi işleme
-    if (!baglantiOnaylandi) {
-        console.warn("IP onaylanmadan veri geldi, engellendi.");
-        return;
-    }
-
+    
        // --- 1. ÇİZİM, PDF VE RESİM AKTARIMI (GÜNCELLENMİŞ) ---
 if (data.type === 'yeni_cizim') {
     const stroke = data.stroke;
@@ -5383,6 +5378,20 @@ if (data.type === 'yeni_cizim') {
         }
     }
 }
+
+if (data.type === 'akilli_sekil_toplu') {
+            if (!window.drawnStrokes) window.drawnStrokes = [];
+            
+            if (data.strokes && Array.isArray(data.strokes)) {
+                data.strokes.forEach(s => {
+                    const isDuplicate = s.id && window.drawnStrokes.some(ds => ds.id === s.id);
+                    if (!isDuplicate) {
+                        window.drawnStrokes.push(s);
+                    }
+                });
+            }
+            if (window.redrawAllStrokes) window.redrawAllStrokes();
+        }
 
         if (data.type === 'arac_senkron') {
             const el = document.querySelector(data.selector);
