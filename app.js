@@ -624,6 +624,64 @@ window.sendNetworkData = function(dataObj) {
     }
 };
 
+// =====================================================================
+// --- VERİ ALICI MERKEZİ (TAHTAYA GELEN ÇİZİMLERİ İŞLEYİP ÇİZER) ---
+// =====================================================================
+window.veriGeldigindeİsle = function(data) {
+    if (!data || !data.type) return;
+
+    // 1. DİL SEÇİMİ (Bağlantı onayı beklemeden geçer)
+    if (data.type === 'dil_secimi') { 
+        if (typeof setLanguage === 'function') setLanguage(data.lang);
+        const overlay = document.getElementById('language-overlay');
+        if (overlay) overlay.style.display = 'none';
+        return;
+    }
+
+    // 2. YENİ ÇİZİM GELDİĞİNDE (Çizgi, Kutu, Kalem, Lasso Kopyası vb.)
+    if (data.type === 'yeni_cizim') {
+        const stroke = data.stroke;
+        
+        // Çift ID (Yankı/Zombi) kontrolü: Bu çizim zaten varsa ekleme
+        if (!window.drawnStrokes.some(s => s.id && s.id === stroke.id)) {
+            
+            // Eğer gelen şey kopyalanmış bir resim/kutu ise
+            if (stroke.type === 'image' && stroke.imgData) {
+                const tempImg = new Image();
+                tempImg.src = stroke.imgData;
+                tempImg.onload = () => { 
+                    stroke.imgObj = tempImg; 
+                    window.drawnStrokes.push(stroke); 
+                    if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes(); 
+                };
+            } 
+            // Normal çizim veya maske ise
+            else {
+                window.drawnStrokes.push(stroke);
+                if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
+            }
+        }
+    }
+
+    // 3. SİLME VE GERİ ALMA İŞLEMLERİ
+    if (data.type === 'sil_objeyi') {
+        const zombiIndex = window.drawnStrokes.findIndex(s => s.id === data.strokeId);
+        if (zombiIndex !== -1) window.drawnStrokes.splice(zombiIndex, 1);
+        if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
+    }
+    
+    if (data.type === 'geri_al') { 
+        window.drawnStrokes.pop(); 
+        if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes(); 
+    }
+    
+    if (data.type === 'hepsini_sil') { 
+        window.drawnStrokes = window.drawnStrokes.filter(s => s.isBackground === true); 
+        if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes(); 
+    }
+};
+// =====================================================================
+
 
 // Sayfa açıldığında kırmızı butonun yanlışlıkla görünmesini engellemek için:
 const closePdfBtn = document.getElementById('btn-close-pdf');
@@ -5072,7 +5130,7 @@ myPeer.on('connection', function(conn) {
                 
                 // Veri dinleyiciyi başlat
                 if (typeof veriGeldigindeİsle === 'function') {
-                    conn.on('data', veriGeldigindeİsle);
+                    conn.on('data', window.veriGeldigindeİsle);
                 } else {
                     console.error("KRİTİK HATA: 'veriGeldigindeİsle' fonksiyonu bulunamadı!");
                 }
