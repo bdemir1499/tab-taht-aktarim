@@ -5176,15 +5176,8 @@ myPeer.on('connection', function(conn) {
         
         btnAccept.onclick = function() {
             try {
-                myConnection = conn; 
-                if (typeof window.aktifBaglantilar === 'undefined') window.aktifBaglantilar = {};
-                window.aktifBaglantilar[conn.peer] = conn; 
-                
-                if (typeof window.veriGeldigindeİsle === 'function') {
-                    conn.on('data', window.veriGeldigindeİsle);
-                }
-
-                conn.on('close', function() { delete window.aktifBaglantilar[conn.peer]; });
+                myConnection = conn;
+                isConnected = true;
 
                 const statusEl = document.getElementById('connection-status');
                 if (statusEl) {
@@ -5192,7 +5185,7 @@ myPeer.on('connection', function(conn) {
                     statusEl.style.color = "#00ffcc";
                 }
 
-                if (typeof setupConnectionEvents === 'function') setupConnectionEvents();
+                setupConnectionEvents();
                 console.log("Cihaz başarıyla bağlandı:", conn.peer);
             } catch (err) {
                 console.error("Bağlantı hatası:", err);
@@ -5269,21 +5262,33 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupConnectionEvents() {
     // --- 1. SIKI YÖNETİM: AYNI Wİ-Fİ / YEREL AĞ KONTROLÜ ---
     const pc = myConnection.peerConnection;
-    window.baglantiOnaylandi = false;
+    window.baglantiOnaylandi = true; // Bağlantı açık, IP kontrolü arka planda
     isConnected = true;
 
     if (pc) {
         pc.addEventListener('icecandidate', (event) => {
             if (!event.candidate) return;
             const cand = event.candidate.candidate;
-            const ipMatch = cand.match(/([0-9a-f:.]+|\w+\.local)/i);
+            const ipMatch = cand.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/);
             if (ipMatch) {
-                console.log("Ağ adayı bulundu, bağlantı onaylandı.");
-                window.baglantiOnaylandi = true;
-                const statusEl = document.getElementById('connection-status');
-                if (statusEl) {
-                    statusEl.innerText = "BAĞLANDI 🟢";
-                    statusEl.style.color = "#00ffcc";
+                const ip = ipMatch[1];
+                const yerelAgMi = (
+                    ip.startsWith('192.168.') ||
+                    ip.startsWith('10.')      ||
+                    /^172\.(1[6-9]|2[0-9]|3[01])\./.test(ip)
+                );
+                if (!yerelAgMi) {
+                    console.warn("Yerel ağ dışı bağlantı engellendi:", ip);
+                    isConnected = false;
+                    window.baglantiOnaylandi = false;
+                    myConnection.close();
+                    const statusEl = document.getElementById('connection-status');
+                    if (statusEl) {
+                        statusEl.innerText = "❌ Sadece okul ağından bağlanılabilir!";
+                        statusEl.style.color = "#ff4444";
+                    }
+                } else {
+                    console.log("Yerel ağ bağlantısı onaylandı:", ip);
                 }
             }
         });
@@ -5316,10 +5321,7 @@ function setupConnectionEvents() {
         if (!data || !data.type) return;
         if (!window.drawnStrokes) window.drawnStrokes = [];
 
-        // Güvenlik: Bağlantı onaylanmadıysa işlem yapma
-        if (!window.baglantiOnaylandi) return;
-
-        // DİL SEÇİMİ
+        // DİL SEÇİMİ HER ZAMAN GEÇSİN
         if (data.type === 'dil_secimi') { 
             if (typeof setLanguage === 'function') setLanguage(data.lang);
             const overlay = document.getElementById('language-overlay');
