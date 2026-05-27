@@ -5370,7 +5370,20 @@ function setupConnectionEvents() {
         }
 
         if (data.type === 'geri_al') { window.drawnStrokes.pop(); if (window.redrawAllStrokes) window.redrawAllStrokes(); }
-        if (data.type === 'hepsini_sil') { window.drawnStrokes.length = 0; if (window.redrawAllStrokes) window.redrawAllStrokes(); }
+        else if (data.type === 'hepsini_sil') { 
+            // 1. Diziyi tamamen temizle
+            window.drawnStrokes = []; 
+            
+            // 2. PC tarafındaki kayıtlı veriyi de temizle (LocalStorage)
+            if (window.localStorage) {
+                window.localStorage.removeItem('drawnStrokes'); 
+            }
+            
+            // 3. Ekranı yenile
+            if (window.redrawAllStrokes) window.redrawAllStrokes(); 
+            
+            console.log("PC: Silme komutu alındı ve hafıza temizlendi.");
+        }
         
         if (data.type === 'pdf_yukle') { 
             try {
