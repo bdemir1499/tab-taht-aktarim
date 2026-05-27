@@ -5212,8 +5212,8 @@ myPeer.on('connection', function(conn) {
             requestModal.classList.add('hidden'); 
             requestModal.style.display = 'none'; 
         };
-    } // <-- İŞTE BURASI EKSİKTİ (if bloğunu kapatır)
-}); // <-- İŞTE BURASI EKSİKTİ (myPeer.on bağlantı dinleyicisini kapatır)
+    }
+}); 
 
 // 4. Sistem sunucuya başarıyla bağlandığında kodumuzu HTML panele yazdır
 myPeer.on('open', function(id) {
@@ -5244,7 +5244,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const passwordInput = document.getElementById('session-pass-input').value.trim();
 
             if (targetCode.length === 5 && passwordInput.length > 0) {
-                // PeerJS hazır değilse (hata verirse) diye bir kontrol ekliyoruz
                 if (!myPeer || myPeer.destroyed) {
                     alert("Ağ bağlantısı henüz kurulmadı, lütfen 2 saniye bekleyip tekrar dene.");
                     return;
@@ -5254,7 +5253,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('connection-status').innerText = "Bağlanıyor ⏳";
                 
                 myConnection = myPeer.connect(targetCode);
-                setupConnectionEvents();
+                
+                // KESİN ÇÖZÜM: Bağlantı tam olarak açılmadan motoru başlatma!
+                myConnection.on('open', () => {
+                    setupConnectionEvents();
+                });
+
             } else {
                 alert("Lütfen 5 haneli Oda Kodunu ve Tahta Şifresini eksiksiz girin.");
             }
@@ -5272,14 +5276,17 @@ function setupConnectionEvents() {
     }
     
     // 2. AĞ KONTROLLERİ VE BAĞLANTI ONAYI
-    const pc = myConnection.peerConnection;
     window.baglantiOnaylandi = true; 
     isConnected = true;
 
-    pc.addEventListener('icecandidate', (event) => {
-        if (!event.candidate) return;
-        console.log("Ağ adayı tespit edildi.");
-    });
+    // GÜVENLİK DUVARI: peerConnection henüz hazır değilse çökmesini engelle
+    const pc = myConnection.peerConnection;
+    if (pc) {
+        pc.addEventListener('icecandidate', (event) => {
+            if (!event.candidate) return;
+            console.log("Ağ adayı tespit edildi.");
+        });
+    }
 
     // 3. VERİ ALICI MOTORU
     myConnection.on('data', function(data) {
