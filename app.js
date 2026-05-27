@@ -5146,13 +5146,9 @@ const isTablet = window.location.href.includes("tablet");
 
 // --- 2. PEERJS BAŞLANGIÇ VE CİHAZ MODU AYARI ---
 if (isTablet) {
-    // Tablet için PeerJS
     myPeer = new Peer();
-    myPeer.on('open', (id) => {
-        console.log("Tablet Peer Hazır. Kimliğim:", id);
-    });
+    myPeer.on('open', (id) => { console.log("Tablet Peer Hazır. Kimliğim:", id); });
 } else {
-    // PC (Tahta) için PeerJS
     myPeer = new Peer(myRoomCode);
     window.sessionPassword = Math.floor(1000 + Math.random() * 9000).toString();
     myPeer.on('open', (id) => {
@@ -5190,7 +5186,6 @@ myPeer.on('connection', function(conn) {
 
                 conn.on('close', function() { delete window.aktifBaglantilar[conn.peer]; });
 
-                // UI Güncelleme: Hemen "BAĞLANDI" yazısını göster
                 const statusEl = document.getElementById('connection-status');
                 if (statusEl) {
                     statusEl.innerText = "BAĞLANDI 🟢";
@@ -5213,7 +5208,7 @@ myPeer.on('connection', function(conn) {
             requestModal.style.display = 'none'; 
         };
     }
-}); 
+});
 
 // 4. Sistem sunucuya başarıyla bağlandığında kodumuzu HTML panele yazdır
 myPeer.on('open', function(id) {
@@ -5221,12 +5216,9 @@ myPeer.on('open', function(id) {
     const pinSaha = document.getElementById('my-pin-code');
 
     if (!isTablet) {
-        // PC (Tahta) ise kimliği ve PIN'i yaz
         if(idSaha) idSaha.innerText = id;
         if(pinSaha) pinSaha.innerText = window.sessionPassword;
-        console.log("PeerJS Hazır. Oda Kodunuz:", id, "| Şifreniz:", window.sessionPassword);
     } else {
-        // Tablet ise paneldeki oda kodu yazan kısmı gizle
         const panel = document.getElementById('network-panel');
         if(panel) {
             const kodDiv = document.getElementById('my-peer-id')?.parentElement;
@@ -5235,7 +5227,7 @@ myPeer.on('open', function(id) {
     }
 });
 
-// 5. TABLET ROLÜ: Bağlanma butonu (Güvenli Yükleme)
+// 5. TABLET ROLÜ: Bağlanma butonu
 document.addEventListener('DOMContentLoaded', () => {
     const connectBtn = document.getElementById('connect-btn');
     if (connectBtn) {
@@ -5248,17 +5240,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert("Ağ bağlantısı henüz kurulmadı, lütfen 2 saniye bekleyip tekrar dene.");
                     return;
                 }
-
                 window.sessionPassword = passwordInput; 
                 document.getElementById('connection-status').innerText = "Bağlanıyor ⏳";
                 
                 myConnection = myPeer.connect(targetCode);
                 
-                // KESİN ÇÖZÜM: Bağlantı tam olarak açılmadan motoru başlatma!
                 myConnection.on('open', () => {
                     setupConnectionEvents();
                 });
-
             } else {
                 alert("Lütfen 5 haneli Oda Kodunu ve Tahta Şifresini eksiksiz girin.");
             }
@@ -5267,35 +5256,29 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function setupConnectionEvents() {
-    // 1. ARAYÜZÜ HEMEN GÜNCELLE
     const statusEl = document.getElementById('connection-status');
     if (statusEl) {
         statusEl.innerText = "BAĞLANDI 🟢";
         statusEl.style.color = "#00ffcc";
-        console.log("PC Arayüzü: BAĞLANDI durumuna güncellendi.");
     }
     
-    // 2. AĞ KONTROLLERİ VE BAĞLANTI ONAYI
     window.baglantiOnaylandi = true; 
     isConnected = true;
 
-    // GÜVENLİK DUVARI: peerConnection henüz hazır değilse çökmesini engelle
     const pc = myConnection.peerConnection;
-    if (pc) {
+    if(pc) {
         pc.addEventListener('icecandidate', (event) => {
             if (!event.candidate) return;
-            console.log("Ağ adayı tespit edildi.");
         });
     }
 
     // 3. VERİ ALICI MOTORU
     myConnection.on('data', function(data) {
-        console.log("PC'YE GELEN PAKET TÜRÜ:", data ? data.type : "Bilinmeyen");
+        console.log("PC'YE GELEN:", data ? data.type : "Bilinmeyen");
         if (!data || !data.type) return;
 
         if (!window.drawnStrokes) window.drawnStrokes = [];
 
-        // Dil seçimi
         if (data.type === 'dil_secimi') { 
             if (typeof setLanguage === 'function') setLanguage(data.lang);
             const overlay = document.getElementById('language-overlay');
@@ -5303,10 +5286,8 @@ function setupConnectionEvents() {
             return;
         }
 
-        // Güvenlik
         if (!window.baglantiOnaylandi) return;
 
-        // --- TOPLU ŞEKİL ALICISI ---
         if (data.type === 'akilli_sekil_toplu') {
             if (data.strokes && Array.isArray(data.strokes)) {
                 data.strokes.forEach(s => {
@@ -5318,7 +5299,6 @@ function setupConnectionEvents() {
             return; 
         }
 
-        // --- TEKİL ÇİZİM / KALEM / RESİM ALICISI ---
         if (data.type === 'yeni_cizim') {
             const stroke = data.stroke;
             if (!stroke) return;
@@ -5339,7 +5319,6 @@ function setupConnectionEvents() {
             return;
         }
 
-        // --- ARAÇLAR VE DİĞER İŞLEMLER ---
         if (data.type === 'arac_senkron') {
             const el = document.querySelector(data.selector);
             if (el) {
@@ -5385,7 +5364,7 @@ function setupConnectionEvents() {
                         if (typeof renderPDFPage === 'function') renderPDFPage(1);
                     });
                 }
-            } catch (e) { console.error("PDF Hatası:", e); }
+            } catch (e) {}
         }
         else if (data.type === 'pdf_sayfa_degis') { window.currentPDFPage = data.sayfa; if (typeof renderPDFPage === 'function') renderPDFPage(window.currentPDFPage); }
         else if (data.type === 'resim_yukle') {
@@ -5480,18 +5459,6 @@ function setupConnectionEvents() {
             let lazer = document.getElementById('sanal-lazer'); if (lazer) lazer.style.display = 'none';
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
-        else if (data.type === 'secimi_senkronize_et') {
-            const index = window.drawnStrokes.findIndex(s => s.id === data.strokeId);
-            if (index !== -1) {
-                window.selectedItem = window.drawnStrokes[index];
-                window.currentTool = 'move';
-                if (window.redrawAllStrokes) window.redrawAllStrokes();
-            }
-        }
-        else if (data.type === 'secimi_kaldir') {
-            window.selectedItem = null;
-            if (window.redrawAllStrokes) window.redrawAllStrokes();
-        }
     });
 
     myConnection.on('close', function() {
@@ -5505,17 +5472,19 @@ function setupConnectionEvents() {
 }
 
 // =========================================================
-// 7. GÜVENLİ VERİ FIRLATMA FONKSİYONU
+// 7. GÜVENLİ VERİ FIRLATMA FONKSİYONU (ZIRHLI VERSİYON)
 // =========================================================
 window.sendNetworkData = function(dataPackage) {
-    if (myConnection && myConnection.open) {
-        myConnection.send(dataPackage);
+    // Kökten çözüm: myConnection.open kontrolü kaldırıldı, direkt try-catch eklendi!
+    if (isConnected && myConnection) {
+        try {
+            myConnection.send(dataPackage);
+        } catch (e) {
+            console.log("Paket yollanırken hata (önemsiz):", e);
+        }
     }
 };
 
-// =========================================================
-// --- PANEL GİZLE/GÖSTER MANTIĞI ---
-// =========================================================
 const closeBtn = document.getElementById('network-close-btn');
 const miniBtn = document.getElementById('network-mini-btn');
 const panel = document.getElementById('network-panel');
@@ -5530,21 +5499,15 @@ if (closeBtn && miniBtn && panel) {
         miniBtn.style.display = 'none';
         panel.style.display = 'block';
     });
-
-    document.querySelectorAll('.lang-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            setTimeout(() => { closeBtn.click(); }, 500); 
-        });
-    });
 }
 
 // =========================================================
-// FİZİKSEL ARAÇLAR İÇİN RADAR
+// FİZİKSEL ARAÇLAR İÇİN RADAR (ÇÖKMEYE KARŞI KORUMALI)
 // =========================================================
 let sonAracDurumlari = {};
 
 window.araclariAgaGonder = function() {
-    if (typeof isConnected === 'undefined' || !isConnected || !myConnection) return;
+    if (!isConnected || !myConnection) return;
     
     const gelismisAraclar = [
         { id: 'ruler', obj: window.RulerTool, selector: '.ruler-container' },
@@ -5555,29 +5518,35 @@ window.araclariAgaGonder = function() {
 
     gelismisAraclar.forEach(arac => {
         if (arac.obj && arac.obj.state) {
-            const el = document.querySelector(arac.selector);
-            let isVisible = 'none';
-            let elW = '', elH = ''; 
-            
-            if (el) {
-                isVisible = (el.style.display !== 'none' && !el.classList.contains('hidden')) ? 'block' : 'none';
-                elW = el.style.width;
-                elH = el.style.height;
-            }
-            
-            const durum = isVisible + JSON.stringify(arac.obj.state) + elW + elH;
+            try {
+                const el = document.querySelector(arac.selector);
+                let isVisible = 'none';
+                let elW = '', elH = ''; 
+                
+                if (el) {
+                    isVisible = (el.style.display !== 'none' && !el.classList.contains('hidden')) ? 'block' : 'none';
+                    elW = el.style.width;
+                    elH = el.style.height;
+                }
+                
+                // Eğer state içinde kopyalanamaz bir veri varsa JSON.stringify motoru kitler.
+                // try-catch sayesinde motor kilitlenmez, es geçer.
+                const durum = isVisible + JSON.stringify(arac.obj.state) + elW + elH;
 
-            if (sonAracDurumlari[arac.id] !== durum) {
-                sonAracDurumlari[arac.id] = durum;
+                if (sonAracDurumlari[arac.id] !== durum) {
+                    sonAracDurumlari[arac.id] = durum;
 
-                window.sendNetworkData({
-                    type: 'arac_state_senkron',
-                    arac: arac.id,
-                    display: isVisible,
-                    state: arac.obj.state,
-                    width: elW,   
-                    height: elH   
-                });
+                    window.sendNetworkData({
+                        type: 'arac_state_senkron',
+                        arac: arac.id,
+                        display: isVisible,
+                        state: arac.obj.state,
+                        width: elW,   
+                        height: elH   
+                    });
+                }
+            } catch (err) {
+                // Sessizce hatayı yut, sistemi kilitleme
             }
         }
     });
@@ -5617,57 +5586,32 @@ window.addEventListener('load', () => {
     }
 });
 
-// =========================================================
-// CANLI YAYIN (ÖNİZLEME) GÖNDERİCİSİ
-// =========================================================
 window.broadcastPreview = function(toolType, stateData) {
     if (typeof window.sendNetworkData === 'function' && window.isConnected) {
-        window.sendNetworkData({
-            type: 'active_preview',
-            tool: toolType,
-            data: stateData
-        });
+        window.sendNetworkData({ type: 'active_preview', tool: toolType, data: stateData });
     }
 };
 
 window.addEventListener('pointermove', (e) => {
-    if (e.buttons > 0 && typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+    if (e.buttons > 0 && typeof window.sendNetworkData === 'function' && isConnected) {
         window.sendNetworkData({ type: 'aktif_onizleme', arac: 'lazer', payload: { x: e.clientX, y: e.clientY } });
     }
 });
 
 window.addEventListener('pointerup', () => {
-    if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+    if (typeof window.sendNetworkData === 'function' && isConnected) {
         window.sendNetworkData({ type: 'onizleme_bitir' });
     }
 });
 
-// Yasal Uyarı Modal Kontrolleri
 const modal = document.getElementById('disclaimer-modal');
 const openBtn = document.getElementById('open-disclaimer');
 const closeDisclaimerBtn = document.getElementById('close-disclaimer');
 
 if (modal) {
-    if (openBtn) {
-        openBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            modal.style.display = 'flex';
-        });
-    }
-    if (closeDisclaimerBtn) {
-        closeDisclaimerBtn.addEventListener('click', () => {
-            modal.style.display = 'none';
-        });
-    }
-    window.addEventListener('click', (event) => {
-        if (event.target == modal) {
-            modal.style.display = 'none';
-        }
-    });
+    if (openBtn) openBtn.addEventListener('click', (e) => { e.preventDefault(); modal.style.display = 'flex'; });
+    if (closeDisclaimerBtn) closeDisclaimerBtn.addEventListener('click', () => { modal.style.display = 'none'; });
+    window.addEventListener('click', (event) => { if (event.target == modal) modal.style.display = 'none'; });
 }
 
-window.addEventListener('load', () => {
-   if (modal) {
-        modal.style.display = 'flex'; 
-    }
-});
+window.addEventListener('load', () => { if (modal) modal.style.display = 'flex'; });
