@@ -5256,29 +5256,44 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function setupConnectionEvents() {
-    const statusEl = document.getElementById('connection-status');
-    if (statusEl) {
-        statusEl.innerText = "BAĞLANDI 🟢";
-        statusEl.style.color = "#00ffcc";
-    }
-    
-    window.baglantiOnaylandi = true; 
-    isConnected = true;
-
+    // --- 1. SIKI YÖNETİM: AYNI Wİ-Fİ / YEREL AĞ KONTROLÜ ---
     const pc = myConnection.peerConnection;
-    if(pc) {
-        pc.addEventListener('icecandidate', (event) => {
-            if (!event.candidate) return;
-        });
-    }
+    let kontrolYapildi = false;
+    window.baglantiOnaylandi = false;
+    isConnected = false;
 
-    // 3. VERİ ALICI MOTORU
+    pc.addEventListener('icecandidate', (event) => {
+        if (!event.candidate) return;
+
+        const cand = event.candidate.candidate;
+        const ipMatch = cand.match(/([0-9a-f:.]+|\w+\.local)/i);
+
+        if (ipMatch) {
+            const ip = ipMatch[1];
+            console.log("Ağ adayı bulundu:", ip);
+            
+            // Bağlantı onayını ver
+            window.baglantiOnaylandi = true;
+            isConnected = true;
+            
+            const statusEl = document.getElementById('connection-status');
+            if (statusEl) {
+                statusEl.innerText = "BAĞLANDI 🟢";
+                statusEl.style.color = "#00ffcc";
+            }
+        }
+    });
+
+    // --- 2. VERİ ALICI MOTORU ---
     myConnection.on('data', function(data) {
-        console.log("PC'YE GELEN:", data ? data.type : "Bilinmeyen");
+        // --- DEDEKTİF SATIRI ---
+        console.log("PC'YE GELEN PAKET TÜRÜ:", data ? data.type : "Bilinmeyen");
         if (!data || !data.type) return;
 
+        // ÇÖKME ÖNLEYİCİ: Çizim hafızası
         if (!window.drawnStrokes) window.drawnStrokes = [];
 
+        // DİL SEÇİMİ
         if (data.type === 'dil_secimi') { 
             if (typeof setLanguage === 'function') setLanguage(data.lang);
             const overlay = document.getElementById('language-overlay');
@@ -5286,8 +5301,10 @@ function setupConnectionEvents() {
             return;
         }
 
+        // GÜVENLİK DUVARI
         if (!window.baglantiOnaylandi) return;
 
+        // --- A) TOPLU ŞEKİL ALICISI (ÇOKGENLER VE ÜÇGENLER) ---
         if (data.type === 'akilli_sekil_toplu') {
             if (data.strokes && Array.isArray(data.strokes)) {
                 data.strokes.forEach(s => {
@@ -5299,10 +5316,14 @@ function setupConnectionEvents() {
             return; 
         }
 
+        // --- B) TEKİL ÇİZİM/KALEM/RESİM ALICISI ---
         if (data.type === 'yeni_cizim') {
             const stroke = data.stroke;
             if (!stroke) return;
-            if (!window.drawnStrokes.some(s => s.id && s.id === stroke.id)) {
+            
+            // Zombi (Mükerrer) kontrolü
+            const isDuplicate = stroke.id && window.drawnStrokes.some(s => s.id === stroke.id);
+            if (!isDuplicate) {
                 if (stroke.type === 'image' && stroke.imgData) {
                     const tempImg = new Image();
                     tempImg.src = stroke.imgData;
@@ -5319,6 +5340,7 @@ function setupConnectionEvents() {
             return;
         }
 
+        // --- C) FİZİKSEL ARAÇLAR VE DİĞER FONKSİYONLAR ---
         if (data.type === 'arac_senkron') {
             const el = document.querySelector(data.selector);
             if (el) {
@@ -5330,33 +5352,33 @@ function setupConnectionEvents() {
                 if (data.height !== undefined) el.style.height = data.height;
             }
         }
-        else if (data.type === 'sekil_guncelle') {
-            if (data.stroke && data.stroke.id) {
-                const index = window.drawnStrokes.findIndex(s => s.id === data.stroke.id);
-                if (index !== -1) {
-                    window.drawnStrokes[index] = data.stroke;
-                    if (window.redrawAllStrokes) window.redrawAllStrokes();
-                }
+
+        if (data.type === 'sekil_guncelle') {
+            if (!data.stroke || !data.stroke.id) return;
+            const index = window.drawnStrokes.findIndex(s => s.id === data.stroke.id);
+            if (index !== -1) {
+                window.drawnStrokes[index] = data.stroke;
+                if (window.redrawAllStrokes) window.redrawAllStrokes();
             }
         }
-        else if (data.type === 'sil_objeyi') {
+
+        if (data.type === 'sil_objeyi') {
             const zombiIndex = window.drawnStrokes.findIndex(s => s.id === data.strokeId);
             if (zombiIndex !== -1) window.drawnStrokes.splice(zombiIndex, 1);
             else if (data.index !== undefined && window.drawnStrokes[data.index]) window.drawnStrokes.splice(data.index, 1);
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
-        else if (data.type === 'geri_al') { window.drawnStrokes.pop(); if (window.redrawAllStrokes) window.redrawAllStrokes(); }
-        else if (data.type === 'hepsini_sil') { 
-            window.drawnStrokes = []; 
-            if (window.localStorage) window.localStorage.removeItem('drawnStrokes');
-            if (window.redrawAllStrokes) window.redrawAllStrokes(); 
-        }
-        else if (data.type === 'pdf_yukle') { 
+
+        if (data.type === 'geri_al') { window.drawnStrokes.pop(); if (window.redrawAllStrokes) window.redrawAllStrokes(); }
+        if (data.type === 'hepsini_sil') { window.drawnStrokes.length = 0; if (window.redrawAllStrokes) window.redrawAllStrokes(); }
+        
+        if (data.type === 'pdf_yukle') { 
             try {
                 const base64Data = data.pdfData.split(',')[1];
                 const binaryString = window.atob(base64Data);
-                const bytes = new Uint8Array(binaryString.length);
-                for (let i = 0; i < binaryString.length; i++) { bytes[i] = binaryString.charCodeAt(i); }
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) { bytes[i] = binaryString.charCodeAt(i); }
                 if (typeof pdfjsLib !== 'undefined') {
                     pdfjsLib.getDocument(bytes).promise.then(pdf => {
                         window.currentPDF = pdf; window.totalPDFPages = pdf.numPages; window.currentPDFPage = 1;
@@ -5364,20 +5386,24 @@ function setupConnectionEvents() {
                         if (typeof renderPDFPage === 'function') renderPDFPage(1);
                     });
                 }
-            } catch (e) {}
+            } catch (e) { console.error("PDF Hatası:", e); }
         }
-        else if (data.type === 'pdf_sayfa_degis') { window.currentPDFPage = data.sayfa; if (typeof renderPDFPage === 'function') renderPDFPage(window.currentPDFPage); }
-        else if (data.type === 'resim_yukle') {
+
+        if (data.type === 'pdf_sayfa_degis') { window.currentPDFPage = data.sayfa; if (typeof renderPDFPage === 'function') renderPDFPage(window.currentPDFPage); }
+        
+        if (data.type === 'resim_yukle') {
             const img = new Image();
             img.onload = () => { if (typeof addNewImageToCanvas === 'function') addNewImageToCanvas(img, false); };
             img.src = data.imgData;
         }
-        else if (data.type === 'zoom_senkron') {
+
+        if (data.type === 'zoom_senkron') {
             const bgStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
             bgStrokes.forEach(bg => { bg.x = data.x; bg.y = data.y; bg.width = data.width; bg.height = data.height; });
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
-        else if (data.type === 'arac_state_senkron') {
+
+        if (data.type === 'arac_state_senkron') {
             let toolObj = null, el = null;
             if (data.arac === 'ruler') { toolObj = window.RulerTool; el = document.querySelector('.ruler-container'); }
             if (data.arac === 'gonye') { toolObj = window.GonyeTool; el = document.querySelector('.gonye-container'); }
@@ -5387,8 +5413,15 @@ function setupConnectionEvents() {
             if (toolObj) {
                 if (data.state) Object.assign(toolObj.state, data.state);
                 if (data.arac === 'pergel' && toolObj.state) {
-                    if (toolObj.state.isDrawing) { toolObj.previewCanvas.style.display = 'block'; toolObj.previewCanvas.width = window.innerWidth; toolObj.previewCanvas.height = window.innerHeight; toolObj.drawPreviewArc(); } 
-                    else { toolObj.previewCanvas.style.display = 'none'; if(toolObj.previewCtx) toolObj.previewCtx.clearRect(0,0,toolObj.previewCanvas.width, toolObj.previewCanvas.height); }
+                    if (toolObj.state.isDrawing) { 
+                        toolObj.previewCanvas.style.display = 'block';
+                        toolObj.previewCanvas.width = window.innerWidth;
+                        toolObj.previewCanvas.height = window.innerHeight;
+                        toolObj.drawPreviewArc(); 
+                    } else { 
+                        toolObj.previewCanvas.style.display = 'none'; 
+                        if(toolObj.previewCtx) toolObj.previewCtx.clearRect(0,0,toolObj.previewCanvas.width, toolObj.previewCanvas.height); 
+                    }
                 }
                 if (el) {
                     if (data.display === 'none') { data.arac === 'pergel' ? el.classList.add('hidden') : el.style.display = 'none'; }
@@ -5401,9 +5434,11 @@ function setupConnectionEvents() {
                 if (typeof toolObj.createLabels === 'function') toolObj.createLabels();
             } 
         } 
-        else if (data.type === 'aktif_onizleme') {
+
+        if (data.type === 'aktif_onizleme') {
             const arac = data.arac;
             const p = data.payload;
+
             if (arac === 'ruler' && window.RulerTool && window.RulerTool.drawCtx) {
                 const r = window.RulerTool;
                 r.drawHandleElement.style.transition = 'none'; r.drawHandleElement.style.left = `${p.handleX}px`;
@@ -5451,7 +5486,8 @@ function setupConnectionEvents() {
                 if (window.redrawAllStrokes) window.redrawAllStrokes();
             }
         }
-        else if (data.type === 'onizleme_bitir') {
+
+        if (data.type === 'onizleme_bitir') {
             window.drawnStrokes = window.drawnStrokes.filter(s => s.type !== 'preview');
             if (window.RulerTool && window.RulerTool.drawCtx) { window.RulerTool.drawHandleLabel.style.display = 'none'; window.RulerTool.drawCtx.clearRect(0,0, window.RulerTool.drawCanvas.width, window.RulerTool.drawCanvas.height); }
             if (window.GonyeTool && window.GonyeTool.drawCtx) { window.GonyeTool.drawHandleLabel.style.display = 'none'; window.GonyeTool.drawHandleElement.style.transition = 'top 0.1s ease-out'; window.GonyeTool.drawHandleElement.style.top = `${window.GonyeTool.state.height - 20}px`; window.GonyeTool.drawCtx.clearRect(0,0, window.GonyeTool.drawCanvas.width, window.GonyeTool.drawCanvas.height); }
@@ -5459,6 +5495,21 @@ function setupConnectionEvents() {
             let lazer = document.getElementById('sanal-lazer'); if (lazer) lazer.style.display = 'none';
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
+
+        if (data.type === 'secimi_senkronize_et') {
+            const index = window.drawnStrokes.findIndex(s => s.id === data.strokeId);
+            if (index !== -1) {
+                window.selectedItem = window.drawnStrokes[index];
+                window.currentTool = 'move';
+                if (window.redrawAllStrokes) window.redrawAllStrokes();
+            }
+        }
+
+        if (data.type === 'secimi_kaldir') {
+            window.selectedItem = null;
+            if (window.redrawAllStrokes) window.redrawAllStrokes();
+        }
+
     });
 
     myConnection.on('close', function() {
@@ -5468,9 +5519,12 @@ function setupConnectionEvents() {
             statusEl.innerText = "Bağlantı Koptu 🔴";
             statusEl.style.color = "#ff4444";
         }
+        const connectInput = document.getElementById('connect-input');
+        const connectBtn = document.getElementById('connect-btn');
+        if (connectInput) connectInput.style.display = "block";
+        if (connectBtn) connectBtn.style.display = "block";
     });
 }
-
 // =========================================================
 // 7. GÜVENLİ VERİ FIRLATMA FONKSİYONU (ZIRHLI VERSİYON)
 // =========================================================
