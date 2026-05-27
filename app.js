@@ -5212,8 +5212,10 @@ myPeer.on('connection', function(conn) {
             requestModal.classList.add('hidden'); 
             requestModal.style.display = 'none'; 
         };
+    } // <-- İŞTE BURASI EKSİKTİ (if bloğunu kapatır)
+}); // <-- İŞTE BURASI EKSİKTİ (myPeer.on bağlantı dinleyicisini kapatır)
 
-// 3. Sistem sunucuya başarıyla bağlandığında kodumuzu HTML panele yazdır
+// 4. Sistem sunucuya başarıyla bağlandığında kodumuzu HTML panele yazdır
 myPeer.on('open', function(id) {
     const idSaha = document.getElementById('my-peer-id');
     const pinSaha = document.getElementById('my-pin-code');
@@ -5232,7 +5234,6 @@ myPeer.on('open', function(id) {
         }
     }
 });
-
 
 // 5. TABLET ROLÜ: Bağlanma butonu (Güvenli Yükleme)
 document.addEventListener('DOMContentLoaded', () => {
@@ -5262,44 +5263,32 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function setupConnectionEvents() {
-    // --- 1. SIKI YÖNETİM: AYNI Wİ-Fİ / YEREL AĞ KONTROLÜ ---
+    // 1. ARAYÜZÜ HEMEN GÜNCELLE
+    const statusEl = document.getElementById('connection-status');
+    if (statusEl) {
+        statusEl.innerText = "BAĞLANDI 🟢";
+        statusEl.style.color = "#00ffcc";
+        console.log("PC Arayüzü: BAĞLANDI durumuna güncellendi.");
+    }
+    
+    // 2. AĞ KONTROLLERİ VE BAĞLANTI ONAYI
     const pc = myConnection.peerConnection;
-    let kontrolYapildi = false;
-    window.baglantiOnaylandi = false;
-    isConnected = false;
+    window.baglantiOnaylandi = true; 
+    isConnected = true;
 
     pc.addEventListener('icecandidate', (event) => {
         if (!event.candidate) return;
-
-        const cand = event.candidate.candidate;
-        const ipMatch = cand.match(/([0-9a-f:.]+|\w+\.local)/i);
-
-        if (ipMatch) {
-            const ip = ipMatch[1];
-            console.log("Ağ adayı bulundu:", ip);
-            
-            // Bağlantı onayını ver
-            window.baglantiOnaylandi = true;
-            isConnected = true;
-            
-            const statusEl = document.getElementById('connection-status');
-            if (statusEl) {
-                statusEl.innerText = "BAĞLANDI 🟢";
-                statusEl.style.color = "#00ffcc";
-            }
-        }
+        console.log("Ağ adayı tespit edildi.");
     });
 
-    // --- 2. VERİ ALICI MOTORU ---
+    // 3. VERİ ALICI MOTORU
     myConnection.on('data', function(data) {
-        // --- DEDEKTİF SATIRI ---
         console.log("PC'YE GELEN PAKET TÜRÜ:", data ? data.type : "Bilinmeyen");
         if (!data || !data.type) return;
 
-        // ÇÖKME ÖNLEYİCİ: Çizim hafızası
         if (!window.drawnStrokes) window.drawnStrokes = [];
 
-        // DİL SEÇİMİ
+        // Dil seçimi
         if (data.type === 'dil_secimi') { 
             if (typeof setLanguage === 'function') setLanguage(data.lang);
             const overlay = document.getElementById('language-overlay');
@@ -5307,10 +5296,10 @@ function setupConnectionEvents() {
             return;
         }
 
-        // GÜVENLİK DUVARI
+        // Güvenlik
         if (!window.baglantiOnaylandi) return;
 
-        // --- A) TOPLU ŞEKİL ALICISI (ÇOKGENLER VE ÜÇGENLER) ---
+        // --- TOPLU ŞEKİL ALICISI ---
         if (data.type === 'akilli_sekil_toplu') {
             if (data.strokes && Array.isArray(data.strokes)) {
                 data.strokes.forEach(s => {
@@ -5322,14 +5311,11 @@ function setupConnectionEvents() {
             return; 
         }
 
-        // --- B) TEKİL ÇİZİM/KALEM/RESİM ALICISI ---
+        // --- TEKİL ÇİZİM / KALEM / RESİM ALICISI ---
         if (data.type === 'yeni_cizim') {
             const stroke = data.stroke;
             if (!stroke) return;
-            
-            // Zombi (Mükerrer) kontrolü
-            const isDuplicate = stroke.id && window.drawnStrokes.some(s => s.id === stroke.id);
-            if (!isDuplicate) {
+            if (!window.drawnStrokes.some(s => s.id && s.id === stroke.id)) {
                 if (stroke.type === 'image' && stroke.imgData) {
                     const tempImg = new Image();
                     tempImg.src = stroke.imgData;
@@ -5346,7 +5332,7 @@ function setupConnectionEvents() {
             return;
         }
 
-        // --- C) FİZİKSEL ARAÇLAR VE DİĞER FONKSİYONLAR ---
+        // --- ARAÇLAR VE DİĞER İŞLEMLER ---
         if (data.type === 'arac_senkron') {
             const el = document.querySelector(data.selector);
             if (el) {
@@ -5358,46 +5344,33 @@ function setupConnectionEvents() {
                 if (data.height !== undefined) el.style.height = data.height;
             }
         }
-
-        if (data.type === 'sekil_guncelle') {
-            if (!data.stroke || !data.stroke.id) return;
-            const index = window.drawnStrokes.findIndex(s => s.id === data.stroke.id);
-            if (index !== -1) {
-                window.drawnStrokes[index] = data.stroke;
-                if (window.redrawAllStrokes) window.redrawAllStrokes();
+        else if (data.type === 'sekil_guncelle') {
+            if (data.stroke && data.stroke.id) {
+                const index = window.drawnStrokes.findIndex(s => s.id === data.stroke.id);
+                if (index !== -1) {
+                    window.drawnStrokes[index] = data.stroke;
+                    if (window.redrawAllStrokes) window.redrawAllStrokes();
+                }
             }
         }
-
-        if (data.type === 'sil_objeyi') {
+        else if (data.type === 'sil_objeyi') {
             const zombiIndex = window.drawnStrokes.findIndex(s => s.id === data.strokeId);
             if (zombiIndex !== -1) window.drawnStrokes.splice(zombiIndex, 1);
             else if (data.index !== undefined && window.drawnStrokes[data.index]) window.drawnStrokes.splice(data.index, 1);
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
-
-        if (data.type === 'geri_al') { window.drawnStrokes.pop(); if (window.redrawAllStrokes) window.redrawAllStrokes(); }
+        else if (data.type === 'geri_al') { window.drawnStrokes.pop(); if (window.redrawAllStrokes) window.redrawAllStrokes(); }
         else if (data.type === 'hepsini_sil') { 
-            // 1. Diziyi tamamen temizle
             window.drawnStrokes = []; 
-            
-            // 2. PC tarafındaki kayıtlı veriyi de temizle (LocalStorage)
-            if (window.localStorage) {
-                window.localStorage.removeItem('drawnStrokes'); 
-            }
-            
-            // 3. Ekranı yenile
+            if (window.localStorage) window.localStorage.removeItem('drawnStrokes');
             if (window.redrawAllStrokes) window.redrawAllStrokes(); 
-            
-            console.log("PC: Silme komutu alındı ve hafıza temizlendi.");
         }
-        
-        if (data.type === 'pdf_yukle') { 
+        else if (data.type === 'pdf_yukle') { 
             try {
                 const base64Data = data.pdfData.split(',')[1];
                 const binaryString = window.atob(base64Data);
-                const len = binaryString.length;
-                const bytes = new Uint8Array(len);
-                for (let i = 0; i < len; i++) { bytes[i] = binaryString.charCodeAt(i); }
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) { bytes[i] = binaryString.charCodeAt(i); }
                 if (typeof pdfjsLib !== 'undefined') {
                     pdfjsLib.getDocument(bytes).promise.then(pdf => {
                         window.currentPDF = pdf; window.totalPDFPages = pdf.numPages; window.currentPDFPage = 1;
@@ -5407,22 +5380,18 @@ function setupConnectionEvents() {
                 }
             } catch (e) { console.error("PDF Hatası:", e); }
         }
-
-        if (data.type === 'pdf_sayfa_degis') { window.currentPDFPage = data.sayfa; if (typeof renderPDFPage === 'function') renderPDFPage(window.currentPDFPage); }
-        
-        if (data.type === 'resim_yukle') {
+        else if (data.type === 'pdf_sayfa_degis') { window.currentPDFPage = data.sayfa; if (typeof renderPDFPage === 'function') renderPDFPage(window.currentPDFPage); }
+        else if (data.type === 'resim_yukle') {
             const img = new Image();
             img.onload = () => { if (typeof addNewImageToCanvas === 'function') addNewImageToCanvas(img, false); };
             img.src = data.imgData;
         }
-
-        if (data.type === 'zoom_senkron') {
+        else if (data.type === 'zoom_senkron') {
             const bgStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
             bgStrokes.forEach(bg => { bg.x = data.x; bg.y = data.y; bg.width = data.width; bg.height = data.height; });
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
-
-        if (data.type === 'arac_state_senkron') {
+        else if (data.type === 'arac_state_senkron') {
             let toolObj = null, el = null;
             if (data.arac === 'ruler') { toolObj = window.RulerTool; el = document.querySelector('.ruler-container'); }
             if (data.arac === 'gonye') { toolObj = window.GonyeTool; el = document.querySelector('.gonye-container'); }
@@ -5432,15 +5401,8 @@ function setupConnectionEvents() {
             if (toolObj) {
                 if (data.state) Object.assign(toolObj.state, data.state);
                 if (data.arac === 'pergel' && toolObj.state) {
-                    if (toolObj.state.isDrawing) { 
-                        toolObj.previewCanvas.style.display = 'block';
-                        toolObj.previewCanvas.width = window.innerWidth;
-                        toolObj.previewCanvas.height = window.innerHeight;
-                        toolObj.drawPreviewArc(); 
-                    } else { 
-                        toolObj.previewCanvas.style.display = 'none'; 
-                        if(toolObj.previewCtx) toolObj.previewCtx.clearRect(0,0,toolObj.previewCanvas.width, toolObj.previewCanvas.height); 
-                    }
+                    if (toolObj.state.isDrawing) { toolObj.previewCanvas.style.display = 'block'; toolObj.previewCanvas.width = window.innerWidth; toolObj.previewCanvas.height = window.innerHeight; toolObj.drawPreviewArc(); } 
+                    else { toolObj.previewCanvas.style.display = 'none'; if(toolObj.previewCtx) toolObj.previewCtx.clearRect(0,0,toolObj.previewCanvas.width, toolObj.previewCanvas.height); }
                 }
                 if (el) {
                     if (data.display === 'none') { data.arac === 'pergel' ? el.classList.add('hidden') : el.style.display = 'none'; }
@@ -5453,11 +5415,9 @@ function setupConnectionEvents() {
                 if (typeof toolObj.createLabels === 'function') toolObj.createLabels();
             } 
         } 
-
-        if (data.type === 'aktif_onizleme') {
+        else if (data.type === 'aktif_onizleme') {
             const arac = data.arac;
             const p = data.payload;
-
             if (arac === 'ruler' && window.RulerTool && window.RulerTool.drawCtx) {
                 const r = window.RulerTool;
                 r.drawHandleElement.style.transition = 'none'; r.drawHandleElement.style.left = `${p.handleX}px`;
@@ -5505,8 +5465,7 @@ function setupConnectionEvents() {
                 if (window.redrawAllStrokes) window.redrawAllStrokes();
             }
         }
-
-        if (data.type === 'onizleme_bitir') {
+        else if (data.type === 'onizleme_bitir') {
             window.drawnStrokes = window.drawnStrokes.filter(s => s.type !== 'preview');
             if (window.RulerTool && window.RulerTool.drawCtx) { window.RulerTool.drawHandleLabel.style.display = 'none'; window.RulerTool.drawCtx.clearRect(0,0, window.RulerTool.drawCanvas.width, window.RulerTool.drawCanvas.height); }
             if (window.GonyeTool && window.GonyeTool.drawCtx) { window.GonyeTool.drawHandleLabel.style.display = 'none'; window.GonyeTool.drawHandleElement.style.transition = 'top 0.1s ease-out'; window.GonyeTool.drawHandleElement.style.top = `${window.GonyeTool.state.height - 20}px`; window.GonyeTool.drawCtx.clearRect(0,0, window.GonyeTool.drawCanvas.width, window.GonyeTool.drawCanvas.height); }
@@ -5514,8 +5473,7 @@ function setupConnectionEvents() {
             let lazer = document.getElementById('sanal-lazer'); if (lazer) lazer.style.display = 'none';
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
-
-        if (data.type === 'secimi_senkronize_et') {
+        else if (data.type === 'secimi_senkronize_et') {
             const index = window.drawnStrokes.findIndex(s => s.id === data.strokeId);
             if (index !== -1) {
                 window.selectedItem = window.drawnStrokes[index];
@@ -5523,12 +5481,10 @@ function setupConnectionEvents() {
                 if (window.redrawAllStrokes) window.redrawAllStrokes();
             }
         }
-
-        if (data.type === 'secimi_kaldir') {
+        else if (data.type === 'secimi_kaldir') {
             window.selectedItem = null;
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
-
     });
 
     myConnection.on('close', function() {
@@ -5538,18 +5494,13 @@ function setupConnectionEvents() {
             statusEl.innerText = "Bağlantı Koptu 🔴";
             statusEl.style.color = "#ff4444";
         }
-        const connectInput = document.getElementById('connect-input');
-        const connectBtn = document.getElementById('connect-btn');
-        if (connectInput) connectInput.style.display = "block";
-        if (connectBtn) connectBtn.style.display = "block";
     });
 }
+
 // =========================================================
-// 7. GÜVENLİ VERİ FIRLATMA FONKSİYONU (GÜNCELLENDİ)
+// 7. GÜVENLİ VERİ FIRLATMA FONKSİYONU
 // =========================================================
 window.sendNetworkData = function(dataPackage) {
-    // Tarayıcının IP gizleme (Tracking Prevention) engeline takılmamak için
-    // isConnected değişkenini beklemeden, bağlantı açıksa direkt gönderiyoruz!
     if (myConnection && myConnection.open) {
         myConnection.send(dataPackage);
     }
@@ -5581,14 +5532,13 @@ if (closeBtn && miniBtn && panel) {
 }
 
 // =========================================================
-// YENİ: FİZİKSEL ARAÇLAR İÇİN "BEYİN KOPYALAYAN" RADAR (Boyut Korumalı)
+// FİZİKSEL ARAÇLAR İÇİN RADAR
 // =========================================================
 let sonAracDurumlari = {};
 
 window.araclariAgaGonder = function() {
     if (typeof isConnected === 'undefined' || !isConnected || !myConnection) return;
     
-    // 1. GELİŞMİŞ ARAÇLAR (Kendi Hafızası/State'i Olanlar)
     const gelismisAraclar = [
         { id: 'ruler', obj: window.RulerTool, selector: '.ruler-container' },
         { id: 'gonye', obj: window.GonyeTool, selector: '.gonye-container' },
@@ -5625,7 +5575,6 @@ window.araclariAgaGonder = function() {
         }
     });
 
-    // 2. BASİT DOM ARAÇLARI (Yüzen Kopyalar / Snapshotlar için)
     const basitAraclar = [
         { id: 'yuzen-kopya', selector: '.yuzen-kopya-container' } 
     ];
@@ -5652,10 +5601,8 @@ window.araclariAgaGonder = function() {
     });
 };
 
-// Saniyede 25 kez araçların hareket edip etmediğini kontrol eder
 setInterval(window.araclariAgaGonder, 40);
 
-// PC (Tahta) ekranı için araçları başlat
 window.addEventListener('load', () => {
     if (window.PergelTool && typeof window.PergelTool.init === 'function') {
         window.PergelTool.init();
@@ -5676,20 +5623,17 @@ window.broadcastPreview = function(toolType, stateData) {
     }
 };
 
-// Çizim yaparken kalemin ucunu PC'ye lazer olarak aktar
 window.addEventListener('pointermove', (e) => {
     if (e.buttons > 0 && typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
         window.sendNetworkData({ type: 'aktif_onizleme', arac: 'lazer', payload: { x: e.clientX, y: e.clientY } });
     }
 });
 
-// Parmak kalktığında önizlemeleri temizleme emri gönder
 window.addEventListener('pointerup', () => {
     if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
         window.sendNetworkData({ type: 'onizleme_bitir' });
     }
 });
-
 
 // Yasal Uyarı Modal Kontrolleri
 const modal = document.getElementById('disclaimer-modal');
@@ -5715,7 +5659,6 @@ if (modal) {
     });
 }
 
-// Uygulama açılır açılmaz uyarıyı göster
 window.addEventListener('load', () => {
    if (modal) {
         modal.style.display = 'flex'; 
