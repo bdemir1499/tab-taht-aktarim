@@ -5227,7 +5227,7 @@ myPeer.on('open', function(id) {
     }
 });
 
-// 5. TABLET ROLÜ: Bağlanma butonu
+// 5. TABLET ROLÜ: Bağlanma butonu (GÜNCEL VERSİYON)
 document.addEventListener('DOMContentLoaded', () => {
     const connectBtn = document.getElementById('connect-btn');
     if (connectBtn) {
@@ -5240,13 +5240,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert("Ağ bağlantısı henüz kurulmadı, lütfen 2 saniye bekleyip tekrar dene.");
                     return;
                 }
+                
                 window.sessionPassword = passwordInput; 
                 document.getElementById('connection-status').innerText = "Bağlanıyor ⏳";
                 
+                // Bağlantıyı başlat
                 myConnection = myPeer.connect(targetCode);
                 
+                // --- BAĞLANTIYI GARANTİLEMEK İÇİN İKİLİ KONTROL ---
                 myConnection.on('open', () => {
-                    setupConnectionEvents();
+                    console.log("Tablet: Connection Open tetiklendi!");
+                    isConnected = true; // Durumu güncelle
+                    document.getElementById('connection-status').innerText = "BAĞLANDI 🟢";
+                    document.getElementById('connection-status').style.color = "#00ffcc";
+                    
+                    // Tablet arayüzünü temizle
+                    document.getElementById('connect-input').style.display = "none";
+                    document.getElementById('connect-btn').style.display = "none";
+                    
+                    setupConnectionEvents(); // Olayları başlat
                 });
             } else {
                 alert("Lütfen 5 haneli Oda Kodunu ve Tahta Şifresini eksiksiz girin.");
@@ -5254,7 +5266,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
-
 function setupConnectionEvents() {
     // --- 1. SIKI YÖNETİM: AYNI Wİ-Fİ / YEREL AĞ KONTROLÜ ---
     const pc = myConnection.peerConnection;
