@@ -5258,53 +5258,55 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupConnectionEvents() {
     // --- 1. SIKI YÖNETİM: AYNI Wİ-Fİ / YEREL AĞ KONTROLÜ ---
     const pc = myConnection.peerConnection;
-    let kontrolYapildi = false;
     window.baglantiOnaylandi = false;
-    isConnected = false;
+    isConnected = true;
 
-    pc.addEventListener('icecandidate', (event) => {
-        if (!event.candidate) return;
-
-        const cand = event.candidate.candidate;
-        const ipMatch = cand.match(/([0-9a-f:.]+|\w+\.local)/i);
-
-        if (ipMatch) {
-            const ip = ipMatch[1];
-            console.log("Ağ adayı bulundu:", ip);
-            
-            // Bağlantı onayını ver
-            window.baglantiOnaylandi = true;
-            isConnected = true;
-            
-            const statusEl = document.getElementById('connection-status');
-            if (statusEl) {
-                statusEl.innerText = "BAĞLANDI 🟢";
-                statusEl.style.color = "#00ffcc";
+    if (pc) {
+        pc.addEventListener('icecandidate', (event) => {
+            if (!event.candidate) return;
+            const cand = event.candidate.candidate;
+            const ipMatch = cand.match(/([0-9a-f:.]+|\w+\.local)/i);
+            if (ipMatch) {
+                console.log("Ağ adayı bulundu, bağlantı onaylandı.");
+                window.baglantiOnaylandi = true;
+                const statusEl = document.getElementById('connection-status');
+                if (statusEl) {
+                    statusEl.innerText = "BAĞLANDI 🟢";
+                    statusEl.style.color = "#00ffcc";
+                }
             }
-        }
-    });
+        });
+    }
 
-    // --- 2. VERİ ALICI MOTORU ---
-   let chunkBuffer = "";
+    // --- 2. VERİ ALICI VE PARÇALAMA MOTORU ---
+    let chunkBuffer = "";
+    
     myConnection.on('data', function(data) {
+        // Parçalı veri geliyorsa birleştir
         if (data && data.type === 'chunk') {
             chunkBuffer += data.data;
             if (data.isLast) {
-                try { processData(JSON.parse(chunkBuffer)); } catch(e){}
+                try {
+                    processData(JSON.parse(chunkBuffer));
+                } catch (e) {
+                    console.error("Paket birleştirme hatası:", e);
+                }
                 chunkBuffer = "";
             }
             return;
         }
+        // Normal veri geliyorsa direkt işle
         processData(data);
     });
 
-    function processData(data) {
-        // --- DEDEKTİF SATIRI ---
-        console.log("PC'YE GELEN PAKET TÜRÜ:", data ? data.type : "Bilinmeyen");
-        if (!data || !data.type) return;
 
-        // ÇÖKME ÖNLEYİCİ: Çizim hafızası
+    // --- VERİ İŞLEME MERKEZİ ---
+    function processData(data) {
+        if (!data || !data.type) return;
         if (!window.drawnStrokes) window.drawnStrokes = [];
+
+        // Güvenlik: Bağlantı onaylanmadıysa işlem yapma
+        if (!window.baglantiOnaylandi) return;
 
         // DİL SEÇİMİ
         if (data.type === 'dil_secimi') { 
@@ -5538,6 +5540,7 @@ function setupConnectionEvents() {
 
     }
 
+    // --- 3. BAĞLANTI KOPMASI DURUMU ---
     myConnection.on('close', function() {
         isConnected = false;
         const statusEl = document.getElementById('connection-status');
@@ -5545,10 +5548,8 @@ function setupConnectionEvents() {
             statusEl.innerText = "Bağlantı Koptu 🔴";
             statusEl.style.color = "#ff4444";
         }
-        const connectInput = document.getElementById('connect-input');
-        const connectBtn = document.getElementById('connect-btn');
-        if (connectInput) connectInput.style.display = "block";
-        if (connectBtn) connectBtn.style.display = "block";
+        // Bağlantı koptuğunda sayfayı yenilemek en garantili çözümdür:
+        setTimeout(() => { location.reload(); }, 2000);
     });
 }
 
