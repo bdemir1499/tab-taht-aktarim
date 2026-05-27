@@ -5598,6 +5598,7 @@ window.addEventListener('pointermove', (e) => {
     }
 });
 
+
 window.addEventListener('pointerup', () => {
     if (typeof window.sendNetworkData === 'function' && isConnected) {
         window.sendNetworkData({ type: 'onizleme_bitir' });
