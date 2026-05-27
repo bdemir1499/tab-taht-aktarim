@@ -5285,7 +5285,20 @@ function setupConnectionEvents() {
     });
 
     // --- 2. VERİ ALICI MOTORU ---
+   let chunkBuffer = "";
     myConnection.on('data', function(data) {
+        if (data && data.type === 'chunk') {
+            chunkBuffer += data.data;
+            if (data.isLast) {
+                try { processData(JSON.parse(chunkBuffer)); } catch(e){}
+                chunkBuffer = "";
+            }
+            return;
+        }
+        processData(data);
+    });
+
+    function processData(data) {
         // --- DEDEKTİF SATIRI ---
         console.log("PC'YE GELEN PAKET TÜRÜ:", data ? data.type : "Bilinmeyen");
         if (!data || !data.type) return;
@@ -5523,7 +5536,7 @@ function setupConnectionEvents() {
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
 
-    });
+    }
 
     myConnection.on('close', function() {
         isConnected = false;
@@ -5538,16 +5551,27 @@ function setupConnectionEvents() {
         if (connectBtn) connectBtn.style.display = "block";
     });
 }
+
 // =========================================================
 // 7. GÜVENLİ VERİ FIRLATMA FONKSİYONU (ZIRHLI VERSİYON)
 // =========================================================
 window.sendNetworkData = function(dataPackage) {
-    // Kökten çözüm: myConnection.open kontrolü kaldırıldı, direkt try-catch eklendi!
-    if (isConnected && myConnection) {
-        try {
-            myConnection.send(dataPackage);
-        } catch (e) {
-            console.log("Paket yollanırken hata (önemsiz):", e);
+    if (!isConnected || !myConnection) return;
+    
+    // Veriyi string'e çevir, büyükse parçala
+    const dataString = JSON.stringify(dataPackage);
+    const CHUNK_SIZE = 16384; // 16KB parçalar (PeerJS için güvenli sınır)
+
+    if (dataString.length <= CHUNK_SIZE) {
+        myConnection.send(dataPackage);
+    } else {
+        // Büyük veriyi parçala
+        for (let i = 0; i < dataString.length; i += CHUNK_SIZE) {
+            myConnection.send({
+                type: 'chunk',
+                data: dataString.substring(i, i + CHUNK_SIZE),
+                isLast: (i + CHUNK_SIZE >= dataString.length)
+            });
         }
     }
 };
