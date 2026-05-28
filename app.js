@@ -3561,22 +3561,23 @@ canvas.addEventListener('pointerup', (e) => {
         if (lastStroke && lastStroke.type === 'pen') {
             if (!lastStroke.id) lastStroke.id = Date.now() + Math.random(); // Zombileri engelle
 
-            // Eğer sadece tek bir tık (nokta) atıldıysa
+            // 1. Durum: Sadece tek bir tık (nokta) atıldıysa
             if (lastStroke.path && lastStroke.path.length <= 3) {
                  if (lastStroke.path[0]) lastStroke.path.push({ x: lastStroke.path[0].x + 0.1, y: lastStroke.path[0].y + 0.1 });
                  if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
                      window.sendNetworkData({ type: 'yeni_cizim', stroke: lastStroke });
                  }
             } 
-            // Şekil çizimi ise (Akıllı Şekil devreye girer)
+            // 2. Durum: Uzun bir çizim (şekil veya karalama)
             else {
                 let correctedShape = null;
                 if (typeof akilliSekilTani === 'function') {
                     try { correctedShape = akilliSekilTani(lastStroke); } catch(err) {}
                 }
 
+                // A) Şekil başarılı bir şekilde algılandı (Düzeltme uygulanır)
                 if (correctedShape) {
-                    drawnStrokes.pop(); // Tabletteki bozuk çizimi sil
+                    drawnStrokes.pop(); // Tabletteki bozuk karalamayı sil
                     
                     if (Array.isArray(correctedShape)) {
                         correctedShape.forEach(s => s.id = Date.now() + Math.random());
@@ -3595,8 +3596,11 @@ canvas.addEventListener('pointerup', (e) => {
                         }
                     }
                 } 
-                // C) ŞEKİL TANINMADI, SADECE KARALAMA İSE (GÜVENLİ GÖNDERİM)
+                // B) Şekil tanınmadı, normal bir KARALAMA ise (Burada düzeltme yapıldı)
                 else {
+                    // Mevcut lastStroke zaten drawnStrokes dizisinde var. 
+                    // Ancak veri bütünlüğü (örneğin p değerleri) veya ağdaki gereksiz yükleri engellemek 
+                    // için safePenStroke oluşturup bunu da sendNetworkData ile yollamalıyız.
                     const safePenStroke = {
                         type: 'pen',
                         id: lastStroke.id,
@@ -3606,6 +3610,10 @@ canvas.addEventListener('pointerup', (e) => {
                         isBackground: false,
                         path: lastStroke.path.map(p => ({ x: p.x, y: p.y, p: p.p || 1 })) 
                     };
+                    
+                    // KRİTİK: Mevcut ham karalama nesnesini, güvenli versiyonuyla güncelliyoruz
+                    // Böylece ağdaki gecikme ve uyumsuzluklardan kaçınmış oluyoruz.
+                    drawnStrokes[drawnStrokes.length - 1] = safePenStroke;
                     
                     if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
                         window.sendNetworkData({ type: 'yeni_cizim', stroke: safePenStroke });
