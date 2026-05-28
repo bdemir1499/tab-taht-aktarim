@@ -5243,18 +5243,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 // --- BAĞLANTIYI GARANTİLEMEK İÇİN İKİLİ KONTROL ---
                 myConnection.on('open', () => {
                     console.log("Tablet: Connection Open tetiklendi!");
-                    isConnected = true;
+                    isConnected = true; // Durumu güncelle
                     document.getElementById('connection-status').innerText = "BAĞLANDI 🟢";
                     document.getElementById('connection-status').style.color = "#00ffcc";
                     
                     // Tablet arayüzünü temizle
                     document.getElementById('connect-input').style.display = "none";
                     document.getElementById('connect-btn').style.display = "none";
-
-                    // Paneli otomatik küçült
-                    if (typeof window.kucultPanel === 'function') {
-                        window.kucultPanel();
-                    }
                     
                     setupConnectionEvents(); // Olayları başlat
                 });
@@ -5333,6 +5328,9 @@ function setupConnectionEvents() {
             if (overlay) overlay.style.display = 'none';
             return;
         }
+
+        // GÜVENLİK DUVARI
+        if (!window.baglantiOnaylandi) return;
 
         // --- A) TOPLU ŞEKİL ALICISI (ÇOKGENLER VE ÜÇGENLER) ---
         if (data.type === 'akilli_sekil_toplu') {
