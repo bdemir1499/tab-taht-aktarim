@@ -5264,29 +5264,23 @@ function setupConnectionEvents() {
 
         // --- B) TEKİL ÇİZİM/KALEM/RESİM ALICISI ---
         if (data.type === 'yeni_cizim') {
-            const s = data.stroke;
-            if (!s) return;
+            const stroke = data.stroke;
+            if (!stroke) return;
             
-            // Eğer bu çizim daha önce geldiyse, YOK ETME, GÜNCELLE!
-            const existingIndex = window.drawnStrokes.findIndex(ds => ds.id === s.id);
-            
-            if (existingIndex !== -1) {
-                // Çizimin eski (eksik) halini yeni (tam) haliyle değiştir
-                window.drawnStrokes[existingIndex] = s;
-                if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
-            } else {
-                // İlk defa geliyorsa (veya resimse)
-                if (s.type === 'image' && s.imgData) {
+            // Zombi (Mükerrer) kontrolü
+            const isDuplicate = stroke.id && window.drawnStrokes.some(s => s.id === stroke.id);
+            if (!isDuplicate) {
+                if (stroke.type === 'image' && stroke.imgData) {
                     const tempImg = new Image();
-                    tempImg.src = s.imgData;
+                    tempImg.src = stroke.imgData;
                     tempImg.onload = () => { 
-                        s.imgObj = tempImg; 
-                        window.drawnStrokes.push(s); 
-                        if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes(); 
+                        stroke.imgObj = tempImg; 
+                        window.drawnStrokes.push(stroke); 
+                        if (window.redrawAllStrokes) window.redrawAllStrokes(); 
                     };
                 } else {
-                    window.drawnStrokes.push(s);
-                    if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
+                    window.drawnStrokes.push(stroke);
+                    if (window.redrawAllStrokes) window.redrawAllStrokes();
                 }
             }
             return;
