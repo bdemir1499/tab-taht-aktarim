@@ -5266,10 +5266,26 @@ function setupConnectionEvents() {
         if (data.type === 'yeni_cizim') {
             const stroke = data.stroke;
             if (!stroke) return;
-            
-            // Zombi (Mükerrer) kontrolü
-            const isDuplicate = stroke.id && window.drawnStrokes.some(s => s.id === stroke.id);
-            if (!isDuplicate) {
+
+            // Eğer veride bir anormallik olup dizi (array) gelirse diye güvenlik önlemi
+            if (Array.isArray(stroke)) {
+                stroke.forEach(s => {
+                    const isExist = s.id && window.drawnStrokes.some(ex => ex.id === s.id);
+                    if (!isExist) window.drawnStrokes.push(s);
+                });
+                if (window.redrawAllStrokes) window.redrawAllStrokes();
+                return;
+            }
+
+            // Normal Tekil Çizim (Kalem karalaması vs.)
+            const existingIndex = stroke.id ? window.drawnStrokes.findIndex(s => s.id === stroke.id) : -1;
+
+            if (existingIndex !== -1) {
+                // REDDETME, ÜZERİNE YAZ! (Eski veriyi silip yenisini/tamamlanmış olanı koyuyoruz)
+                window.drawnStrokes[existingIndex] = stroke;
+                if (window.redrawAllStrokes) window.redrawAllStrokes();
+            } else {
+                // Hiç yoksa ilk kez ekle
                 if (stroke.type === 'image' && stroke.imgData) {
                     const tempImg = new Image();
                     tempImg.src = stroke.imgData;
