@@ -624,88 +624,6 @@ window.sendNetworkData = function(dataObj) {
     }
 };
 
-// =====================================================================
-// --- VERİ ALICI MERKEZİ (TAHTAYA GELEN ÇİZİMLERİ İŞLEYİP ÇİZER) ---
-// =====================================================================
-window.veriGeldigindeİsle = function(data) {
-    if (!data || !data.type) return;
-
-    // 1. DİL SEÇİMİ
-    if (data.type === 'dil_secimi') { 
-        if (typeof setLanguage === 'function') setLanguage(data.lang);
-        const overlay = document.getElementById('language-overlay');
-        if (overlay) overlay.style.display = 'none';
-        return;
-    }
-
-    // 2. AKILLI KALEMDEN GELEN TOPLU ŞEKİL PAKETİ (ÜÇGEN, YAMUK Vb.)
-    if (data.type === 'akilli_sekil_toplu' && Array.isArray(data.strokes)) {
-        data.strokes.forEach(stroke => {
-            // Çizgi tahtada yoksa ekle
-            if (!window.drawnStrokes.some(s => s.id && s.id === stroke.id)) {
-                window.drawnStrokes.push(stroke);
-            }
-        });
-        // Tüm çizgiler eklenince ekranı tazele
-        if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
-        return;
-    }
-
-    // 3. NORMAL TEKİL VE ÇOKLU ÇİZİM ALICISI (BİRLEŞTİRİLMİŞ)
-    if (data.type === 'yeni_cizim') {
-        const stroke = data.stroke;
-        if (!stroke) return;
-
-        // DURUM A: Eğer gelen veri bir dizi (Array) ise (Akıllı şekil parçaları)
-        if (Array.isArray(stroke)) {
-            stroke.forEach(s => {
-                if (s.id && !window.drawnStrokes.some(ex => ex.id === s.id)) {
-                    window.drawnStrokes.push(s);
-                }
-            });
-            if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
-            return;
-        }
-
-        // DURUM B: Tekil çizim (Kalem, Çember, Dikdörtgen veya Resim)
-        // Zombi (Mükerrer) kontrolü
-        const isDuplicate = stroke.id && window.drawnStrokes.some(s => s.id === stroke.id);
-        if (isDuplicate) return;
-
-        // Resim mi?
-        if (stroke.type === 'image' && stroke.imgData) {
-            const tempImg = new Image();
-            tempImg.src = stroke.imgData;
-            tempImg.onload = () => { 
-                stroke.imgObj = tempImg; 
-                window.drawnStrokes.push(stroke); 
-                if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes(); 
-            };
-        } 
-        // Normal çizim mi?
-        else {
-            window.drawnStrokes.push(stroke);
-            if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
-        }
-        return;
-    }
-
-    // 4. SİLME VE GERİ ALMA
-    if (data.type === 'sil_objeyi') {
-        const zombiIndex = window.drawnStrokes.findIndex(s => s.id === data.strokeId);
-        if (zombiIndex !== -1) window.drawnStrokes.splice(zombiIndex, 1);
-        if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
-    }
-    if (data.type === 'geri_al') { 
-        window.drawnStrokes.pop(); 
-        if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes(); 
-    }
-    if (data.type === 'hepsini_sil') { 
-        window.drawnStrokes = window.drawnStrokes.filter(s => s.isBackground === true); 
-        if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes(); 
-    }
-};
-// =====================================================================
 
 // Sayfa açıldığında kırmızı butonun yanlışlıkla görünmesini engellemek için:
 const closePdfBtn = document.getElementById('btn-close-pdf');
@@ -3561,23 +3479,22 @@ canvas.addEventListener('pointerup', (e) => {
         if (lastStroke && lastStroke.type === 'pen') {
             if (!lastStroke.id) lastStroke.id = Date.now() + Math.random(); // Zombileri engelle
 
-            // 1. Durum: Sadece tek bir tık (nokta) atıldıysa
+            // Eğer sadece tek bir tık (nokta) atıldıysa
             if (lastStroke.path && lastStroke.path.length <= 3) {
                  if (lastStroke.path[0]) lastStroke.path.push({ x: lastStroke.path[0].x + 0.1, y: lastStroke.path[0].y + 0.1 });
                  if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
                      window.sendNetworkData({ type: 'yeni_cizim', stroke: lastStroke });
                  }
             } 
-            // 2. Durum: Uzun bir çizim (şekil veya karalama)
+            // Şekil çizimi ise (Akıllı Şekil devreye girer)
             else {
                 let correctedShape = null;
                 if (typeof akilliSekilTani === 'function') {
                     try { correctedShape = akilliSekilTani(lastStroke); } catch(err) {}
                 }
 
-                // A) Şekil başarılı bir şekilde algılandı (Düzeltme uygulanır)
                 if (correctedShape) {
-                    drawnStrokes.pop(); // Tabletteki bozuk karalamayı sil
+                    drawnStrokes.pop(); // Tabletteki bozuk çizimi sil
                     
                     if (Array.isArray(correctedShape)) {
                         correctedShape.forEach(s => s.id = Date.now() + Math.random());
@@ -3596,11 +3513,8 @@ canvas.addEventListener('pointerup', (e) => {
                         }
                     }
                 } 
-                // B) Şekil tanınmadı, normal bir KARALAMA ise (Burada düzeltme yapıldı)
+                // C) ŞEKİL TANINMADI, SADECE KARALAMA İSE (GÜVENLİ GÖNDERİM)
                 else {
-                    // Mevcut lastStroke zaten drawnStrokes dizisinde var. 
-                    // Ancak veri bütünlüğü (örneğin p değerleri) veya ağdaki gereksiz yükleri engellemek 
-                    // için safePenStroke oluşturup bunu da sendNetworkData ile yollamalıyız.
                     const safePenStroke = {
                         type: 'pen',
                         id: lastStroke.id,
@@ -3610,10 +3524,6 @@ canvas.addEventListener('pointerup', (e) => {
                         isBackground: false,
                         path: lastStroke.path.map(p => ({ x: p.x, y: p.y, p: p.p || 1 })) 
                     };
-                    
-                    // KRİTİK: Mevcut ham karalama nesnesini, güvenli versiyonuyla güncelliyoruz
-                    // Böylece ağdaki gecikme ve uyumsuzluklardan kaçınmış oluyoruz.
-                    drawnStrokes[drawnStrokes.length - 1] = safePenStroke;
                     
                     if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
                         window.sendNetworkData({ type: 'yeni_cizim', stroke: safePenStroke });
@@ -5354,23 +5264,29 @@ function setupConnectionEvents() {
 
         // --- B) TEKİL ÇİZİM/KALEM/RESİM ALICISI ---
         if (data.type === 'yeni_cizim') {
-            const stroke = data.stroke;
-            if (!stroke) return;
+            const s = data.stroke;
+            if (!s) return;
             
-            // Zombi (Mükerrer) kontrolü
-            const isDuplicate = stroke.id && window.drawnStrokes.some(s => s.id === stroke.id);
-            if (!isDuplicate) {
-                if (stroke.type === 'image' && stroke.imgData) {
+            // Eğer bu çizim daha önce geldiyse, YOK ETME, GÜNCELLE!
+            const existingIndex = window.drawnStrokes.findIndex(ds => ds.id === s.id);
+            
+            if (existingIndex !== -1) {
+                // Çizimin eski (eksik) halini yeni (tam) haliyle değiştir
+                window.drawnStrokes[existingIndex] = s;
+                if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
+            } else {
+                // İlk defa geliyorsa (veya resimse)
+                if (s.type === 'image' && s.imgData) {
                     const tempImg = new Image();
-                    tempImg.src = stroke.imgData;
+                    tempImg.src = s.imgData;
                     tempImg.onload = () => { 
-                        stroke.imgObj = tempImg; 
-                        window.drawnStrokes.push(stroke); 
-                        if (window.redrawAllStrokes) window.redrawAllStrokes(); 
+                        s.imgObj = tempImg; 
+                        window.drawnStrokes.push(s); 
+                        if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes(); 
                     };
                 } else {
-                    window.drawnStrokes.push(stroke);
-                    if (window.redrawAllStrokes) window.redrawAllStrokes();
+                    window.drawnStrokes.push(s);
+                    if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
                 }
             }
             return;
