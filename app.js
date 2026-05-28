@@ -5262,43 +5262,30 @@ function setupConnectionEvents() {
             return; 
         }
 
+        // --- B) TEKİL ÇİZİM/KALEM/RESİM ALICISI ---
         if (data.type === 'yeni_cizim') {
-            const stroke = data.stroke;
-            if (!stroke) return;
-
-            // DURUM A: Eğer gelen veri bir dizi (Array) ise (Akıllı şekil parçaları)
-            if (Array.isArray(stroke)) {
-                stroke.forEach(s => {
-                    const existingIndex = s.id ? window.drawnStrokes.findIndex(ex => ex.id === s.id) : -1;
-                    if (existingIndex !== -1) {
-                        window.drawnStrokes[existingIndex] = s; // Varsa üzerine yaz (Güncelle)
-                    } else {
-                        window.drawnStrokes.push(s); // Yoksa normal ekle
-                    }
-                });
-                if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
-                return;
-            }
-
-            // DURUM B: Tekil çizim (Kalem karalaması, Resim vb.)
-            const existingIndex = stroke.id ? window.drawnStrokes.findIndex(s => s.id === stroke.id) : -1;
-
+            const s = data.stroke;
+            if (!s) return;
+            
+            // Eğer bu çizim daha önce geldiyse, YOK ETME, GÜNCELLE!
+            const existingIndex = window.drawnStrokes.findIndex(ds => ds.id === s.id);
+            
             if (existingIndex !== -1) {
-                // REDDETME, GÜNCELLE! (Nokta olarak başlayan karalama, tam haliyle değişsin)
-                window.drawnStrokes[existingIndex] = stroke;
+                // Çizimin eski (eksik) halini yeni (tam) haliyle değiştir
+                window.drawnStrokes[existingIndex] = s;
                 if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
             } else {
-                // İlk defa geliyorsa
-                if (stroke.type === 'image' && stroke.imgData) {
+                // İlk defa geliyorsa (veya resimse)
+                if (s.type === 'image' && s.imgData) {
                     const tempImg = new Image();
-                    tempImg.src = stroke.imgData;
+                    tempImg.src = s.imgData;
                     tempImg.onload = () => { 
-                        stroke.imgObj = tempImg; 
-                        window.drawnStrokes.push(stroke); 
+                        s.imgObj = tempImg; 
+                        window.drawnStrokes.push(s); 
                         if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes(); 
                     };
                 } else {
-                    window.drawnStrokes.push(stroke);
+                    window.drawnStrokes.push(s);
                     if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
                 }
             }
