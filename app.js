@@ -5419,7 +5419,19 @@ function setupConnectionEvents() {
 
         if (data.type === 'zoom_senkron') {
             const bgStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
-            bgStrokes.forEach(bg => { bg.x = data.x; bg.y = data.y; bg.width = data.width; bg.height = data.height; });
+            bgStrokes.forEach(bg => { 
+                // 🚨 SİHİRLİ ÇÖZÜM: Tabletin X/Y koordinatlarını kopyalamak yerine, 
+                // bilgisayar eski merkezini koruyarak sadece boyutu günceller.
+                const yeniW = data.width;
+                const yeniH = data.height;
+                
+                // Resmi bulunduğu yerde, tam ortadan büyüt/küçült
+                bg.x = bg.x - (yeniW - bg.width) / 2;
+                bg.y = bg.y - (yeniH - bg.height) / 2;
+                
+                bg.width = yeniW; 
+                bg.height = yeniH; 
+            });
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
 
