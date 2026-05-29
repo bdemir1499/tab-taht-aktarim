@@ -5354,11 +5354,13 @@ function setupConnectionEvents() {
             // 1. Diziyi tamamen temizle
             window.drawnStrokes = []; 
             
+            // 🚨 İŞTE HAYAT KURTARAN O SİHİRLİ SATIR 🚨
+            if (typeof drawnStrokes !== 'undefined') drawnStrokes = window.drawnStrokes; 
+            
             // 2. PC tarafındaki kayıtlı veriyi de temizle (LocalStorage)
             if (window.localStorage) {
                 window.localStorage.removeItem('drawnStrokes'); 
             }
-            
             // 3. Ekranı yenile
             if (window.redrawAllStrokes) window.redrawAllStrokes(); 
             
@@ -5474,14 +5476,21 @@ function setupConnectionEvents() {
             }
             else if (arac === 'cizim_onizleme') {
                 window.drawnStrokes = window.drawnStrokes.filter(s => s.type !== 'preview');
+                
+                // 🚨 İŞTE HAYAT KURTARAN O SİHİRLİ SATIR 🚨
+                if (typeof drawnStrokes !== 'undefined') drawnStrokes = window.drawnStrokes; 
+                
                 const previewObj = { type: 'preview', isTemporaryPreview: true, payload: p, id: 'temp-preview-id' };
                 window.drawnStrokes.push(previewObj);
                 if (window.redrawAllStrokes) window.redrawAllStrokes();
             }
-        }
 
         if (data.type === 'onizleme_bitir') {
             window.drawnStrokes = window.drawnStrokes.filter(s => s.type !== 'preview');
+            
+            // 🚨 İŞTE HAYAT KURTARAN O SİHİRLİ SATIR 🚨
+            if (typeof drawnStrokes !== 'undefined') drawnStrokes = window.drawnStrokes; 
+
             if (window.RulerTool && window.RulerTool.drawCtx) { window.RulerTool.drawHandleLabel.style.display = 'none'; window.RulerTool.drawCtx.clearRect(0,0, window.RulerTool.drawCanvas.width, window.RulerTool.drawCanvas.height); }
             if (window.GonyeTool && window.GonyeTool.drawCtx) { window.GonyeTool.drawHandleLabel.style.display = 'none'; window.GonyeTool.drawHandleElement.style.transition = 'top 0.1s ease-out'; window.GonyeTool.drawHandleElement.style.top = `${window.GonyeTool.state.height - 20}px`; window.GonyeTool.drawCtx.clearRect(0,0, window.GonyeTool.drawCanvas.width, window.GonyeTool.drawCanvas.height); }
             if (window.AciolcerTool && window.AciolcerTool.previewCtx) { window.AciolcerTool.drawHandleLabel.style.display = 'none'; window.AciolcerTool.previewCanvas.style.display = 'none'; window.AciolcerTool.redLine.style.transition = 'transform 0.1s ease-out'; window.AciolcerTool.redLine.style.transform = 'rotate(0deg)'; window.AciolcerTool.drawHandle.style.transition = 'transform 0.1s ease-out'; window.AciolcerTool.drawHandle.style.transform = 'translateX(-50%) translate(0px, 0px)'; window.AciolcerTool.previewCtx.clearRect(0,0, window.AciolcerTool.previewCanvas.width, window.AciolcerTool.previewCanvas.height); }
