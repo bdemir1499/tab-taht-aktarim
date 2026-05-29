@@ -5528,31 +5528,45 @@ function setupConnectionEvents() {
 }
 
 // =========================================================
-// 7. GÜVENLİ VERİ FIRLATMA FONKSİYONU (ZIRHLI VERSİYON)
+// 7. GÜVENLİ VERİ FIRLATMA FONKSİYONU (ZIRHLI VE KADEMELİ VERSİYON)
 // =========================================================
 window.sendNetworkData = function(dataPackage) {
     if (!isConnected || !myConnection) return;
     
-    // Veriyi string'e çevir, büyükse parçala
+    // Veriyi string'e çevir
     const dataString = JSON.stringify(dataPackage);
-    
-    // KRİTİK ÇÖZÜM: 16384 sınırı JSON etiketleriyle aşılıp paket düşmesine neden oluyordu.
-    // 8000 güvenli barajına çekildi.
     const CHUNK_SIZE = 8000; 
 
     if (dataString.length <= CHUNK_SIZE) {
+        // Küçük paketleri (kalem, taşıma vs.) bekletmeden direkt gönder
         myConnection.send(dataPackage);
     } else {
-        // Büyük veriyi parçala
-        for (let i = 0; i < dataString.length; i += CHUNK_SIZE) {
-            myConnection.send({
-                type: 'chunk',
-                data: dataString.substring(i, i + CHUNK_SIZE),
-                isLast: (i + CHUNK_SIZE >= dataString.length)
-            });
+        // DEV DOSYALARI (PDF/RESİM) AĞI BOĞMADAN KADEMELİ GÖNDERME MOTORU
+        let i = 0;
+        
+        function paketGonder() {
+            if (!isConnected || !myConnection || !myConnection.open) return;
+            
+            if (i < dataString.length) {
+                myConnection.send({
+                    type: 'chunk',
+                    data: dataString.substring(i, i + CHUNK_SIZE),
+                    isLast: (i + CHUNK_SIZE >= dataString.length)
+                });
+                
+                i += CHUNK_SIZE;
+                
+                // SİHİRLİ DOKUNUŞ: Ağa nefes aldırarak (5 milisaniye bekleyerek) sıradaki paketi yolla
+                setTimeout(paketGonder, 5); 
+            }
         }
+        
+        // Dosya aktarımını başlat
+        paketGonder();
     }
 };
+
+// --- AĞ PANELİ BUTONLARI (DOKUNULMADI, AYNEN KORUNDU) ---
 const closeBtn = document.getElementById('network-close-btn');
 const miniBtn = document.getElementById('network-mini-btn');
 const panel = document.getElementById('network-panel');
@@ -5568,7 +5582,6 @@ if (closeBtn && miniBtn && panel) {
         panel.style.display = 'block';
     });
 }
-
 // =========================================================
 // FİZİKSEL ARAÇLAR İÇİN RADAR (ÇÖKMEYE KARŞI KORUMALI)
 // =========================================================
