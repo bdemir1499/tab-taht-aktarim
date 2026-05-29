@@ -2116,9 +2116,7 @@ if (uploadButton && fileInput) {
             fileReader.onload = async function() {
                 // 1. AĞA GÖNDERMEK İÇİN (Base64 Metni Olarak)
                 const base64String = this.result; 
-                
-                if (typeof isConnected !== 'undefined' && isConnected) {
-                    window.sendNetworkData({ type: 'pdf_yukle', pdfData: base64String });
+                         
                 }
                 
                 // 2. TABLET EKRANI İÇİN (PDF.js'in anladığı formata geri çeviriyoruz)
@@ -3769,11 +3767,7 @@ async function renderPDFPage(num) {
     const page = await currentPDF.getPage(num);
     
     // --- BURASI DEĞİŞTİ: OTOMATİK VE YÜKSEK ÇÖZÜNÜRLÜK AYARI ---
-    // Cihazın piksel yoğunluğunu al (Tabletlerde 2 veya 3 olur, PC'de 1 olur)
     const dpr = window.devicePixelRatio || 1;
-    
-    // NETLİK ÇARPANI: Eski sabit 2.0 yerine, dpr ile çarpılan güçlü bir değer giriyoruz.
-    // Başlangıç için 3 idealdir. (Hala bulanıksa burayı 4 veya 5 yapabilirsin)
     const KALITE_CARPANI = 3; 
     const hdScale = dpr * KALITE_CARPANI;
     
@@ -3823,7 +3817,15 @@ async function renderPDFPage(num) {
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
     };
-    img.src = tempCanvas.toDataURL('image/png', 1.0); // Kalite kaybı olmasın diye 1.0 parametresi eklendi
+
+    // 🚨 İŞTE 2. ADIMDAKİ DEĞİŞİKLİĞİN YAPILDIĞI YER BURASI 🚨
+    const sayfaResmi = tempCanvas.toDataURL('image/png', 1.0);
+    img.src = sayfaResmi; 
+    
+    // YENİ EKLENEN KISIM: Koca kitap yerine sadece bu sayfayı PC'ye fırlat
+    if (typeof isConnected !== 'undefined' && isConnected) {
+        window.sendNetworkData({ type: 'pdf_sayfa_resmi_aktar', imgData: sayfaResmi });
+    }
     
     if(pageCountLabel) pageCountLabel.innerText = `Sayfa: ${num} / ${totalPDFPages}`;
 }
@@ -3849,23 +3851,20 @@ function addNewImageToCanvas(img, isPDF = false) {
     };
     
     // (Böylece üst üste binmezler)
-if (isPDF && typeof pdfImageStroke !== 'undefined' && pdfImageStroke !== null) { 
-    drawnStrokes = drawnStrokes.filter(stroke => {
-        // 1. Eski PDF sayfasını (arka planı) temizle
-        if (stroke === pdfImageStroke) return false;
-        
-        // 2. Havada asılı duran KESİLMİŞ PARÇALARI temizle (KUTU KOPYALARI HARİÇ)
-        if (stroke.type === 'image' && stroke.isBackground === false && !stroke.isBoxCopy) return false;
-
-        // 3. ARKADA KALAN YAMALARI (Boyaları) temizle
-        if (stroke.isPatch === true || stroke.type === 'lasso-mask') return false;
-
-        // Diğer her şeyi (kalem çizimleri, kutu kopyalarını) koru
-        return true;
-    }); 
-    window.drawnStrokes = drawnStrokes; 
-}    // --------------------------------------------
-
+// 🚨 DİKKAT: .filter yerine .splice kullanarak sayfa değişiminde hafızanın kopmasını engelliyoruz 🚨
+    if (isPDF && typeof pdfImageStroke !== 'undefined' && pdfImageStroke !== null) { 
+        for (let i = window.drawnStrokes.length - 1; i >= 0; i--) {
+            let s = window.drawnStrokes[i];
+            if (s === pdfImageStroke || 
+               (s.type === 'image' && s.isBackground === false && !s.isBoxCopy) || 
+               (s.isPatch === true || s.type === 'lasso-mask')) {
+                window.drawnStrokes.splice(i, 1);
+            }
+        }
+        // Ana hafızayı eşitle
+        if (typeof drawnStrokes !== 'undefined') drawnStrokes = window.drawnStrokes; 
+    } 
+    // --------------------------------------------
 
     drawnStrokes.push(newStroke);
     
@@ -3874,23 +3873,23 @@ if (isPDF && typeof pdfImageStroke !== 'undefined' && pdfImageStroke !== null) {
     }
     
     // --- 2. KRİTİK DÜZELTME: BUTONU DOĞRU ZAMANDA GÖSTER ---
-// Resim veya PDF ekrana "gerçekten" çizildiği an bu buton görünür olacak
+    // Resim veya PDF ekrana "gerçekten" çizildiği an bu buton görünür olacak
 
-// 1. Sağ paneldeki İleri/Geri tuşlarını (pdf-controls) geri getir
-const pdfControls = document.getElementById('pdf-controls');
-if (pdfControls) {
-    pdfControls.classList.remove('hidden');
-    pdfControls.style.display = 'flex'; 
-}
+    // 1. Sağ paneldeki İleri/Geri tuşlarını (pdf-controls) geri getir
+    const pdfControls = document.getElementById('pdf-controls');
+    if (pdfControls) {
+        pdfControls.classList.remove('hidden');
+        pdfControls.style.display = 'flex'; 
+    }
 
-// 2. Kırmızı Kapatma Butonunu geri getir
-const closeBtn = document.getElementById('btn-close-pdf');
-if (closeBtn) {
-    closeBtn.classList.remove('hidden');
-    closeBtn.style.display = 'flex';
-}
+    // 2. Kırmızı Kapatma Butonunu geri getir
+    const closeBtn = document.getElementById('btn-close-pdf');
+    if (closeBtn) {
+        closeBtn.classList.remove('hidden');
+        closeBtn.style.display = 'flex';
+    }
 
-redrawAllStrokes();
+    redrawAllStrokes();
 
 }
 
@@ -5278,6 +5277,15 @@ function setupConnectionEvents() {
             }
             if (window.redrawAllStrokes) window.redrawAllStrokes();
             return; 
+        }
+
+// Yeni Sayfa Resmi geldiğinde PC ekranına yansıt
+        if (data.type === 'pdf_sayfa_resmi_aktar') {
+            const img = new Image();
+            img.onload = () => { 
+                if (typeof addNewImageToCanvas === 'function') addNewImageToCanvas(img, true); 
+            };
+            img.src = data.imgData;
         }
 
         // --- B) TEKİL ÇİZİM/KALEM/RESİM ALICISI ---
