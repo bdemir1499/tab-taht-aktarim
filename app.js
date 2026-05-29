@@ -4026,6 +4026,11 @@ document.addEventListener('click', function(e) {
     if (btn) {
         // Evet, butona basıldı!
         console.log("PDF Kapatılıyor..."); // Kontrol için konsola yazar
+
+// 🚨 YENİ EKLENEN SATIR: PC'YE KAPATMA EMRİ GÖNDER 🚨
+        if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+            window.sendNetworkData({ type: 'pdf_kapat' });
+        }
         
         // 1. Tıklamanın arkadaki Canvas'a geçmesini engelle
         e.preventDefault();
@@ -5396,6 +5401,20 @@ function setupConnectionEvents() {
             const img = new Image();
             img.onload = () => { if (typeof addNewImageToCanvas === 'function') addNewImageToCanvas(img, false); };
             img.src = data.imgData;
+        }
+
+// 🚨 YENİ EKLENEN BÖLÜM: PC'NİN PDF KAPATMA EMRİNİ ALDIĞI YER 🚨
+        if (data.type === 'pdf_kapat') {
+            if (window.drawnStrokes) {
+                // Sadece arka plan olan (PDF veya Resim) çizimleri siler, kendi çizimlerinizi korur
+                window.drawnStrokes = window.drawnStrokes.filter(s => s.isBackground !== true);
+            }
+            // Değişkenleri sıfırla ve ekranı yenile
+            window.currentPDF = null;
+            window.pdfImageStroke = null;
+            if (window.redrawAllStrokes) window.redrawAllStrokes();
+            
+            console.log("PC: Tablet PDF'i kapattı, ekran temizlendi.");
         }
 
         if (data.type === 'zoom_senkron') {
