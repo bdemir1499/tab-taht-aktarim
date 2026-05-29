@@ -3218,24 +3218,9 @@ window.sendNetworkData({
         const pInfoMove = getPointerInfo(e);
         const pressureMove = pInfoMove.type === 'pen' ? pInfoMove.pressure : 1;
         
-        // TABLETTEKİ ÇİZGİ
+        // Sadece tablette çizer, ağı meşgul etmez
         drawnStrokes[drawnStrokes.length - 1].path.push({x: pos.x, y: pos.y, p: pressureMove});
         redrawAllStrokes();
-
-        // --- AĞI BOĞMAYAN (FRENLİ) CANLI AKTARIM ---
-        if (!window.lastPenSync) window.lastPenSync = 0;
-        if (Date.now() - window.lastPenSync > 40) { // Ağı kasmaması için her 40 milisaniyede 1 gönderir
-            window.lastPenSync = Date.now();
-            if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-                // Çizgiyi kopyala ve gönder
-                const safePath = drawnStrokes[drawnStrokes.length - 1].path.map(p => ({ x: p.x, y: p.y, p: p.p || 1 }));
-                window.sendNetworkData({ 
-                    type: 'aktif_onizleme', 
-                    arac: 'cizim_onizleme', 
-                    payload: { tool: 'pen', path: safePath } 
-                });
-            }
-        }
     }
 
     else if (currentTool === 'eraser') {
@@ -3498,7 +3483,7 @@ canvas.addEventListener('pointerup', (e) => {
                      if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
                          window.sendNetworkData({ type: 'yeni_cizim', stroke: lastStroke });
                      }
-                 }, 25);
+                 }, 50);
             } 
             else {
                 let correctedShape = null;
@@ -3513,12 +3498,11 @@ canvas.addEventListener('pointerup', (e) => {
                         correctedShape.forEach(s => s.id = Date.now() + Math.random());
                         drawnStrokes.push(...correctedShape);
                         
-                        // PC Tarafındaki silinme komutunun bitmesini 25ms bekleyip asıl şekli fırlat
                         setTimeout(() => {
                             if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
                                 window.sendNetworkData({ type: 'akilli_sekil_toplu', strokes: correctedShape });
                             }
-                        }, 25);
+                        }, 50);
                     } 
                     else {
                         correctedShape.id = Date.now() + Math.random(); 
@@ -3528,10 +3512,11 @@ canvas.addEventListener('pointerup', (e) => {
                             if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
                                 window.sendNetworkData({ type: 'yeni_cizim', stroke: correctedShape });
                             }
-                        }, 25);
+                        }, 50);
                     }
                 } 
                 else {
+                    // SİHİRLİ SIKIŞTIRMA: Küsüratları atarak veriyi %60 küçültür
                     const safePenStroke = {
                         type: 'pen',
                         id: lastStroke.id,
@@ -3539,14 +3524,18 @@ canvas.addEventListener('pointerup', (e) => {
                         baseWidth: lastStroke.baseWidth || 3,
                         width: lastStroke.width || lastStroke.baseWidth || 3,
                         isBackground: false,
-                        path: lastStroke.path.map(p => ({ x: p.x, y: p.y, p: p.p || 1 })) 
+                        path: lastStroke.path.map(p => ({ 
+                            x: Math.round(p.x), 
+                            y: Math.round(p.y), 
+                            p: Number((p.p || 1).toFixed(2)) 
+                        })) 
                     };
                     
                     setTimeout(() => {
                         if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
                             window.sendNetworkData({ type: 'yeni_cizim', stroke: safePenStroke });
                         }
-                    }, 25);
+                    }, 50);
                 }
             }
         }
