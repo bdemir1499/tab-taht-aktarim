@@ -5466,6 +5466,16 @@ function setupConnectionEvents() {
             console.log("PC: Tablet arka planı kapattı, ekran temizlendi.");
         }
 
+
+// 🚨 YENİ EKLENEN BÖLÜM: AÇILIŞ PENCERESİNİ KAPATMA SİNYALİ 🚨
+        if (data.type === 'acilis_penceresini_kapat') {
+            const acilisPenceresi = document.getElementById('disclaimer-modal');
+            if (acilisPenceresi) {
+                acilisPenceresi.style.display = 'none';
+            }
+            console.log("PC: Açılış penceresi tablet tarafından kapatıldı.");
+        }
+
         if (data.type === 'zoom_senkron') {
             const bgStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
             bgStrokes.forEach(bg => { 
@@ -5778,14 +5788,35 @@ window.addEventListener('pointerup', () => {
     }
 });
 
+// --- AÇILIŞ PENCERESİ (MODAL) VE AĞ ÜZERİNDEN KAPATMA ---
 const modal = document.getElementById('disclaimer-modal');
 const openBtn = document.getElementById('open-disclaimer');
 const closeDisclaimerBtn = document.getElementById('close-disclaimer');
 
 if (modal) {
     if (openBtn) openBtn.addEventListener('click', (e) => { e.preventDefault(); modal.style.display = 'flex'; });
-    if (closeDisclaimerBtn) closeDisclaimerBtn.addEventListener('click', () => { modal.style.display = 'none'; });
-    window.addEventListener('click', (event) => { if (event.target == modal) modal.style.display = 'none'; });
+    
+    if (closeDisclaimerBtn) {
+        closeDisclaimerBtn.addEventListener('click', () => { 
+            modal.style.display = 'none'; 
+            
+            // 🚨 SİHİRLİ DOKUNUŞ: PC'ye "Pencereyi Kapat" emri fırlat
+            if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                window.sendNetworkData({ type: 'acilis_penceresini_kapat' });
+            }
+        });
+    }
+    
+    window.addEventListener('click', (event) => { 
+        if (event.target == modal) {
+            modal.style.display = 'none'; 
+            
+            // Boşluğa tıklanıp kapanırsa da PC'ye haber ver
+            if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                window.sendNetworkData({ type: 'acilis_penceresini_kapat' });
+            }
+        }
+    });
 }
 
 window.addEventListener('load', () => { if (modal) modal.style.display = 'flex'; });
