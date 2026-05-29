@@ -3214,7 +3214,15 @@ window.sendNetworkData({
     // Diğer araçlar (Kalem / Silgi) eğer çizim yapılmıyorsa burada dursun
     if (!isDrawing) return;
 
-        else if (currentTool === 'eraser') {
+    if (currentTool === 'pen') {
+        const pInfoMove = getPointerInfo(e);
+        const pressureMove = pInfoMove.type === 'pen' ? pInfoMove.pressure : 1;
+        
+        // TABLETTE ÇİZGİNİ OLUŞTURAN SİHİRLİ SATIR
+        drawnStrokes[drawnStrokes.length - 1].path.push({x: pos.x, y: pos.y, p: pressureMove});
+        redrawAllStrokes();
+    } 
+    else if (currentTool === 'eraser') {
         // ... (Buradaki silgi algoritması aynı kalacak)
     }
 
