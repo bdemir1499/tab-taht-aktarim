@@ -5212,6 +5212,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+
 function setupConnectionEvents() {
     if (!myConnection) return;
     if (window._lastSetupConnection === myConnection) return;
@@ -5467,15 +5469,15 @@ function setupConnectionEvents() {
         }
 
 
-// 🚨 YENİ EKLENEN BÖLÜM: AÇILIŞ PENCERESİNİ KAPATMA SİNYALİ 🚨
+// PC'nin açılış penceresini kapatma emrini aldığı yer
         if (data.type === 'acilis_penceresini_kapat') {
             const acilisPenceresi = document.getElementById('disclaimer-modal');
             if (acilisPenceresi) {
                 acilisPenceresi.style.display = 'none';
+                acilisPenceresi.classList.add('hidden');
             }
             console.log("PC: Açılış penceresi tablet tarafından kapatıldı.");
         }
-
         if (data.type === 'zoom_senkron') {
             const bgStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
             bgStrokes.forEach(bg => { 
@@ -5624,7 +5626,19 @@ function setupConnectionEvents() {
         // Bağlantı koptuğunda sayfayı yenilemek en garantili çözümdür:
         setTimeout(() => { location.reload(); }, 2000);
     });
-}
+
+    // --- SİHİRLİ EŞİTLEME: Bağlantı kurulduğu an pencere kapalıysa PC'ye bildir ---
+    setTimeout(() => {
+        const acilisModal = document.getElementById('disclaimer-modal');
+        if (acilisModal && (acilisModal.style.display === 'none' || acilisModal.classList.contains('hidden'))) {
+            if (typeof window.sendNetworkData === 'function') {
+                window.sendNetworkData({ type: 'acilis_penceresini_kapat' });
+                console.log("Bağlantı kuruldu, PC'ye pencere kapatma emri gönderildi.");
+            }
+        }
+    }, 800); 
+
+} // <--- setupConnectionEvents fonksiyonu tam burada kapanıyor
 
 // =========================================================
 // 7. GÜVENLİ VE KAYIPSIZ VERİ FIRLATMA FONKSİYONU (BARKODLU VERSİYON)
