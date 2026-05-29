@@ -5528,10 +5528,10 @@ function setupConnectionEvents() {
 }
 
 // =========================================================
-// 7. GÜVENLİ VERİ FIRLATMA FONKSİYONU (ZIRHLI VE KADEMELİ VERSİYON)
+// 7. GÜVENLİ VE KAYIPSIZ VERİ FIRLATMA FONKSİYONU (AKILLI TAMPON VERSİYONU)
 // =========================================================
 window.sendNetworkData = function(dataPackage) {
-    if (!isConnected || !myConnection) return;
+    if (!isConnected || !myConnection || !myConnection.open) return;
     
     // Veriyi string'e çevir
     const dataString = JSON.stringify(dataPackage);
@@ -5541,11 +5541,18 @@ window.sendNetworkData = function(dataPackage) {
         // Küçük paketleri (kalem, taşıma vs.) bekletmeden direkt gönder
         myConnection.send(dataPackage);
     } else {
-        // DEV DOSYALARI (PDF/RESİM) AĞI BOĞMADAN KADEMELİ GÖNDERME MOTORU
+        // DEV DOSYALARI (PDF/RESİM) KAYIPSIZ GÖNDERME MOTORU
         let i = 0;
         
         function paketGonder() {
             if (!isConnected || !myConnection || !myConnection.open) return;
+            
+            // 🚨 SİHİRLİ ÇÖZÜM: Ağ tamponu (buffer) şiştiyse dur ve bekle! 🚨
+            // Bu sayede paketler asla kaybolmaz, resim/PDF renkleri asla karışmaz.
+            if (myConnection.dataChannel && myConnection.dataChannel.bufferedAmount > 64000) {
+                setTimeout(paketGonder, 50); // Ağ rahatlayana kadar 50ms bekle
+                return;
+            }
             
             if (i < dataString.length) {
                 myConnection.send({
@@ -5556,12 +5563,12 @@ window.sendNetworkData = function(dataPackage) {
                 
                 i += CHUNK_SIZE;
                 
-                // SİHİRLİ DOKUNUŞ: Ağa nefes aldırarak (5 milisaniye bekleyerek) sıradaki paketi yolla
-                setTimeout(paketGonder, 5); 
+                // Normal hızda göndermeye devam et
+                setTimeout(paketGonder, 10); 
             }
         }
         
-        // Dosya aktarımını başlat
+        // Aktarımı başlat
         paketGonder();
     }
 };
