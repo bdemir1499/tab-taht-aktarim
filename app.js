@@ -2961,11 +2961,28 @@ window.sendNetworkData({ type: 'arac_senkron', selector: '.yuzen-kopya-container
 
         redrawAllStrokes();
 // --- GÜNCEL VE AKICI TAŞIMA MOTORU ---
+       // --- GÜNCEL VE AKICI TAŞIMA MOTORU ---
         if (typeof isConnected !== 'undefined' && isConnected) {
-            // 1. Şeklin en güncel koordinatlarını PC'ye ilet
+            
+            // 🚨 SİHİRLİ ÇÖZÜM: Koca resmi değil, sadece şeklin iskeletini (koordinatları) yolluyoruz!
+            const hafifSekil = {
+                id: selectedItem.id,
+                isBackground: selectedItem.isBackground === true,
+                x: selectedItem.x,
+                y: selectedItem.y,
+                width: selectedItem.width,
+                height: selectedItem.height,
+                rotation: selectedItem.rotation || 0,
+                radius: selectedItem.radius,
+                cx: selectedItem.cx,
+                cy: selectedItem.cy,
+                center: selectedItem.center
+            };
+
+            // 1. Sadece hafif iskeleti PC'ye ilet
             window.sendNetworkData({ 
                 type: 'sekil_guncelle', 
-                stroke: selectedItem 
+                stroke: hafifSekil 
             });
             
             // 2. PC'de o nesnenin seçili olduğunu ve butonlarının çıkması gerektiğini hatırlat
@@ -5346,20 +5363,29 @@ function setupConnectionEvents() {
         }
 
         if (data.type === 'sekil_guncelle') {
-            if (!data.stroke || !data.stroke.id) return;
-            const index = window.drawnStrokes.findIndex(s => s.id === data.stroke.id);
+            if (!data.stroke) return;
+            
+            let index = -1;
+            
+            // 🚨 KİMLİK UYUŞMAZLIĞI ÇÖZÜMÜ: 
+            // Gelen şekil arka plan (resim/PDF) ise, ID'ye bakmadan direkt bul!
+            if (data.stroke.isBackground === true) {
+                index = window.drawnStrokes.findIndex(s => s.isBackground === true);
+            } else {
+                if (!data.stroke.id) return;
+                index = window.drawnStrokes.findIndex(s => s.id === data.stroke.id);
+            }
+
             if (index !== -1) {
-                // 🚨 JSON KARA DELİĞİ ÇÖZÜMÜ: Objenin tamamını silip üzerine yazmak yerine, 
-                // resim verisini koruyup sadece koordinat ve boyutlarını güncelliyoruz!
                 const hedef = window.drawnStrokes[index];
                 
                 hedef.x = data.stroke.x;
                 hedef.y = data.stroke.y;
                 hedef.width = data.stroke.width;
                 hedef.height = data.stroke.height;
-                hedef.rotation = data.stroke.rotation;
+                if (data.stroke.rotation !== undefined) hedef.rotation = data.stroke.rotation;
                 
-                // Çokgenler ve çemberler için ek taşıma/boyutlandırma verileri
+                // Çokgenler ve çemberler için
                 if (data.stroke.radius !== undefined) hedef.radius = data.stroke.radius;
                 if (data.stroke.cx !== undefined) hedef.cx = data.stroke.cx;
                 if (data.stroke.cy !== undefined) hedef.cy = data.stroke.cy;
