@@ -5484,6 +5484,7 @@ function setupConnectionEvents() {
                 window.drawnStrokes.push(previewObj);
                 if (window.redrawAllStrokes) window.redrawAllStrokes();
             }
+        } // <--- 🚨 EKSİK OLAN SÜSLÜ PARANTEZ BURADA! (aktif_onizleme bloğunu kapatır) 🚨
 
         if (data.type === 'onizleme_bitir') {
             window.drawnStrokes = window.drawnStrokes.filter(s => s.type !== 'preview');
