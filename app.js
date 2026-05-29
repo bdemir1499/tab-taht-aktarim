@@ -5351,11 +5351,8 @@ function setupConnectionEvents() {
 
         if (data.type === 'geri_al') { window.drawnStrokes.pop(); if (window.redrawAllStrokes) window.redrawAllStrokes(); }
         else if (data.type === 'hepsini_sil') { 
-            // 1. Diziyi tamamen temizle
-            window.drawnStrokes = []; 
-            
-            // 🚨 İŞTE HAYAT KURTARAN O SİHİRLİ SATIR 🚨
-            if (typeof drawnStrokes !== 'undefined') drawnStrokes = window.drawnStrokes; 
+            // 1. Diziyi tamamen temizle (Hafızayı KOPARMADAN, içini boşaltıyoruz)
+            window.drawnStrokes.length = 0; 
             
             // 2. PC tarafındaki kayıtlı veriyi de temizle (LocalStorage)
             if (window.localStorage) {
@@ -5475,10 +5472,10 @@ function setupConnectionEvents() {
                 clearTimeout(window.lazerTimer); window.lazerTimer = setTimeout(() => { lazer.style.display = 'none'; }, 150);
             }
             else if (arac === 'cizim_onizleme') {
-                window.drawnStrokes = window.drawnStrokes.filter(s => s.type !== 'preview');
-                
-                // 🚨 İŞTE HAYAT KURTARAN O SİHİRLİ SATIR 🚨
-                if (typeof drawnStrokes !== 'undefined') drawnStrokes = window.drawnStrokes; 
+                // SİHİRLİ DÜZELTME: filter yerine splice kullanarak hafıza kopmasını kökünden çözüyoruz!
+                for (let i = window.drawnStrokes.length - 1; i >= 0; i--) {
+                    if (window.drawnStrokes[i].type === 'preview') window.drawnStrokes.splice(i, 1);
+                }
                 
                 const previewObj = { type: 'preview', isTemporaryPreview: true, payload: p, id: 'temp-preview-id' };
                 window.drawnStrokes.push(previewObj);
@@ -5486,11 +5483,11 @@ function setupConnectionEvents() {
             }
         } // <--- 🚨 EKSİK OLAN SÜSLÜ PARANTEZ BURADA! (aktif_onizleme bloğunu kapatır) 🚨
 
-        if (data.type === 'onizleme_bitir') {
-            window.drawnStrokes = window.drawnStrokes.filter(s => s.type !== 'preview');
-            
-            // 🚨 İŞTE HAYAT KURTARAN O SİHİRLİ SATIR 🚨
-            if (typeof drawnStrokes !== 'undefined') drawnStrokes = window.drawnStrokes; 
+       if (data.type === 'onizleme_bitir') {
+            // SİHİRLİ DÜZELTME: filter yerine splice kullanarak hafıza kopmasını kökünden çözüyoruz!
+            for (let i = window.drawnStrokes.length - 1; i >= 0; i--) {
+                if (window.drawnStrokes[i].type === 'preview') window.drawnStrokes.splice(i, 1);
+            }
 
             if (window.RulerTool && window.RulerTool.drawCtx) { window.RulerTool.drawHandleLabel.style.display = 'none'; window.RulerTool.drawCtx.clearRect(0,0, window.RulerTool.drawCanvas.width, window.RulerTool.drawCanvas.height); }
             if (window.GonyeTool && window.GonyeTool.drawCtx) { window.GonyeTool.drawHandleLabel.style.display = 'none'; window.GonyeTool.drawHandleElement.style.transition = 'top 0.1s ease-out'; window.GonyeTool.drawHandleElement.style.top = `${window.GonyeTool.state.height - 20}px`; window.GonyeTool.drawCtx.clearRect(0,0, window.GonyeTool.drawCanvas.width, window.GonyeTool.drawCanvas.height); }
