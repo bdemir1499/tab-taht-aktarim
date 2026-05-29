@@ -3218,10 +3218,26 @@ window.sendNetworkData({
         const pInfoMove = getPointerInfo(e);
         const pressureMove = pInfoMove.type === 'pen' ? pInfoMove.pressure : 1;
         
-        // TABLETTE ÇİZGİNİ OLUŞTURAN SİHİRLİ SATIR
+        // TABLETTEKİ ÇİZGİ
         drawnStrokes[drawnStrokes.length - 1].path.push({x: pos.x, y: pos.y, p: pressureMove});
         redrawAllStrokes();
-    } 
+
+        // --- AĞI BOĞMAYAN (FRENLİ) CANLI AKTARIM ---
+        if (!window.lastPenSync) window.lastPenSync = 0;
+        if (Date.now() - window.lastPenSync > 40) { // Ağı kasmaması için her 40 milisaniyede 1 gönderir
+            window.lastPenSync = Date.now();
+            if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                // Çizgiyi kopyala ve gönder
+                const safePath = drawnStrokes[drawnStrokes.length - 1].path.map(p => ({ x: p.x, y: p.y, p: p.p || 1 }));
+                window.sendNetworkData({ 
+                    type: 'aktif_onizleme', 
+                    arac: 'cizim_onizleme', 
+                    payload: { tool: 'pen', path: safePath } 
+                });
+            }
+        }
+    }
+
     else if (currentTool === 'eraser') {
         // ... (Buradaki silgi algoritması aynı kalacak)
     }
@@ -3476,14 +3492,14 @@ canvas.addEventListener('pointerup', (e) => {
         if (lastStroke && lastStroke.type === 'pen') {
             if (!lastStroke.id) lastStroke.id = Date.now() + Math.random(); // Zombileri engelle
 
-            // Eğer sadece tek bir tık (nokta) atıldıysa
             if (lastStroke.path && lastStroke.path.length <= 3) {
                  if (lastStroke.path[0]) lastStroke.path.push({ x: lastStroke.path[0].x + 0.1, y: lastStroke.path[0].y + 0.1 });
-                 if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-                     window.sendNetworkData({ type: 'yeni_cizim', stroke: lastStroke });
-                 }
+                 setTimeout(() => {
+                     if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                         window.sendNetworkData({ type: 'yeni_cizim', stroke: lastStroke });
+                     }
+                 }, 25);
             } 
-            // Şekil çizimi ise (Akıllı Şekil devreye girer)
             else {
                 let correctedShape = null;
                 if (typeof akilliSekilTani === 'function') {
@@ -3497,34 +3513,40 @@ canvas.addEventListener('pointerup', (e) => {
                         correctedShape.forEach(s => s.id = Date.now() + Math.random());
                         drawnStrokes.push(...correctedShape);
                         
-                        if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-                            window.sendNetworkData({ type: 'akilli_sekil_toplu', strokes: correctedShape });
-                        }
+                        // PC Tarafındaki silinme komutunun bitmesini 25ms bekleyip asıl şekli fırlat
+                        setTimeout(() => {
+                            if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                                window.sendNetworkData({ type: 'akilli_sekil_toplu', strokes: correctedShape });
+                            }
+                        }, 25);
                     } 
                     else {
                         correctedShape.id = Date.now() + Math.random(); 
                         drawnStrokes.push(correctedShape);
                         
-                        if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-                            window.sendNetworkData({ type: 'yeni_cizim', stroke: correctedShape });
-                        }
+                        setTimeout(() => {
+                            if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                                window.sendNetworkData({ type: 'yeni_cizim', stroke: correctedShape });
+                            }
+                        }, 25);
                     }
                 } 
-                // C) ŞEKİL TANINMADI, SADECE KARALAMA İSE (GÜVENLİ GÖNDERİM)
                 else {
                     const safePenStroke = {
                         type: 'pen',
                         id: lastStroke.id,
                         color: lastStroke.color || '#000000',
                         baseWidth: lastStroke.baseWidth || 3,
-                        width: lastStroke.width || lastStroke.baseWidth || 3, // Çizgi kalınlığı garanti altına alındı
+                        width: lastStroke.width || lastStroke.baseWidth || 3,
                         isBackground: false,
                         path: lastStroke.path.map(p => ({ x: p.x, y: p.y, p: p.p || 1 })) 
                     };
                     
-                    if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-                        window.sendNetworkData({ type: 'yeni_cizim', stroke: safePenStroke });
-                    }
+                    setTimeout(() => {
+                        if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                            window.sendNetworkData({ type: 'yeni_cizim', stroke: safePenStroke });
+                        }
+                    }, 25);
                 }
             }
         }
