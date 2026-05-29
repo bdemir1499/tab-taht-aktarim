@@ -5091,8 +5091,8 @@ myPeer.on('connection', function(conn) {
         requestText.innerText = `Oda kodu "${conn.peer}" olan bir cihaz bağlanmak istiyor. Onaylıyor musun?`;
         requestModal.classList.remove('hidden');
         requestModal.style.display = 'flex';
-        
-                        btnAccept.onclick = function() {
+
+        btnAccept.onclick = function() {
             try {
                 myConnection = conn;
 
@@ -5122,6 +5122,14 @@ myPeer.on('connection', function(conn) {
                 requestModal.style.display = 'none';
             }
         };
+
+        btnReject.onclick = function() {
+            conn.close();
+            requestModal.classList.add('hidden');
+            requestModal.style.display = 'none';
+        };
+    }
+});
 
 // 4. Sistem sunucuya başarıyla bağlandığında kodumuzu HTML panele yazdır
 myPeer.on('open', function(id) {
@@ -5163,7 +5171,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // --- BAĞLANTIYI GARANTİLEMEK İÇİN İKİLİ KONTROL ---
                 myConnection.on('open', () => {
                     console.log("Tablet: Connection Open tetiklendi!");
-                    isConnected = true; // Durumu güncelle
+                    isConnected = true;
+                    window.baglantiOnaylandi = true;
                     document.getElementById('connection-status').innerText = "BAĞLANDI 🟢";
                     document.getElementById('connection-status').style.color = "#00ffcc";
                     
@@ -5171,7 +5180,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.getElementById('connect-input').style.display = "none";
                     document.getElementById('connect-btn').style.display = "none";
                     
-                    setupConnectionEvents(); // Olayları başlat
+                    setupConnectionEvents();
                 });
             } else {
                 alert("Lütfen 5 haneli Oda Kodunu ve Tahta Şifresini eksiksiz girin.");
@@ -5180,12 +5189,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 function setupConnectionEvents() {
+    if (!myConnection) return;
+    if (window._lastSetupConnection === myConnection) return;
+    window._lastSetupConnection = myConnection;
+    window._connectionEventsBound = true;
+
     // --- 1. SIKI YÖNETİM: AYNI Wİ-Fİ / YEREL AĞ KONTROLÜ ---
     const pc = myConnection.peerConnection;
     window.baglantiOnaylandi = true; // Bağlantı açık, IP kontrolü arka planda
     isConnected = true;
 
-        if (pc) {
+    if (pc && !pc._iceListenerAdded) {
+        pc._iceListenerAdded = true;
         pc.addEventListener('icecandidate', (event) => {
             if (!event.candidate) return;
             const cand = event.candidate.candidate;
@@ -5484,6 +5499,8 @@ function setupConnectionEvents() {
 
     // --- 3. BAĞLANTI KOPMASI DURUMU ---
     myConnection.on('close', function() {
+        window._connectionEventsBound = false;
+        window._lastSetupConnection = null;
         isConnected = false;
         const statusEl = document.getElementById('connection-status');
         if (statusEl) {
