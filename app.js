@@ -2116,8 +2116,6 @@ if (uploadButton && fileInput) {
             fileReader.onload = async function() {
                 // 1. AĞA GÖNDERMEK İÇİN (Base64 Metni Olarak)
                 const base64String = this.result; 
-                         
-                }
                 
                 // 2. TABLET EKRANI İÇİN (PDF.js'in anladığı formata geri çeviriyoruz)
                 const base64Data = base64String.split(',')[1];
@@ -2158,13 +2156,12 @@ if (uploadButton && fileInput) {
                 } catch (error) {
                     console.error("PDF açılırken hata oluştu:", error);
                 }
-            };   // ← fileReader.onload BURADA biter (noktalı virgül şart)
+            };   // ← fileReader.onload BURADA biter
             fileReader.readAsDataURL(file); 
-        }       // ← SADECE "if (pdf)" burada biter — bu satırdan sonra TEK } olmalı
+        }       
         
-// --- DURUM B: RESİM DOSYASI ---
-
-        if (file.type.startsWith('image/')) {   // artık "else" yok
+        // --- DURUM B: RESİM DOSYASI ---
+        if (file.type.startsWith('image/')) {   
             const reader = new FileReader();
             reader.onload = (event) => {
                 const imgData = event.target.result;
@@ -2181,7 +2178,7 @@ if (uploadButton && fileInput) {
                 img.src = imgData;
             };
             reader.readAsDataURL(file);
-        }        
+        }       
         e.target.value = ''; 
     };
 }
