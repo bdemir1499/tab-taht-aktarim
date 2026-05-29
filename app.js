@@ -3837,6 +3837,7 @@ function addNewImageToCanvas(img, isPDF = false) {
 
     const newStroke = {
         type: 'image',
+        id: Date.now() + Math.random(), // 🚨 SİHİRLİ DOKUNUŞ: PC'nin onu tanıması için kimlik veriyoruz 🚨
         img: img, 
         // --- 1. KRİTİK DÜZELTME: TAM ORTALAMA HESABI ---
         x: (canvas.width / 2) - (startWidth / 2),
@@ -5348,7 +5349,22 @@ function setupConnectionEvents() {
             if (!data.stroke || !data.stroke.id) return;
             const index = window.drawnStrokes.findIndex(s => s.id === data.stroke.id);
             if (index !== -1) {
-                window.drawnStrokes[index] = data.stroke;
+                // 🚨 JSON KARA DELİĞİ ÇÖZÜMÜ: Objenin tamamını silip üzerine yazmak yerine, 
+                // resim verisini koruyup sadece koordinat ve boyutlarını güncelliyoruz!
+                const hedef = window.drawnStrokes[index];
+                
+                hedef.x = data.stroke.x;
+                hedef.y = data.stroke.y;
+                hedef.width = data.stroke.width;
+                hedef.height = data.stroke.height;
+                hedef.rotation = data.stroke.rotation;
+                
+                // Çokgenler ve çemberler için ek taşıma/boyutlandırma verileri
+                if (data.stroke.radius !== undefined) hedef.radius = data.stroke.radius;
+                if (data.stroke.cx !== undefined) hedef.cx = data.stroke.cx;
+                if (data.stroke.cy !== undefined) hedef.cy = data.stroke.cy;
+                if (data.stroke.center !== undefined) hedef.center = data.stroke.center;
+                
                 if (window.redrawAllStrokes) window.redrawAllStrokes();
             }
         }
