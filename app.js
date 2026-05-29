@@ -5092,34 +5092,36 @@ myPeer.on('connection', function(conn) {
         requestModal.classList.remove('hidden');
         requestModal.style.display = 'flex';
         
-        btnAccept.onclick = function() {
+                        btnAccept.onclick = function() {
             try {
                 myConnection = conn;
-                isConnected = true;
 
-                const statusEl = document.getElementById('connection-status');
-                if (statusEl) {
-                    statusEl.innerText = "BAĞLANDI 🟢";
-                    statusEl.style.color = "#00ffcc";
+                const baglantiHazir = () => {
+                    isConnected = true;
+                    window.baglantiOnaylandi = true;
+
+                    const statusEl = document.getElementById('connection-status');
+                    if (statusEl) {
+                        statusEl.innerText = "BAĞLANDI 🟢";
+                        statusEl.style.color = "#00ffcc";
+                    }
+
+                    setupConnectionEvents();
+                    console.log("Cihaz başarıyla bağlandı:", conn.peer);
+                };
+
+                if (conn.open) {
+                    baglantiHazir();
+                } else {
+                    conn.on('open', baglantiHazir);
                 }
-
-                setupConnectionEvents();
-                console.log("Cihaz başarıyla bağlandı:", conn.peer);
             } catch (err) {
                 console.error("Bağlantı hatası:", err);
             } finally {
-                requestModal.classList.add('hidden'); 
-                requestModal.style.display = 'none'; 
+                requestModal.classList.add('hidden');
+                requestModal.style.display = 'none';
             }
         };
-        
-        btnReject.onclick = function() {
-            conn.close();
-            requestModal.classList.add('hidden'); 
-            requestModal.style.display = 'none'; 
-        };
-    }
-});
 
 // 4. Sistem sunucuya başarıyla bağlandığında kodumuzu HTML panele yazdır
 myPeer.on('open', function(id) {
