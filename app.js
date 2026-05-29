@@ -5627,7 +5627,7 @@ window.araclariAgaGonder = function() {
     });
 };
 
-setInterval(window.araclariAgaGonder, 40);
+setInterval(window.araclariAgaGonder, 100);
 
 window.addEventListener('load', () => {
     if (window.PergelTool && typeof window.PergelTool.init === 'function') {
@@ -5643,15 +5643,13 @@ window.broadcastPreview = function(toolType, stateData) {
 };
 
 window.addEventListener('pointermove', (e) => {
-    // KRİTİK ÇÖZÜM: Eğer kullanıcı aktif olarak çizim yapıyorsa (isDrawing), 
-    // ağı saniyede 120 adet lazer paketiyle boğmayı durduruyoruz!
-    const cizimYapiliyorMu = typeof isDrawing !== 'undefined' ? isDrawing : false;
+    // KRİTİK ÇÖZÜM: Kalemle çizim yapılırken lazeri iptal et, ağı boğmasın!
+    if (typeof isDrawing !== 'undefined' && isDrawing) return;
     
-    if (e.buttons > 0 && typeof window.sendNetworkData === 'function' && isConnected && !cizimYapiliyorMu) {
+    if (e.buttons > 0 && typeof window.sendNetworkData === 'function' && isConnected) {
         window.sendNetworkData({ type: 'aktif_onizleme', arac: 'lazer', payload: { x: e.clientX, y: e.clientY } });
     }
 });
-
 window.addEventListener('pointerup', () => {
     if (typeof window.sendNetworkData === 'function' && isConnected) {
         window.sendNetworkData({ type: 'onizleme_bitir' });
