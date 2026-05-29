@@ -5510,8 +5510,9 @@ window.sendNetworkData = function(dataPackage) {
     // Veriyi string'e çevir, büyükse parçala
     const dataString = JSON.stringify(dataPackage);
     
-    // 🚨 PeerJS sınırlarına takılmamak için 16384 yerine 10000 yapıyoruz 🚨
-    const CHUNK_SIZE = 10000; 
+    // KRİTİK ÇÖZÜM: 16384 sınırı JSON etiketleriyle aşılıp paket düşmesine neden oluyordu.
+    // 8000 güvenli barajına çekildi.
+    const CHUNK_SIZE = 8000; 
 
     if (dataString.length <= CHUNK_SIZE) {
         myConnection.send(dataPackage);
@@ -5526,7 +5527,6 @@ window.sendNetworkData = function(dataPackage) {
         }
     }
 };
-
 const closeBtn = document.getElementById('network-close-btn');
 const miniBtn = document.getElementById('network-mini-btn');
 const panel = document.getElementById('network-panel');
@@ -5635,7 +5635,11 @@ window.broadcastPreview = function(toolType, stateData) {
 };
 
 window.addEventListener('pointermove', (e) => {
-    if (e.buttons > 0 && typeof window.sendNetworkData === 'function' && isConnected) {
+    // KRİTİK ÇÖZÜM: Eğer kullanıcı aktif olarak çizim yapıyorsa (isDrawing), 
+    // ağı saniyede 120 adet lazer paketiyle boğmayı durduruyoruz!
+    const cizimYapiliyorMu = typeof isDrawing !== 'undefined' ? isDrawing : false;
+    
+    if (e.buttons > 0 && typeof window.sendNetworkData === 'function' && isConnected && !cizimYapiliyorMu) {
         window.sendNetworkData({ type: 'aktif_onizleme', arac: 'lazer', payload: { x: e.clientX, y: e.clientY } });
     }
 });
