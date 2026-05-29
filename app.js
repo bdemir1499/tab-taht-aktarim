@@ -5226,20 +5226,24 @@ function setupConnectionEvents() {
         });
     }
 
-    // --- 2. VERİ ALICI VE PARÇALAMA MOTORU ---
-    let chunkBuffer = "";
+    // --- 2. VERİ ALICI VE PARÇALAMA MOTORU (BARKOD SİSTEMLİ) ---
+    window.chunkBuffers = {}; // 🚨 YENİ: Her mesaja özel ayrı bir kutu açıyoruz
     
     myConnection.on('data', function(data) {
-        // Parçalı veri geliyorsa birleştir
+        // Parçalı veri geliyorsa barkoduna göre kendi kutusunda birleştir
         if (data && data.type === 'chunk') {
-            chunkBuffer += data.data;
+            const id = data.msgId || 'genel';
+            if (!window.chunkBuffers[id]) window.chunkBuffers[id] = "";
+            
+            window.chunkBuffers[id] += data.data;
+            
             if (data.isLast) {
                 try {
-                    processData(JSON.parse(chunkBuffer));
+                    processData(JSON.parse(window.chunkBuffers[id]));
                 } catch (e) {
-                    console.error("Paket birleştirme hatası:", e);
+                    console.error("Paket birleştirme hatası (Kayıp Parça):", e);
                 }
-                chunkBuffer = "";
+                delete window.chunkBuffers[id]; // İşlem bitince kutuyu silerek hafızayı temizle
             }
             return;
         }
@@ -5533,47 +5537,42 @@ function setupConnectionEvents() {
 }
 
 // =========================================================
-// 7. GÜVENLİ VE KAYIPSIZ VERİ FIRLATMA FONKSİYONU (AKILLI TAMPON VERSİYONU)
+// 7. GÜVENLİ VE KAYIPSIZ VERİ FIRLATMA FONKSİYONU (BARKODLU VERSİYON)
 // =========================================================
 window.sendNetworkData = function(dataPackage) {
     if (!isConnected || !myConnection || !myConnection.open) return;
     
-    // Veriyi string'e çevir
     const dataString = JSON.stringify(dataPackage);
     const CHUNK_SIZE = 8000; 
 
     if (dataString.length <= CHUNK_SIZE) {
-        // Küçük paketleri (kalem, taşıma vs.) bekletmeden direkt gönder
+        // Küçük paketleri bekletmeden direkt gönder
         myConnection.send(dataPackage);
     } else {
-        // DEV DOSYALARI (PDF/RESİM) KAYIPSIZ GÖNDERME MOTORU
         let i = 0;
+        // 🚨 SİHİRLİ DOKUNUŞ: Her büyük dosyaya eşsiz bir barkod basıyoruz
+        const kargoBarkodu = Date.now().toString() + Math.floor(Math.random() * 1000);
         
         function paketGonder() {
             if (!isConnected || !myConnection || !myConnection.open) return;
             
-            // 🚨 SİHİRLİ ÇÖZÜM: Ağ tamponu (buffer) şiştiyse dur ve bekle! 🚨
-            // Bu sayede paketler asla kaybolmaz, resim/PDF renkleri asla karışmaz.
             if (myConnection.dataChannel && myConnection.dataChannel.bufferedAmount > 64000) {
-                setTimeout(paketGonder, 50); // Ağ rahatlayana kadar 50ms bekle
+                setTimeout(paketGonder, 50); // Ağ doluysa bekle
                 return;
             }
             
             if (i < dataString.length) {
                 myConnection.send({
                     type: 'chunk',
+                    msgId: kargoBarkodu, // Bu parçanın kime ait olduğunu belirtir
                     data: dataString.substring(i, i + CHUNK_SIZE),
                     isLast: (i + CHUNK_SIZE >= dataString.length)
                 });
                 
                 i += CHUNK_SIZE;
-                
-                // Normal hızda göndermeye devam et
-                setTimeout(paketGonder, 10); 
+                setTimeout(paketGonder, 5); 
             }
         }
-        
-        // Aktarımı başlat
         paketGonder();
     }
 };
