@@ -4018,49 +4018,47 @@ if (helpBtn && helpModal) {
 }
 
 // --- KESİN ÇÖZÜM: PDF KAPATMA BUTONU (Global Dinleyici) ---
-
 document.addEventListener('click', function(e) {
-    // Tıklanan öğe bizim kırmızı buton mu (veya içindeki X işareti mi)?
     const btn = e.target.closest('#btn-close-pdf');
 
     if (btn) {
-        // Evet, butona basıldı!
-        console.log("PDF Kapatılıyor..."); // Kontrol için konsola yazar
-
-// 🚨 YENİ EKLENEN SATIR: PC'YE KAPATMA EMRİ GÖNDER 🚨
+        console.log("PDF Kapatılıyor..."); 
+        
+        // 1. PC'YE KAPATMA EMRİ GÖNDER
         if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
             window.sendNetworkData({ type: 'pdf_kapat' });
         }
         
-        // 1. Tıklamanın arkadaki Canvas'a geçmesini engelle
         e.preventDefault();
         e.stopPropagation();
 
-        // 2. Listeden 'isBackground' olanları (PDF/Resim) temizle
+        // 🚨 2. SİHİRLİ ÇÖZÜM: filter yerine splice ile hafıza kopmadan temizlik yapıyoruz 🚨
         if (window.drawnStrokes) {
-            window.drawnStrokes = window.drawnStrokes.filter(stroke => stroke.isBackground !== true);
-            // Yerel değişkeni de güncelle
-            if (typeof drawnStrokes !== 'undefined') drawnStrokes = window.drawnStrokes;
+            for (let i = window.drawnStrokes.length - 1; i >= 0; i--) {
+                // PDF, Resim veya arka plan ne varsa koparmadan sil
+                if (window.drawnStrokes[i].isBackground === true) {
+                    window.drawnStrokes.splice(i, 1);
+                }
+            }
         }
 
-        // 3. PDF Değişkenlerini Sıfırla (Hata vermemesi için kontrollerle)
+        // 3. Değişkenleri Sıfırla
         if (typeof currentPDF !== 'undefined') currentPDF = null;
         if (typeof pdfImageStroke !== 'undefined') pdfImageStroke = null;
         if (typeof currentPDFPage !== 'undefined') currentPDFPage = 1;
         if (typeof totalPDFPages !== 'undefined') totalPDFPages = 0;
         if (typeof backgroundImage !== 'undefined') backgroundImage = null;
 
-        // 4. Sayfa Değiştirme Butonlarını Gizle
+        // 4. Butonları Gizle
         const controls = document.getElementById('pdf-controls');
         if (controls) {
             controls.classList.add('hidden');
             controls.style.display = 'none';
         }
-
-        // 5. Kırmızı Butonu Gizle
         btn.classList.add('hidden');
+        btn.style.display = 'none';
 
-        // 6. Ekranı Temizle ve Kalanları (Çizimleri) Yeniden Çiz
+        // 5. Ekranı Temizle ve Kalanları Yeniden Çiz
         if (typeof redrawAllStrokes === 'function') {
             const canvas = document.getElementById('drawing-canvas');
             if (canvas) {
@@ -4070,7 +4068,6 @@ document.addEventListener('click', function(e) {
             redrawAllStrokes();
         }
         
-        // 7. Ses Efekti
         try {
             if (window.audio_click) {
                 window.audio_click.currentTime = 0;
@@ -4078,7 +4075,7 @@ document.addEventListener('click', function(e) {
             }
         } catch(err) {}
     }
-}, true); // 'true' parametresi olayı en başta yakalamasını sağlar (Capture Phase)
+}, true);
 
 
 // --- BAŞLANGIÇ ---
@@ -5405,16 +5402,26 @@ function setupConnectionEvents() {
 
 // 🚨 YENİ EKLENEN BÖLÜM: PC'NİN PDF KAPATMA EMRİNİ ALDIĞI YER 🚨
         if (data.type === 'pdf_kapat') {
+            // 🚨 SİHİRLİ ÇÖZÜM: PC tarafında da filter yerine splice kullanıyoruz 🚨
             if (window.drawnStrokes) {
-                // Sadece arka plan olan (PDF veya Resim) çizimleri siler, kendi çizimlerinizi korur
-                window.drawnStrokes = window.drawnStrokes.filter(s => s.isBackground !== true);
+                for (let i = window.drawnStrokes.length - 1; i >= 0; i--) {
+                    if (window.drawnStrokes[i].isBackground === true) {
+                        window.drawnStrokes.splice(i, 1);
+                    }
+                }
             }
-            // Değişkenleri sıfırla ve ekranı yenile
             window.currentPDF = null;
             window.pdfImageStroke = null;
-            if (window.redrawAllStrokes) window.redrawAllStrokes();
             
-            console.log("PC: Tablet PDF'i kapattı, ekran temizlendi.");
+            // Kırmızı butonu PC ekranından da garanti olması için gizle
+            const pcKapatBtn = document.getElementById('btn-close-pdf');
+            if (pcKapatBtn) {
+                pcKapatBtn.classList.add('hidden');
+                pcKapatBtn.style.display = 'none';
+            }
+            
+            if (window.redrawAllStrokes) window.redrawAllStrokes();
+            console.log("PC: Tablet arka planı kapattı, ekran temizlendi.");
         }
 
         if (data.type === 'zoom_senkron') {
