@@ -5183,7 +5183,7 @@ function setupConnectionEvents() {
     window.baglantiOnaylandi = true; // Bağlantı açık, IP kontrolü arka planda
     isConnected = true;
 
-    if (pc) {
+        if (pc) {
         pc.addEventListener('icecandidate', (event) => {
             if (!event.candidate) return;
             const cand = event.candidate.candidate;
@@ -5192,22 +5192,15 @@ function setupConnectionEvents() {
                 const ip = ipMatch[1];
                 const yerelAgMi = (
                     ip.startsWith('192.168.') ||
-                    ip.startsWith('10.')      ||
-                    /^172\.(1[6-9]|2[0-9]|3[01])\./.test(ip)
+                    ip.startsWith('10.') ||
+                    /^172\.(1[6-9]|2[0-9]|3[01])\./.test(ip) ||
+                    ip.startsWith('127.')
                 );
-                if (!yerelAgMi) {
-                    console.warn("Yerel ağ dışı bağlantı engellendi:", ip);
-                    isConnected = false;
-                    window.baglantiOnaylandi = false;
-                    myConnection.close();
-                    const statusEl = document.getElementById('connection-status');
-                    if (statusEl) {
-                        statusEl.innerText = "❌ Sadece okul ağından bağlanılabilir!";
-                        statusEl.style.color = "#ff4444";
-                    }
-                } else {
+                if (yerelAgMi) {
+                    window.baglantiOnaylandi = true;
                     console.log("Yerel ağ bağlantısı onaylandı:", ip);
                 }
+                // NOT: Genel/STUN IP görülünce bağlantıyı KAPATMA — kalem verisi böyle kesiliyordu
             }
         });
     }
