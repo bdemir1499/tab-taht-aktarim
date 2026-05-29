@@ -3214,18 +3214,7 @@ window.sendNetworkData({
     // Diğer araçlar (Kalem / Silgi) eğer çizim yapılmıyorsa burada dursun
     if (!isDrawing) return;
 
-    if (currentTool === 'pen') {
-        const pInfoMove = getPointerInfo(e);
-        const pressureMove = pInfoMove.type === 'pen' ? pInfoMove.pressure : 1;
-        drawnStrokes[drawnStrokes.length - 1].path.push({x: pos.x, y: pos.y, p: pressureMove});
-        redrawAllStrokes();
-window.sendNetworkData({ 
-            type: 'aktif_onizleme', 
-            arac: 'cizim_onizleme', 
-            payload: { tool: 'pen', path: drawnStrokes[drawnStrokes.length - 1].path } 
-        });
-    } 
-    else if (currentTool === 'eraser') {
+        else if (currentTool === 'eraser') {
         // ... (Buradaki silgi algoritması aynı kalacak)
     }
 
@@ -5520,7 +5509,9 @@ window.sendNetworkData = function(dataPackage) {
     
     // Veriyi string'e çevir, büyükse parçala
     const dataString = JSON.stringify(dataPackage);
-    const CHUNK_SIZE = 16384; // 16KB parçalar (PeerJS için güvenli sınır)
+    
+    // 🚨 PeerJS sınırlarına takılmamak için 16384 yerine 10000 yapıyoruz 🚨
+    const CHUNK_SIZE = 10000; 
 
     if (dataString.length <= CHUNK_SIZE) {
         myConnection.send(dataPackage);
@@ -5648,7 +5639,6 @@ window.addEventListener('pointermove', (e) => {
         window.sendNetworkData({ type: 'aktif_onizleme', arac: 'lazer', payload: { x: e.clientX, y: e.clientY } });
     }
 });
-
 
 window.addEventListener('pointerup', () => {
     if (typeof window.sendNetworkData === 'function' && isConnected) {
