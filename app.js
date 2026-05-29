@@ -2107,43 +2107,66 @@ if (uploadButton && fileInput) {
     uploadButton.onclick = () => fileInput.click();
 
     fileInput.onchange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+        const file = e.target.files[0];
+        if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        const fullData = event.target.result;
+        // --- DURUM A: PDF DOSYASI ---
+        if (file.type === 'application/pdf') {
+            const fileReader = new FileReader();
+            fileReader.onload = async function() {
+                // 1. AĞA GÖNDERMEK İÇİN (Base64 Metni Olarak)
+                const base64String = this.result; 
+                
+                if (typeof isConnected !== 'undefined' && isConnected) {
+                    window.sendNetworkData({ type: 'pdf_yukle', pdfData: base64String });
+                }
+                
+                // 2. TABLET EKRANI İÇİN (PDF.js'in anladığı formata geri çeviriyoruz)
+                const base64Data = base64String.split(',')[1];
+                const binaryString = window.atob(base64Data);
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+
+                try {
+                    currentPDF = await pdfjsLib.getDocument(bytes).promise;
+                    totalPDFPages = currentPDF.numPages;
+                    currentPDFPage = 1; 
+
+                    if (pdfControls) pdfControls.classList.remove('hidden');
+
+                    renderPDFPage(currentPDFPage);
+
+                    setTimeout(() => {
+                        let t = typeof translations !== 'undefined' ? translations[currentLang] : { pdf_soru: "Sayfa (1-{0}):" };
+                        let soruMetni = (t.pdf_soru || "Sayfa (1-{0}):").replace('{0}', totalPDFPages);
+                        
+                        const sayfaGrisi = prompt(soruMetni, "1");
+                        if (sayfaGrisi !== null) {
+                            const hedefSayfa = parseInt(sayfaGrisi);
+                            if (hedefSayfa > 0 && hedefSayfa <= totalPDFPages) {
+                                currentPDFPage = hedefSayfa;
+                                renderPDFPage(currentPDFPage);
+                                
+                                if (typeof isConnected !== 'undefined' && isConnected) {
+                                    window.sendNetworkData({ type: 'pdf_sayfa_degis', sayfa: currentPDFPage });
+                                }
+                            }
+                        }
+                    }, 500);
+
+                } catch (error) {
+                    console.error("PDF açılırken hata oluştu:", error);
+                }
+            };   // ← fileReader.onload BURADA biter (noktalı virgül şart)
+            fileReader.readAsDataURL(file); 
+        }       // ← SADECE "if (pdf)" burada biter — bu satırdan sonra TEK } olmalı
         
-        // --- ZIRHLI BÖLÜCÜ: Dosyayı 16KB'lık parçalarla gönder ---
-        if (typeof isConnected !== 'undefined' && isConnected) {
-            const CHUNK_SIZE = 16384; // 16KB parçalar halinde gönder
-            const totalChunks = Math.ceil(fullData.length / CHUNK_SIZE);
-            const fileId = Date.now().toString(); // Dosya parçalarını birleştirmek için benzersiz ID
+// --- DURUM B: RESİM DOSYASI ---
 
-            for (let i = 0; i < totalChunks; i++) {
-                const chunk = fullData.substring(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
-                window.sendNetworkData({ 
-                    type: 'dosya_parcasi', 
-                    fileId: fileId,
-                    chunk: chunk,
-                    index: i,
-                    total: totalChunks,
-                    fileName: file.name,
-                    isLast: (i === totalChunks - 1)
-                });
-            }
-            console.log(file.name + " dosyası " + totalChunks + " parçada gönderildi.");
-        }
-        
-        // Yerel tarafta da göster (Mevcut kodunuzu buraya ekleyebilirsiniz)
-        if (file.type === 'application/pdf') { /* ... */ }
-        else if (file.type.startsWith('image/')) { /* ... */ }
-    };
-    reader.readAsDataURL(file);
-};
-
-        // --- DURUM B: RESİM DOSYASI ---
-        else if (file.type.startsWith('image/')) {
+        if (file.type.startsWith('image/')) {   // artık "else" yok
             const reader = new FileReader();
             reader.onload = (event) => {
                 const imgData = event.target.result;
