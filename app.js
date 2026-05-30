@@ -3445,7 +3445,7 @@ canvas.addEventListener('pointerup', (e) => {
             
             const finalImage = tempCanvas.toDataURL('image/png', 1.0);
             
-            // Orijinal yerdeki "kesik deliğini" kapatan beyaz yama (Sizin orijinal kodunuz)
+            // Orijinal yerdeki "kesik deliğini" kapatan beyaz yama
             const maskStroke = {
                 type: 'lasso-mask',
                 points: [{ x: x, y: y }, { x: x + w, y: y }, { x: x + w, y: y + h }, { x: x, y: y + h }],
