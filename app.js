@@ -6009,3 +6009,40 @@ if (typeof window.setLanguage === 'function' && !window.setLanguageEleGecirildi)
     
     window.setLanguageEleGecirildi = true;
 }
+
+// =======================================================
+// --- AVUÇ İÇİ REDDİ (PALM REJECTION) VE EKRAN KİLİDİ ---
+// =======================================================
+
+// 1. Sayfanın kazara kaymasını ve esnemesini kalıcı olarak kilitle
+document.documentElement.style.overscrollBehavior = 'none';
+document.body.style.overscrollBehavior = 'none';
+document.body.style.touchAction = 'none'; // Tarayıcının sayfayı kaydırmasını kökünden yasaklar
+
+// Ekrana avuç içi (çoklu temas) değdiğinde tarayıcının saçmalamasını engelle
+document.addEventListener('touchstart', function(e) {
+    if (e.touches && e.touches.length > 1) {
+        e.preventDefault(); // İki parmak veya avuç değdiğinde sayfayı oynatma
+    }
+}, { passive: false });
+
+// 2. Çizim esnasında panelleri "Hayalet" moda al (Avuç içi butonlara kazara basamasın)
+const drawingBoard = document.getElementById('drawing-canvas');
+const toolPanels = document.querySelectorAll('.panel');
+
+if (drawingBoard) {
+    // Kalemin ucu tahtaya değdiği an: Menülere "dokunulmazlık" ver!
+    drawingBoard.addEventListener('pointerdown', () => {
+        toolPanels.forEach(panel => panel.style.pointerEvents = 'none');
+    });
+
+    // Kalem (veya el) tahtadan kalktığı an: Menüleri tekrar tıklanabilir yap!
+    window.addEventListener('pointerup', () => {
+        toolPanels.forEach(panel => panel.style.pointerEvents = 'auto');
+    });
+    
+    // İşlem dışarı taşar veya iptal olursa diye güvenlik sigortası
+    window.addEventListener('pointercancel', () => {
+        toolPanels.forEach(panel => panel.style.pointerEvents = 'auto');
+    });
+}
