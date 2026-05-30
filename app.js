@@ -5130,6 +5130,11 @@ myPeer.on('connection', function(conn) {
                         statusEl.style.color = "#00ffcc";
                     }
 
+                    // 🚨 YENİ: PC (Akıllı Tahta) tarafındaki paneli de otomatik küçült 🚨
+                    if (typeof window.kucultPanel === 'function') {
+                        window.kucultPanel();
+                    }
+
                     setupConnectionEvents();
                     console.log("Cihaz başarıyla bağlandı:", conn.peer);
                 };
