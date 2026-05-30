@@ -5282,8 +5282,15 @@ function setupConnectionEvents() {
         // DİL SEÇİMİ HER ZAMAN GEÇSİN
         if (data.type === 'dil_secimi') { 
             if (typeof setLanguage === 'function') setLanguage(data.lang);
+            
+            // 1. PC'deki dil ekranını kapat
             const overlay = document.getElementById('language-overlay');
             if (overlay) overlay.style.display = 'none';
+            
+            // 🚨 YENİ EKLENEN KISIM: PC ekranındaki yasal uyarı şeridini (footer) tamamen gizle!
+            const footer = document.getElementById('footer-container');
+            if (footer) footer.style.display = 'none';
+            
             return;
         }
 

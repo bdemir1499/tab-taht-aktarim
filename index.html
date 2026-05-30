@@ -98,9 +98,13 @@
         // DİL BUTONLARINA TIKLANDIĞINDA
         document.querySelectorAll('.lang-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                // Dil seçim ekranını kapat
+                // 1. Dil seçim ekranını kapat
                 const overlay = document.getElementById('language-overlay');
                 if (overlay) overlay.style.display = 'none';
+
+                // 🚨 YENİ EKLENEN KISIM: Yasal uyarı şeridini (footer) tamamen gizle!
+                const footer = document.getElementById('footer-container');
+                if (footer) footer.style.display = 'none';
 
                 // KRİTİK KONTROL: Tahtada paneli KÜÇÜLTMÜYORUZ, açık kalıyor!
                 if (typeof isConnected !== 'undefined' && isConnected) {
@@ -108,7 +112,6 @@
                 }
             });
         });
-    });
 </script>
 
 <div id="language-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 20000; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: 'Fredoka', sans-serif; overflow-y: auto; padding: 20px;">
@@ -295,7 +298,7 @@
     <script src="pergel.js"></script>
     <script src="cokgen.js"></script>
     <script src="oyunlar.js"></script>
-    <script src="app.js?v=final_fix_243"></script>
+    <script src="app.js?v=final_fix_244"></script>
 
 <div id="footer-container" style="position: fixed; bottom: 10px; left: 0; width: 100%; text-align: center; z-index: 999999; font-family: sans-serif; pointer-events: auto; background: rgba(0,0,0,0.5); padding: 5px 0;">
     
