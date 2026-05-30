@@ -5204,6 +5204,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.getElementById('connect-input').style.display = "none";
                     document.getElementById('connect-btn').style.display = "none";
                     
+                    // 🚨 YENİ: Bağlantı kurulunca oda/şifre panelini otomatik küçült 🚨
+                    if (typeof window.kucultPanel === 'function') {
+                        window.kucultPanel();
+                    }
+                    
                     setupConnectionEvents();
                 });
             } else {
@@ -5212,6 +5217,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
 
 
 function setupConnectionEvents() {
@@ -5904,4 +5910,15 @@ setInterval(() => {
         }
     }
 }, 300); // Saniyede 3 kez sadece pencerenin durumunu gözetler
+
+// 🚨 YENİ: Dil butonuna basıldığı an alt yasal uyarı şeridini kesin olarak gizle 🚨
+document.addEventListener('click', (e) => {
+    if (e.target && e.target.classList.contains('lang-btn')) {
+        const footer = document.getElementById('footer-container');
+        if (footer) {
+            footer.style.display = 'none';
+            console.log("Sistem: Dil seçimi algılandı, yasal uyarı şeridi gizlendi.");
+        }
+    }
+});
 
