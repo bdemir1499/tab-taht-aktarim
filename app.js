@@ -5650,21 +5650,30 @@ function setupConnectionEvents() {
         setTimeout(() => { location.reload(); }, 2000);
     });
 
-   // --- SİHİRLİ EŞİTLEME (ISRARCI VE ZIRHLI VERSİYON) ---
+   // --- SİHİRLİ EŞİTLEME (İKİ PENCERE İÇİN ISRARCI VE ZIRHLI VERSİYON) ---
     let denemeSayisi = 0;
     const pencereSyncTimer = setInterval(() => {
         if (!isConnected || !myConnection || !myConnection.open) return;
         
+        // 1. Yasal Uyarı Kontrolü ve Sinyali
         if (window.acilisPenceresiKapatildi || (document.getElementById('disclaimer-modal') && document.getElementById('disclaimer-modal').style.display === 'none')) {
             window.sendNetworkData({ type: 'acilis_penceresini_kapat' });
-            console.log("PC'ye pencere kapatma emri gönderiliyor... (Deneme: " + (denemeSayisi + 1) + ")");
         }
         
+        // 🚨 2. YENİ: Yükle Penceresi Kontrolü ve Sinyali 🚨
+        // Tablette yükle popupu kapalıysa veya hiç yoksa, PC'ye de ısrarla kapatma emri gönderir
+        const tabletPopup = document.getElementById('install-popup');
+        if (!tabletPopup || tabletPopup.style.display === 'none' || tabletPopup.classList.contains('hidden')) {
+            window.sendNetworkData({ type: 'yukleme_penceresini_kapat' });
+        }
+        
+        console.log("PC'ye tüm pencerelerin durum eşitlemesi gönderiliyor... (Deneme: " + (denemeSayisi + 1) + ")");
+        
         denemeSayisi++;
-        if (denemeSayisi >= 4) clearInterval(pencereSyncTimer);
-    }, 1000);
+        if (denemeSayisi >= 4) clearInterval(pencereSyncTimer); // 4 saniye boyunca tahtayı bombalar, sonra durur
+    }, 1000); 
 
-} // <--- setupConnectionEvents fonksiyonu tam burada kapanıyor
+} // <--- setupConnectionEvents fonksiyonu tam burada kusursuzca kapanıyor
 
 // =========================================================
 // 7. GÜVENLİ VE KAYIPSIZ VERİ FIRLATMA FONKSİYONU (BARKODLU VERSİYON)
