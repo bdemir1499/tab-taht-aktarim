@@ -5509,18 +5509,22 @@ function setupConnectionEvents() {
         }
 
 
-// 🚨 PC: UYGULAMAYI YÜKLE PENCERESİNİ KAPATMA SİNYALİ (NÜKLEER MÜHÜR) 🚨
+// 🚨 PC: UYGULAMAYI YÜKLE PENCERESİNİ KAPATMA SİNYALİ 🚨
         if (data.type === 'yukleme_penceresini_kapat') {
             const yuklemePenceresi = document.getElementById('install-popup');
             if (yuklemePenceresi) {
-                yuklemePenceresi.style.display = 'none';
+                yuklemePenceresi.remove(); // Sadece gizleme, HTML dosyasından KÖKÜNDEN SİL!
             }
-            // ZIRH: PC'nin tarayıcısı bunu sonradan tekrar açmaya kalkarsa diye HTML'e mühür basıyoruz!
+            
+            // Tarayıcı arkadan iş çevirip geri getirmesin diye CSS Mührü bas:
             const muhur = document.createElement('style');
-            muhur.innerHTML = '#install-popup { display: none !important; opacity: 0 !important; pointer-events: none !important; z-index: -9999 !important; }';
+            muhur.innerHTML = '#install-popup { display: none !important; opacity: 0 !important; z-index: -9999 !important; pointer-events: none !important; }';
             document.head.appendChild(muhur);
+            
             console.log("PC: Yükleme penceresi yok edildi ve mühürlendi.");
         }
+
+
         if (data.type === 'arac_state_senkron') {
             let toolObj = null, el = null;
             if (data.arac === 'ruler') { toolObj = window.RulerTool; el = document.querySelector('.ruler-container'); }
@@ -5865,26 +5869,31 @@ if (modal) {
 window.addEventListener('load', () => { if (modal) modal.style.display = 'flex'; });
 
 
-// --- UYGULAMAYI YÜKLE PENCERESİ İÇİN KESİN ÇÖZÜM (TARAMALI SİSTEM) ---
-const installPopup = document.getElementById('install-popup');
-const installKapatBtn = document.getElementById('btn-popup-close');
+// --- UYGULAMAYI YÜKLE PENCERESİ İÇİN KUSURSUZ RADAR SİSTEMİ ---
+window.popupDurumu = 'baslangic'; 
 
-if (installKapatBtn) {
-    // "true" parametresi sayesinde tabletteki diğer tüm kodlardan ÖNCE bu çalışır
-    installKapatBtn.addEventListener('click', function(e) {
-        if (installPopup) installPopup.style.display = 'none';
+setInterval(() => {
+    const popup = document.getElementById('install-popup');
+    if (!popup) return;
+    
+    // Pencere şu an ekranda görünüyor mu?
+    const isVisible = (popup.style.display === 'flex' || popup.style.display === 'block');
+    
+    // 1. AŞAMA: Eğer ekrana yenice geldiyse durumunu "acik" olarak işaretle
+    if (isVisible && window.popupDurumu !== 'acik') {
+        window.popupDurumu = 'acik';
+    } 
+    // 2. AŞAMA: Eğer az önce açıktıysa ve ŞU AN GİZLENDİYSE (Kullanıcı kapattıysa)
+    else if (!isVisible && window.popupDurumu === 'acik') {
+        window.popupDurumu = 'kapali';
         
-        // SİHİRLİ DOKUNUŞ: PC'nin duyduğundan emin olmak için mesajı yarım saniyede bir 6 kez arka arkaya fırlat!
-        let atisSayisi = 0;
-        const taramali = setInterval(() => {
-            if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-                window.sendNetworkData({ type: 'yukleme_penceresini_kapat' });
-            }
-            atisSayisi++;
-            if (atisSayisi >= 6) clearInterval(taramali);
-        }, 500);
-        
-    }, true); 
-}
-
+        // PC'ye nükleer bombaları tam bu saniyede yolla!
+        if (typeof isConnected !== 'undefined' && isConnected && window.sendNetworkData) {
+            window.sendNetworkData({ type: 'yukleme_penceresini_kapat' });
+            setTimeout(() => { window.sendNetworkData({ type: 'yukleme_penceresini_kapat' }); }, 500);
+            setTimeout(() => { window.sendNetworkData({ type: 'yukleme_penceresini_kapat' }); }, 1000);
+            console.log("Tablet: Kapatılma anı yakalandı, PC'ye sinyaller fırlatıldı!");
+        }
+    }
+}, 300); // Saniyede 3 kez sadece pencerenin durumunu gözetler
 
