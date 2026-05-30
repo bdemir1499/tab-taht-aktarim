@@ -3076,6 +3076,22 @@ window.sendNetworkData({ type: 'arac_senkron', selector: '.yuzen-kopya-container
             }
             
             ctx.stroke();
+            
+            // 🚨 YENİ EKLENEN: PC'YE ÇİZGİ ÖNİZLEMESİNİ CANLI YAYINLA 🚨
+            if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                window.sendNetworkData({
+                    type: 'aktif_onizleme',
+                    arac: 'cizgi_onizleme',
+                    payload: {
+                        tool: currentTool,
+                        startX: lineStartPoint.x,
+                        startY: lineStartPoint.y,
+                        endX: endPos.x,
+                        endY: endPos.y,
+                        color: window.currentLineColor || '#000000'
+                    }
+                });
+            }
         }
         else if (isDrawingRectangle && rectStartPoint) {
             ctx.beginPath();
@@ -5630,6 +5646,44 @@ function setupConnectionEvents() {
                 window.drawnStrokes.push(previewObj);
                 if (window.redrawAllStrokes) window.redrawAllStrokes();
             }
+
+// 🚨 YENİ EKLENEN: PC'NİN ÇİZGİ ÖNİZLEMESİNİ HAVADA ÇİZMESİ 🚨
+            else if (arac === 'cizgi_onizleme') {
+                if (window.redrawAllStrokes) window.redrawAllStrokes(); // Kalıcı çizgileri ezmemek için önce ekranı tazele
+                
+                const canvas = document.getElementById('drawing-canvas');
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    ctx.save();
+                    ctx.strokeStyle = p.color || '#000000';
+                    ctx.lineWidth = 3;
+                    ctx.setLineDash([5, 5]); // Aynı tabletteki gibi kesikli çizgi efekti
+                    ctx.beginPath();
+                    
+                    const dx = p.endX - p.startX;
+                    const dy = p.endY - p.startY;
+                    
+                    if (dx !== 0 || dy !== 0) {
+                        const devCarpan = 5000;
+                        if (p.tool === 'line') {
+                            ctx.moveTo(p.startX - dx * devCarpan, p.startY - dy * devCarpan);
+                            ctx.lineTo(p.startX + dx * devCarpan, p.startY + dy * devCarpan);
+                        } else if (p.tool === 'ray') {
+                            ctx.moveTo(p.startX, p.startY);
+                            ctx.lineTo(p.startX + dx * devCarpan, p.startY + dy * devCarpan);
+                        } else {
+                            ctx.moveTo(p.startX, p.startY);
+                            ctx.lineTo(p.endX, p.endY);
+                        }
+                    } else {
+                        ctx.moveTo(p.startX, p.startY);
+                        ctx.lineTo(p.endX, p.endY);
+                    }
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+
         } // <--- 🚨 EKSİK OLAN SÜSLÜ PARANTEZ BURADA! (aktif_onizleme bloğunu kapatır) 🚨
 
        if (data.type === 'onizleme_bitir') {
