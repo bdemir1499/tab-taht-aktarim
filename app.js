@@ -5971,14 +5971,25 @@ setInterval(() => {
 }, 300); // Saniyede 3 kez sadece pencerenin durumunu gözetler
 
 
-// 🚨 YENİ: Dil butonuna basıldığı an alt yasal uyarı şeridini kesin olarak gizle 🚨
-document.addEventListener('click', (e) => {
-    if (e.target && e.target.classList.contains('lang-btn')) {
+// 🚨 KESİN ÇÖZÜM: Dil seçimi motorunu ele geçirip yasal uyarıyı yok eden sistem 🚨
+if (typeof window.setLanguage === 'function' && !window.setLanguageEleGecirildi) {
+    // Önce orijinal sistemi yedekliyoruz
+    const orijinalSetLanguage = window.setLanguage;
+    
+    // Motoru kendi istediğimiz gibi baştan yazıyoruz
+    window.setLanguage = function(lang) {
+        // 1. Orijinal dil seçim işlevini (dil değiştirme vb.) bozmadan çalıştır
+        orijinalSetLanguage(lang);
+        
+        // 2. O saniyede yasal uyarı şeridini (footer) KÖKÜNDEN yok et!
         const footer = document.getElementById('footer-container');
         if (footer) {
             footer.style.display = 'none';
-            console.log("Sistem: Dil seçimi algılandı, yasal uyarı şeridi gizlendi.");
+            footer.classList.add('hidden');
         }
-    }
-});
-
+        
+        console.log("Sistem: Dil seçildi, yasal uyarı şeridi tablette başarıyla gizlendi!");
+    };
+    
+    window.setLanguageEleGecirildi = true;
+}
