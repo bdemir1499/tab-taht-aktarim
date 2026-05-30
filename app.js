@@ -5470,13 +5470,13 @@ function setupConnectionEvents() {
 
 
 // PC'nin açılış penceresini kapatma emrini aldığı yer
+        // 🚨 YENİ EKLENEN BÖLÜM: AÇILIŞ PENCERESİNİ KAPATMA SİNYALİ 🚨
         if (data.type === 'acilis_penceresini_kapat') {
             const acilisPenceresi = document.getElementById('disclaimer-modal');
             if (acilisPenceresi) {
                 acilisPenceresi.style.display = 'none';
-                acilisPenceresi.classList.add('hidden');
+                acilisPenceresi.classList.add('hidden'); // Sinsi CSS sınıflarını da eziyoruz
             }
-            console.log("PC: Açılış penceresi tablet tarafından kapatıldı.");
         }
         if (data.type === 'zoom_senkron') {
             const bgStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
@@ -5627,16 +5627,19 @@ function setupConnectionEvents() {
         setTimeout(() => { location.reload(); }, 2000);
     });
 
-    // --- SİHİRLİ EŞİTLEME: Bağlantı kurulduğu an pencere kapalıysa PC'ye bildir ---
-    setTimeout(() => {
-        const acilisModal = document.getElementById('disclaimer-modal');
-        if (acilisModal && (acilisModal.style.display === 'none' || acilisModal.classList.contains('hidden'))) {
-            if (typeof window.sendNetworkData === 'function') {
-                window.sendNetworkData({ type: 'acilis_penceresini_kapat' });
-                console.log("Bağlantı kuruldu, PC'ye pencere kapatma emri gönderildi.");
-            }
+   // --- SİHİRLİ EŞİTLEME (ISRARCI VE ZIRHLI VERSİYON) ---
+    let denemeSayisi = 0;
+    const pencereSyncTimer = setInterval(() => {
+        if (!isConnected || !myConnection || !myConnection.open) return;
+        
+        if (window.acilisPenceresiKapatildi || (document.getElementById('disclaimer-modal') && document.getElementById('disclaimer-modal').style.display === 'none')) {
+            window.sendNetworkData({ type: 'acilis_penceresini_kapat' });
+            console.log("PC'ye pencere kapatma emri gönderiliyor... (Deneme: " + (denemeSayisi + 1) + ")");
         }
-    }, 800); 
+        
+        denemeSayisi++;
+        if (denemeSayisi >= 4) clearInterval(pencereSyncTimer);
+    }, 1000);
 
 } // <--- setupConnectionEvents fonksiyonu tam burada kapanıyor
 
@@ -5802,35 +5805,31 @@ window.addEventListener('pointerup', () => {
     }
 });
 
-// --- AÇILIŞ PENCERESİ (MODAL) VE AĞ ÜZERİNDEN KAPATMA ---
+// --- AÇILIŞ PENCERESİ (MODAL) VE AĞ ÜZERİNDEN KAPATMA (GARANTİLİ VERSİYON) ---
+window.acilisPenceresiKapatildi = false;
+
+function pencereyiKapatVeBildir() {
+    const modal = document.getElementById('disclaimer-modal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.add('hidden');
+    }
+    window.acilisPenceresiKapatildi = true;
+    
+    // PC'ye emri fırlat (Bağlıysa anında gider)
+    if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+        window.sendNetworkData({ type: 'acilis_penceresini_kapat' });
+    }
+}
+
 const modal = document.getElementById('disclaimer-modal');
 const openBtn = document.getElementById('open-disclaimer');
 const closeDisclaimerBtn = document.getElementById('close-disclaimer');
 
 if (modal) {
-    if (openBtn) openBtn.addEventListener('click', (e) => { e.preventDefault(); modal.style.display = 'flex'; });
-    
-    if (closeDisclaimerBtn) {
-        closeDisclaimerBtn.addEventListener('click', () => { 
-            modal.style.display = 'none'; 
-            
-            // 🚨 SİHİRLİ DOKUNUŞ: PC'ye "Pencereyi Kapat" emri fırlat
-            if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-                window.sendNetworkData({ type: 'acilis_penceresini_kapat' });
-            }
-        });
-    }
-    
-    window.addEventListener('click', (event) => { 
-        if (event.target == modal) {
-            modal.style.display = 'none'; 
-            
-            // Boşluğa tıklanıp kapanırsa da PC'ye haber ver
-            if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-                window.sendNetworkData({ type: 'acilis_penceresini_kapat' });
-            }
-        }
-    });
+    if (openBtn) openBtn.addEventListener('click', (e) => { e.preventDefault(); modal.style.display = 'flex'; window.acilisPenceresiKapatildi = false; });
+    if (closeDisclaimerBtn) closeDisclaimerBtn.addEventListener('click', pencereyiKapatVeBildir);
+    window.addEventListener('click', (event) => { if (event.target == modal) pencereyiKapatVeBildir(); });
 }
 
-window.addEventListener('load', () => { if (modal) modal.style.display = 'flex'; });
+window.addEventListener('load', () => { if (modal && !window.acilisPenceresiKapatildi) modal.style.display = 'flex'; });
