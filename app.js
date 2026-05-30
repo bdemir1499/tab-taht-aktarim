@@ -5469,15 +5469,27 @@ function setupConnectionEvents() {
         }
 
 
-// PC'nin açılış penceresini kapatma emrini aldığı yer
-        // 🚨 YENİ EKLENEN BÖLÜM: AÇILIŞ PENCERESİNİ KAPATMA SİNYALİ 🚨
+// 🚨 NÜKLEER ÇÖZÜM: AÇILIŞ PENCERESİNİ KÖKÜNDEN SİL 🚨
         if (data.type === 'acilis_penceresini_kapat') {
             const acilisPenceresi = document.getElementById('disclaimer-modal');
             if (acilisPenceresi) {
-                acilisPenceresi.style.display = 'none';
-                acilisPenceresi.classList.add('hidden'); // Sinsi CSS sınıflarını da eziyoruz
+                // Sadece gizlemekle kalma, HTML'den tamamen kazı!
+                acilisPenceresi.remove(); 
             }
+            
+            // Eğer isminde farklılık varsa diye tüm uyarı pencerelerini gizle
+            document.querySelectorAll('.modal, .overlay, [id*="modal"], [id*="disclaimer"]').forEach(el => {
+                el.style.display = 'none';
+            });
+
+            // Zırh: PC arka planda yeniden açmaya çalışmasın diye CSS ile mühürle
+            const mühür = document.createElement('style');
+            mühür.innerHTML = '#disclaimer-modal, .disclaimer-modal { display: none !important; opacity: 0 !important; pointer-events: none !important; z-index: -9999 !important; }';
+            document.head.appendChild(mühür);
+            
+            console.log("PC: Açılış penceresi KÖKÜNDEN silindi ve mühürlendi.");
         }
+
         if (data.type === 'zoom_senkron') {
             const bgStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
             bgStrokes.forEach(bg => { 
@@ -5495,7 +5507,6 @@ function setupConnectionEvents() {
             });
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
-
         if (data.type === 'arac_state_senkron') {
             let toolObj = null, el = null;
             if (data.arac === 'ruler') { toolObj = window.RulerTool; el = document.querySelector('.ruler-container'); }
@@ -5805,31 +5816,27 @@ window.addEventListener('pointerup', () => {
     }
 });
 
-// --- AÇILIŞ PENCERESİ (MODAL) VE AĞ ÜZERİNDEN KAPATMA (GARANTİLİ VERSİYON) ---
-window.acilisPenceresiKapatildi = false;
-
-function pencereyiKapatVeBildir() {
-    const modal = document.getElementById('disclaimer-modal');
-    if (modal) {
-        modal.style.display = 'none';
-        modal.classList.add('hidden');
-    }
-    window.acilisPenceresiKapatildi = true;
-    
-    // PC'ye emri fırlat (Bağlıysa anında gider)
-    if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-        window.sendNetworkData({ type: 'acilis_penceresini_kapat' });
-    }
-}
-
+// --- AÇILIŞ PENCERESİ (MODAL) VE AĞ ÜZERİNDEN KAPATMA (NÖBETÇİ GÖZCÜ SİSTEMİ) ---
 const modal = document.getElementById('disclaimer-modal');
 const openBtn = document.getElementById('open-disclaimer');
 const closeDisclaimerBtn = document.getElementById('close-disclaimer');
 
 if (modal) {
-    if (openBtn) openBtn.addEventListener('click', (e) => { e.preventDefault(); modal.style.display = 'flex'; window.acilisPenceresiKapatildi = false; });
-    if (closeDisclaimerBtn) closeDisclaimerBtn.addEventListener('click', pencereyiKapatVeBildir);
-    window.addEventListener('click', (event) => { if (event.target == modal) pencereyiKapatVeBildir(); });
+    // 1. Normal buton işlevleri
+    if (openBtn) openBtn.addEventListener('click', (e) => { e.preventDefault(); modal.style.display = 'flex'; });
+    if (closeDisclaimerBtn) closeDisclaimerBtn.addEventListener('click', () => { modal.style.display = 'none'; modal.classList.add('hidden'); });
+    window.addEventListener('click', (event) => { if (event.target == modal) { modal.style.display = 'none'; modal.classList.add('hidden'); } });
+
+    // 🚨 2. SİHİRLİ NÖBETÇİ GÖZCÜ (MUTATION OBSERVER) 🚨
+    // Pencereyi kim kapatırsa kapatsın anında enseleyip PC'ye sinyal çakar!
+    const gozcu = new MutationObserver(() => {
+        if (modal.style.display === 'none' || modal.classList.contains('hidden')) {
+            if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                window.sendNetworkData({ type: 'acilis_penceresini_kapat' });
+            }
+        }
+    });
+    gozcu.observe(modal, { attributes: true, attributeFilter: ['style', 'class'] });
 }
 
-window.addEventListener('load', () => { if (modal && !window.acilisPenceresiKapatildi) modal.style.display = 'flex'; });
+window.addEventListener('load', () => { if (modal) modal.style.display = 'flex'; });
