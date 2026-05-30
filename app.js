@@ -5436,8 +5436,10 @@ function setupConnectionEvents() {
 
         if (data.type === 'geri_al') { window.drawnStrokes.pop(); if (window.redrawAllStrokes) window.redrawAllStrokes(); }
         else if (data.type === 'hepsini_sil') { 
-            // 1. Diziyi tamamen temizle (Hafızayı KOPARMADAN, içini boşaltıyoruz)
-            window.drawnStrokes.length = 0; 
+            // PC İÇİN AKILLI FİLTRE: Sadece ana PDF/Resim zeminini hayatta bırak, diğerlerini uçur!
+            window.drawnStrokes = window.drawnStrokes.filter(stroke => {
+                return stroke.type === 'image' && stroke.isBoxCopy !== true && stroke.isBackground !== false;
+            });
             
             // 2. PC tarafındaki kayıtlı veriyi de temizle (LocalStorage)
             if (window.localStorage) {
@@ -5446,7 +5448,7 @@ function setupConnectionEvents() {
             // 3. Ekranı yenile
             if (window.redrawAllStrokes) window.redrawAllStrokes(); 
             
-            console.log("PC: Silme komutu alındı ve hafıza temizlendi.");
+            console.log("PC: Silme komutu alındı, PDF zemin korundu, çizimler temizlendi.");
         }
         
         if (data.type === 'pdf_yukle') { 
