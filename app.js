@@ -5507,6 +5507,18 @@ function setupConnectionEvents() {
             });
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
+
+
+// 🚨 YENİ HEDEF: UYGULAMAYI YÜKLE PENCERESİ 🚨
+        if (data.type === 'yukleme_penceresini_kapat') {
+            const yuklemePenceresi = document.getElementById('install-popup');
+            if (yuklemePenceresi) {
+                yuklemePenceresi.style.display = 'none';
+                console.log("PC: 'Uygulamayı Yükle' penceresi tablet tarafından kapatıldı.");
+            }
+        }
+
+
         if (data.type === 'arac_state_senkron') {
             let toolObj = null, el = null;
             if (data.arac === 'ruler') { toolObj = window.RulerTool; el = document.querySelector('.ruler-container'); }
@@ -5840,3 +5852,18 @@ if (modal) {
 }
 
 window.addEventListener('load', () => { if (modal) modal.style.display = 'flex'; });
+
+
+// --- UYGULAMAYI YÜKLE (INSTALL) PENCERESİ AĞ EŞİTLEMESİ ---
+const installKapatBtn = document.getElementById('btn-popup-close');
+if (installKapatBtn) {
+    installKapatBtn.addEventListener('click', () => {
+        const popup = document.getElementById('install-popup');
+        if (popup) popup.style.display = 'none';
+        
+        // PC'ye kapatma emrini fırlat!
+        if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+            window.sendNetworkData({ type: 'yukleme_penceresini_kapat' });
+        }
+    });
+}
