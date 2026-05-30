@@ -3431,30 +3431,21 @@ canvas.addEventListener('pointerup', (e) => {
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d');
             
-            // Kopya kanvasının boyutlarını tam seçilen alan kadar yapıyoruz
             tempCanvas.width = w;
             tempCanvas.height = h;
             
-            // 🚨 HATA ÇÖZÜMÜ: x ve y zaten iç koordinat olduğu için oranla ÇARPMIYORUZ!
-            // Böylece kamera boşluğa değil, tam olarak PDF'in ve çizimlerin üstüne odaklanıyor.
             tempCtx.drawImage(
                 canvas, 
-                x, y, w, h,     // Ana kanvastan kırpılacak alan
+                x, y, w, h,     // Ana kanvastan fotokopisi çekilecek alan
                 0, 0, w, h      // Kopya kanvasına yapıştırılacak alan
             );
             
             const finalImage = tempCanvas.toDataURL('image/png', 1.0);
             
-            // Orijinal yerdeki "kesik deliğini" kapatan beyaz yama
-            const maskStroke = {
-                type: 'lasso-mask',
-                points: [{ x: x, y: y }, { x: x + w, y: y }, { x: x + w, y: y + h }, { x: x, y: y + h }],
-                fillColor: (window.isToolThemeBlack) ? '#222222' : '#ffffff',
-                id: Date.now() + Math.random()
-            };
-            drawnStrokes.push(maskStroke);
+            // 🚨 BEYAZ YAMA (KESİK İZİ) KODLARI BURADAN TAMAMEN SİLİNDİ! 
+            // Orijinal şekil zemin üzerinde hiçbir hasar almadan kalacak.
 
-            // Ve işte kesilip alınan o kusursuz kopya!
+            // Sadece kusursuz kopyayı oluşturuyoruz
             const newImgStroke = {
                 type: 'image',
                 imgData: finalImage,
@@ -3462,12 +3453,12 @@ canvas.addEventListener('pointerup', (e) => {
                 width: w, height: h,
                 id: Date.now() + Math.random() + 1,
                 isBoxCopy: true,
-                isBackground: false // 🚨 PC'deki ana PDF'in silinmesini %100 engeller!
+                isBackground: false // PC'deki ana PDF'in silinmesini %100 engeller!
             };
             drawnStrokes.push(newImgStroke);
             
+            // Ağ üzerinden sadece kopyayı PC'ye yolluyoruz
             if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-                window.sendNetworkData({ type: 'yeni_cizim', stroke: maskStroke });
                 window.sendNetworkData({ type: 'yeni_cizim', stroke: newImgStroke });
             }
             
