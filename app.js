@@ -3427,20 +3427,24 @@ canvas.addEventListener('pointerup', (e) => {
         const h = Math.round(Math.abs(currentMousePos.y - snapshotStart.y));
 
         if (w > 10 && h > 10) {
-            const bgLayer = document.getElementById('pdf-canvas') || document.querySelector('.pdf-page-canvas');
-            const dpr = window.devicePixelRatio || 1;
+            // 1. KOPYA İÇİN DOĞRU KANVASI (ANA KANVAS) HEDEF ALIYORUZ!
             const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = w * (dpr * 10);
-            tempCanvas.height = h * (dpr * 10);
             const tempCtx = tempCanvas.getContext('2d');
             
-            if (bgLayer) {
-                const bgRect = bgLayer.getBoundingClientRect();
-                const canvasRect = canvas.getBoundingClientRect();
-                const oranX = bgLayer.width / bgRect.width;
-                const oranY = bgLayer.height / bgRect.height;
-                tempCtx.drawImage(bgLayer, Math.round((x + (canvasRect.left - bgRect.left)) * oranX), Math.round((y + (canvasRect.top - bgRect.top)) * oranY), Math.round(w * oranX), Math.round(h * oranY), 0, 0, tempCanvas.width, tempCanvas.height);
-            }
+            // Cihazın çözünürlük (DPR) oranını ve kanvasın gerçek boyutlarını hesapla
+            const rect = canvas.getBoundingClientRect();
+            const oranX = canvas.width / rect.width;
+            const oranY = canvas.height / rect.height;
+            
+            tempCanvas.width = w * oranX;
+            tempCanvas.height = h * oranY;
+            
+            // 🚨 HATA 1'İN ÇÖZÜMÜ: Olmayan pdf-canvas'ı değil, doğrudan "canvas"ı (ana tahtayı) kopyalıyoruz
+            tempCtx.drawImage(
+                canvas, 
+                x * oranX, y * oranY, w * oranX, h * oranY, // Kaynak (Ana Kanvas) Koordinatları
+                0, 0, tempCanvas.width, tempCanvas.height   // Hedef (Kopya Kanvas) Koordinatları
+            );
             
             const finalImage = tempCanvas.toDataURL('image/png', 1.0);
             
@@ -3457,8 +3461,9 @@ canvas.addEventListener('pointerup', (e) => {
                 imgData: finalImage,
                 x: x, y: y,
                 width: w, height: h,
-                id: Date.now() + Math.random(),
-                isBoxCopy: true
+                id: Date.now() + Math.random() + 1,
+                isBoxCopy: true,
+                isBackground: false // 🚨 HATA 2'NİN ÇÖZÜMÜ: PC'nin bunu arka plan PDF'i sanıp ana sayfayı silmesini kesinlikle engeller!
             };
             drawnStrokes.push(newImgStroke);
             
@@ -3469,6 +3474,7 @@ canvas.addEventListener('pointerup', (e) => {
             
             if (typeof setActiveTool === 'function') setActiveTool('move');
             else currentTool = 'move';
+            
             selectedItem = newImgStroke;
             snapshotStart = null;
             redrawAllStrokes();
