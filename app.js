@@ -5509,16 +5509,18 @@ function setupConnectionEvents() {
         }
 
 
-// 🚨 PC: UYGULAMAYI YÜKLE PENCERESİNİ KAPATMA SİNYALİ 🚨
+// 🚨 PC: UYGULAMAYI YÜKLE PENCERESİNİ KAPATMA SİNYALİ (NÜKLEER MÜHÜR) 🚨
         if (data.type === 'yukleme_penceresini_kapat') {
             const yuklemePenceresi = document.getElementById('install-popup');
             if (yuklemePenceresi) {
                 yuklemePenceresi.style.display = 'none';
-                yuklemePenceresi.classList.add('hidden'); // Bunu ekledik ki garanti olsun
-                console.log("PC: 'Uygulamayı Yükle' penceresi tablet tarafından eşzamanlı kapatıldı.");
             }
+            // ZIRH: PC'nin tarayıcısı bunu sonradan tekrar açmaya kalkarsa diye HTML'e mühür basıyoruz!
+            const muhur = document.createElement('style');
+            muhur.innerHTML = '#install-popup { display: none !important; opacity: 0 !important; pointer-events: none !important; z-index: -9999 !important; }';
+            document.head.appendChild(muhur);
+            console.log("PC: Yükleme penceresi yok edildi ve mühürlendi.");
         }
-
         if (data.type === 'arac_state_senkron') {
             let toolObj = null, el = null;
             if (data.arac === 'ruler') { toolObj = window.RulerTool; el = document.querySelector('.ruler-container'); }
@@ -5878,27 +5880,24 @@ if (installKapatBtn) {
 }
 
 
-// --- UYGULAMAYI YÜKLE PENCERESİ İÇİN KESİN ÇÖZÜM (GÖZCÜ SİSTEMİ) ---
+// --- UYGULAMAYI YÜKLE PENCERESİ İÇİN KESİN ÇÖZÜM (TARAMALI SİSTEM) ---
 const installPopup = document.getElementById('install-popup');
 const installKapatBtn = document.getElementById('btn-popup-close');
 
-if (installPopup) {
-    // 1. Tablette butona basılınca gizle (Eski kodları ezip garantiye alıyoruz)
-    if (installKapatBtn) {
-        installKapatBtn.onclick = function(e) {
-            e.preventDefault();
-            installPopup.style.display = 'none';
-        };
-    }
-
-    // 🚨 2. SİHİRLİ GÖZCÜ (MUTATION OBSERVER) 🚨
-    // Butona basılsın ya da başka bir şey kapatsın, pencere gizlendiği an PC'ye haber uçar!
-    const popupGozcusu = new MutationObserver(() => {
-        if (installPopup.style.display === 'none' || installPopup.classList.contains('hidden')) {
+if (installKapatBtn) {
+    // "true" parametresi sayesinde tabletteki diğer tüm kodlardan ÖNCE bu çalışır
+    installKapatBtn.addEventListener('click', function(e) {
+        if (installPopup) installPopup.style.display = 'none';
+        
+        // SİHİRLİ DOKUNUŞ: PC'nin duyduğundan emin olmak için mesajı yarım saniyede bir 6 kez arka arkaya fırlat!
+        let atisSayisi = 0;
+        const taramali = setInterval(() => {
             if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
                 window.sendNetworkData({ type: 'yukleme_penceresini_kapat' });
             }
-        }
-    });
-    popupGozcusu.observe(installPopup, { attributes: true, attributeFilter: ['style', 'class'] });
+            atisSayisi++;
+            if (atisSayisi >= 6) clearInterval(taramali);
+        }, 500);
+        
+    }, true); 
 }
