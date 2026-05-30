@@ -5103,11 +5103,22 @@ for (let i = 0; i < 5; i++) {
 const isTablet = window.location.href.includes("tablet");
 
 // --- 2. PEERJS BAŞLANGIÇ VE CİHAZ MODU AYARI ---
+// --- 2. PEERJS BAŞLANGIÇ (ASKERİ DÜZEY YEREL AĞ KİLİDİ) ---
+
+// 🚨 SİHİRLİ DOKUNUŞ: Tarayıcının dış dünyaya (internete) çıkış yollarını kesiyoruz!
+// iceServers dizisi boş bırakıldığı için sistem NAT/Güvenlik duvarını aşamaz.
+// Kötü niyetli biri şifreyi bilse bile fiziksel olarak uzaktan veri gönderemez!
+const askeriKalkan = {
+    config: {
+        'iceServers': [] // İnternet kapıları mühürlendi. Sadece LocalHost (Aynı Wi-Fi) çalışır.
+    }
+};
+
 if (isTablet) {
-    myPeer = new Peer();
+    myPeer = new Peer(askeriKalkan);
     myPeer.on('open', (id) => { console.log("Tablet Peer Hazır. Kimliğim:", id); });
 } else {
-    myPeer = new Peer(myRoomCode);
+    myPeer = new Peer(myRoomCode, askeriKalkan);
     window.sessionPassword = Math.floor(1000 + Math.random() * 9000).toString();
     myPeer.on('open', (id) => {
         console.log("Tahta Peer Hazır. Oda Kodu:", id);
@@ -5117,7 +5128,6 @@ if (isTablet) {
         if(pinSaha) pinSaha.innerText = window.sessionPassword;
     });
 }
-
 // --- 3. BAĞLANTI İSTEK DİNLEYİCİSİ (KAPI ZİLİ) ---
 myPeer.on('connection', function(conn) {
     console.log("Bir cihaz bağlanmak istiyor:", conn.peer);
