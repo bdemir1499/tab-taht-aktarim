@@ -5509,15 +5509,15 @@ function setupConnectionEvents() {
         }
 
 
-// 🚨 YENİ HEDEF: UYGULAMAYI YÜKLE PENCERESİ 🚨
+// 🚨 PC: UYGULAMAYI YÜKLE PENCERESİNİ KAPATMA SİNYALİ 🚨
         if (data.type === 'yukleme_penceresini_kapat') {
             const yuklemePenceresi = document.getElementById('install-popup');
             if (yuklemePenceresi) {
                 yuklemePenceresi.style.display = 'none';
-                console.log("PC: 'Uygulamayı Yükle' penceresi tablet tarafından kapatıldı.");
+                yuklemePenceresi.classList.add('hidden'); // Bunu ekledik ki garanti olsun
+                console.log("PC: 'Uygulamayı Yükle' penceresi tablet tarafından eşzamanlı kapatıldı.");
             }
         }
-
 
         if (data.type === 'arac_state_senkron') {
             let toolObj = null, el = null;
@@ -5875,4 +5875,30 @@ if (installKapatBtn) {
             window.sendNetworkData({ type: 'yukleme_penceresini_kapat' });
         }
     });
+}
+
+
+// --- UYGULAMAYI YÜKLE PENCERESİ İÇİN KESİN ÇÖZÜM (GÖZCÜ SİSTEMİ) ---
+const installPopup = document.getElementById('install-popup');
+const installKapatBtn = document.getElementById('btn-popup-close');
+
+if (installPopup) {
+    // 1. Tablette butona basılınca gizle (Eski kodları ezip garantiye alıyoruz)
+    if (installKapatBtn) {
+        installKapatBtn.onclick = function(e) {
+            e.preventDefault();
+            installPopup.style.display = 'none';
+        };
+    }
+
+    // 🚨 2. SİHİRLİ GÖZCÜ (MUTATION OBSERVER) 🚨
+    // Butona basılsın ya da başka bir şey kapatsın, pencere gizlendiği an PC'ye haber uçar!
+    const popupGozcusu = new MutationObserver(() => {
+        if (installPopup.style.display === 'none' || installPopup.classList.contains('hidden')) {
+            if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                window.sendNetworkData({ type: 'yukleme_penceresini_kapat' });
+            }
+        }
+    });
+    popupGozcusu.observe(installPopup, { attributes: true, attributeFilter: ['style', 'class'] });
 }
