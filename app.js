@@ -5247,10 +5247,10 @@ function setupConnectionEvents() {
     window._lastSetupConnection = myConnection;
     window._connectionEventsBound = true;
 
-    // --- 1. SIKI YÖNETİM: AYNI Wİ-Fİ / YEREL AĞ KONTROLÜ ---
+    // --- 1. SIKI YÖNETİM: AYNI Wİ-Fİ / YEREL AĞ KONTROLÜ (KESİN ZIRH) ---
     const pc = myConnection.peerConnection;
-    window.baglantiOnaylandi = true; // Bağlantı açık, IP kontrolü arka planda
-    isConnected = true;
+    window.baglantiOnaylandi = false; // 🚨 DİKKAT: KAPILAR BAŞLANGIÇTA TAMAMEN KİLİTLİ!
+    isConnected = true; 
 
     if (pc && !pc._iceListenerAdded) {
         pc._iceListenerAdded = true;
@@ -5258,6 +5258,7 @@ function setupConnectionEvents() {
             if (!event.candidate) return;
             const cand = event.candidate.candidate;
             const ipMatch = cand.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/);
+            
             if (ipMatch) {
                 const ip = ipMatch[1];
                 const yerelAgMi = (
@@ -5266,14 +5267,29 @@ function setupConnectionEvents() {
                     /^172\.(1[6-9]|2[0-9]|3[01])\./.test(ip) ||
                     ip.startsWith('127.')
                 );
+                
                 if (yerelAgMi) {
+                    // Yerel ağ IP'si görüldüğü an kilit açılır!
                     window.baglantiOnaylandi = true;
-                    console.log("Yerel ağ bağlantısı onaylandı:", ip);
+                    console.log("🔒 GÜVENLİK ONAYLANDI: Yerel ağ bağlantısı tespit edildi (" + ip + ").");
                 }
-                // NOT: Genel/STUN IP görülünce bağlantıyı KAPATMA — kalem verisi böyle kesiliyordu
             }
         });
     }
+
+    // 🚨 GÜVENLİK İNFAZI (ZAMANAŞIMI KONTROLÜ) 🚨
+    // Bağlantı kurulduktan sonra 3 saniye içinde yerel bir IP bulunamazsa, sistemi acımasızca kapat.
+    setTimeout(() => {
+        if (!window.baglantiOnaylandi) {
+            console.error("⛔ GÜVENLİK İHLALİ: Cihazlar aynı Wi-Fi ağında değil. Uzaktan erişim engellendi!");
+            alert("GÜVENLİK UYARISI: Tahta ve tablet aynı Wi-Fi ağına (veya aynı telefonun internetine) bağlı olmak zorundadır. Uzaktan bağlantıya izin verilmez.");
+            
+            if (myConnection) myConnection.close();
+            
+            // Tüm sayfayı zorla yenileyerek bağlantıyı kopart
+            setTimeout(() => { location.reload(); }, 1500);
+        }
+    }, 3000);
 
     // --- 2. VERİ ALICI VE PARÇALAMA MOTORU (BARKOD SİSTEMLİ) ---
     window.chunkBuffers = {}; // 🚨 YENİ: Her mesaja özel ayrı bir kutu açıyoruz
