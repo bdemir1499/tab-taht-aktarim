@@ -3427,27 +3427,25 @@ canvas.addEventListener('pointerup', (e) => {
         const h = Math.round(Math.abs(currentMousePos.y - snapshotStart.y));
 
         if (w > 10 && h > 10) {
-            // 1. KOPYA İÇİN DOĞRU KANVASI (ANA KANVAS) HEDEF ALIYORUZ!
+            // 1. DOĞRUDAN KANVAS KOORDİNATLARIYLA KOPYA ALIYORUZ
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d');
             
-            // Cihazın çözünürlük (DPR) oranını ve kanvasın gerçek boyutlarını hesapla
-            const rect = canvas.getBoundingClientRect();
-            const oranX = canvas.width / rect.width;
-            const oranY = canvas.height / rect.height;
+            // Kopya kanvasının boyutlarını tam seçilen alan kadar yapıyoruz
+            tempCanvas.width = w;
+            tempCanvas.height = h;
             
-            tempCanvas.width = w * oranX;
-            tempCanvas.height = h * oranY;
-            
-            // 🚨 HATA 1'İN ÇÖZÜMÜ: Olmayan pdf-canvas'ı değil, doğrudan "canvas"ı (ana tahtayı) kopyalıyoruz
+            // 🚨 HATA ÇÖZÜMÜ: x ve y zaten iç koordinat olduğu için oranla ÇARPMIYORUZ!
+            // Böylece kamera boşluğa değil, tam olarak PDF'in ve çizimlerin üstüne odaklanıyor.
             tempCtx.drawImage(
                 canvas, 
-                x * oranX, y * oranY, w * oranX, h * oranY, // Kaynak (Ana Kanvas) Koordinatları
-                0, 0, tempCanvas.width, tempCanvas.height   // Hedef (Kopya Kanvas) Koordinatları
+                x, y, w, h,     // Ana kanvastan kırpılacak alan
+                0, 0, w, h      // Kopya kanvasına yapıştırılacak alan
             );
             
             const finalImage = tempCanvas.toDataURL('image/png', 1.0);
             
+            // Orijinal yerdeki "kesik deliğini" kapatan beyaz yama (Sizin orijinal kodunuz)
             const maskStroke = {
                 type: 'lasso-mask',
                 points: [{ x: x, y: y }, { x: x + w, y: y }, { x: x + w, y: y + h }, { x: x, y: y + h }],
@@ -3456,6 +3454,7 @@ canvas.addEventListener('pointerup', (e) => {
             };
             drawnStrokes.push(maskStroke);
 
+            // Ve işte kesilip alınan o kusursuz kopya!
             const newImgStroke = {
                 type: 'image',
                 imgData: finalImage,
@@ -3463,7 +3462,7 @@ canvas.addEventListener('pointerup', (e) => {
                 width: w, height: h,
                 id: Date.now() + Math.random() + 1,
                 isBoxCopy: true,
-                isBackground: false // 🚨 HATA 2'NİN ÇÖZÜMÜ: PC'nin bunu arka plan PDF'i sanıp ana sayfayı silmesini kesinlikle engeller!
+                isBackground: false // 🚨 PC'deki ana PDF'in silinmesini %100 engeller!
             };
             drawnStrokes.push(newImgStroke);
             
