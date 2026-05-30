@@ -5911,6 +5911,7 @@ setInterval(() => {
     }
 }, 300); // Saniyede 3 kez sadece pencerenin durumunu gözetler
 
+
 // 🚨 YENİ: Dil butonuna basıldığı an alt yasal uyarı şeridini kesin olarak gizle 🚨
 document.addEventListener('click', (e) => {
     if (e.target && e.target.classList.contains('lang-btn')) {
