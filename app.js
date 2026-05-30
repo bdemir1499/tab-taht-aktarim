@@ -5865,21 +5865,6 @@ if (modal) {
 window.addEventListener('load', () => { if (modal) modal.style.display = 'flex'; });
 
 
-// --- UYGULAMAYI YÜKLE (INSTALL) PENCERESİ AĞ EŞİTLEMESİ ---
-const installKapatBtn = document.getElementById('btn-popup-close');
-if (installKapatBtn) {
-    installKapatBtn.addEventListener('click', () => {
-        const popup = document.getElementById('install-popup');
-        if (popup) popup.style.display = 'none';
-        
-        // PC'ye kapatma emrini fırlat!
-        if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-            window.sendNetworkData({ type: 'yukleme_penceresini_kapat' });
-        }
-    });
-}
-
-
 // --- UYGULAMAYI YÜKLE PENCERESİ İÇİN KESİN ÇÖZÜM (TARAMALI SİSTEM) ---
 const installPopup = document.getElementById('install-popup');
 const installKapatBtn = document.getElementById('btn-popup-close');
@@ -5901,3 +5886,5 @@ if (installKapatBtn) {
         
     }, true); 
 }
+
+
