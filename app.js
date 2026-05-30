@@ -1,4 +1,14 @@
+// 🚨 ALAN ADI KİLİDİ (DOMAIN BINDING) 🚨
+// Sadece bdemir1499.github.io adresinde ve yerel bilgisayarda çalışır!
+const gecerliAdresler = ["bdemir1499.github.io", "127.0.0.1", "localhost"];
+const mevcutAdres = window.location.hostname;
 
+const kacakKullanimMi = !gecerliAdresler.some(adres => mevcutAdres.includes(adres));
+
+if (kacakKullanimMi && mevcutAdres !== "") {
+    document.body.innerHTML = "<div style='color:red; text-align:center; margin-top:50px; font-family:sans-serif; font-size:20px; font-weight:bold;'>⛔ GÜVENLİK İHLALİ: Bu yazılım kopyalanmıştır. Lütfen orijinal adresi kullanın.</div>";
+    throw new Error("Korsan kullanım tespit edildi, sistem durduruldu!");
+}
 
 
 // Artık sabit bir MY_SECRET_KEY yok, öğretmen her ders şifreyi belirleyecek
@@ -5257,49 +5267,12 @@ function setupConnectionEvents() {
     window._lastSetupConnection = myConnection;
     window._connectionEventsBound = true;
 
-    // --- 1. SIKI YÖNETİM: AYNI Wİ-Fİ / YEREL AĞ KONTROLÜ (KESİN ZIRH) ---
+    // --- 1. GÜVENLİK ONAYI (AĞ MOTORU ZATEN KİLİTLİ) ---
+    // PeerJS başlangıcında iceServers: [] yaptığımız için cihazın internete çıkışı YOKTUR.
+    // Dolayısıyla buraya kadar bağlanabilen cihaz %100 aynı Wi-Fi/Hotspot ağındadır.
     const pc = myConnection.peerConnection;
-    window.baglantiOnaylandi = false; // 🚨 DİKKAT: KAPILAR BAŞLANGIÇTA TAMAMEN KİLİTLİ!
-    isConnected = true; 
-
-    if (pc && !pc._iceListenerAdded) {
-        pc._iceListenerAdded = true;
-        pc.addEventListener('icecandidate', (event) => {
-            if (!event.candidate) return;
-            const cand = event.candidate.candidate;
-            const ipMatch = cand.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/);
-            
-            if (ipMatch) {
-                const ip = ipMatch[1];
-                const yerelAgMi = (
-                    ip.startsWith('192.168.') ||
-                    ip.startsWith('10.') ||
-                    /^172\.(1[6-9]|2[0-9]|3[01])\./.test(ip) ||
-                    ip.startsWith('127.')
-                );
-                
-                if (yerelAgMi) {
-                    // Yerel ağ IP'si görüldüğü an kilit açılır!
-                    window.baglantiOnaylandi = true;
-                    console.log("🔒 GÜVENLİK ONAYLANDI: Yerel ağ bağlantısı tespit edildi (" + ip + ").");
-                }
-            }
-        });
-    }
-
-    // 🚨 GÜVENLİK İNFAZI (ZAMANAŞIMI KONTROLÜ) 🚨
-    // Bağlantı kurulduktan sonra 3 saniye içinde yerel bir IP bulunamazsa, sistemi acımasızca kapat.
-    setTimeout(() => {
-        if (!window.baglantiOnaylandi) {
-            console.error("⛔ GÜVENLİK İHLALİ: Cihazlar aynı Wi-Fi ağında değil. Uzaktan erişim engellendi!");
-            alert("GÜVENLİK UYARISI: Tahta ve tablet aynı Wi-Fi ağına (veya aynı telefonun internetine) bağlı olmak zorundadır. Uzaktan bağlantıya izin verilmez.");
-            
-            if (myConnection) myConnection.close();
-            
-            // Tüm sayfayı zorla yenileyerek bağlantıyı kopart
-            setTimeout(() => { location.reload(); }, 1500);
-        }
-    }, 3000);
+    window.baglantiOnaylandi = true; 
+    isConnected = true;
 
     // --- 2. VERİ ALICI VE PARÇALAMA MOTORU (BARKOD SİSTEMLİ) ---
     window.chunkBuffers = {}; // 🚨 YENİ: Her mesaja özel ayrı bir kutu açıyoruz
