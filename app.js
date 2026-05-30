@@ -3696,9 +3696,18 @@ canvas.addEventListener('wheel', (e) => {
                 bg.height = newH;
             });
 
-
-
             redrawAllStrokes();
+            
+            // 🚨 YENİ: Fare tekerleğiyle yapılan zoomu da PC'ye fırlat!
+            if (typeof isConnected !== 'undefined' && isConnected) {
+                window.sendNetworkData({
+                    type: 'zoom_senkron',
+                    x: bgStrokes[0].x, 
+                    y: bgStrokes[0].y, 
+                    width: bgStrokes[0].width, 
+                    height: bgStrokes[0].height
+                });
+            }
         }
     }
 }, { passive: false });
@@ -3920,15 +3929,28 @@ function addNewImageToCanvas(img, isPDF = false) {
     }
 
     // 2. Kırmızı Kapatma Butonunu geri getir
-    const closeBtn = document.getElementById('btn-close-pdf');
-    if (closeBtn) {
-        closeBtn.classList.remove('hidden');
-        closeBtn.style.display = 'flex';
+        const closeBtn = document.getElementById('btn-close-pdf');
+        if (closeBtn) {
+            closeBtn.classList.remove('hidden');
+            closeBtn.style.display = 'flex';
+        }
+
+        redrawAllStrokes();
+
+        // 🚨 YENİ: Resim ekrana ilk yüklendiğinde de Tabletin mutlak koordinatlarını PC'ye dayat!
+        // Böylece daha hiç zoom yapmadan bile çizgileriniz kusursuz örtüşür.
+        if (typeof isConnected !== 'undefined' && isConnected) {
+            setTimeout(() => {
+                window.sendNetworkData({
+                    type: 'zoom_senkron', 
+                    x: newStroke.x,
+                    y: newStroke.y,
+                    width: newStroke.width,
+                    height: newStroke.height
+                });
+            }, 300); // PC'nin resmi yüklemesi için milisaniyelik minik bir avans
+        }
     }
-
-    redrawAllStrokes();
-
-}
 
 // --- ARAÇ RENGİ DEĞİŞTİRME MANTIĞI (SİYAH / NEON / TOK MAVİ) ---
 const toolColorBtn = document.getElementById('btn-tool-color');
@@ -5526,17 +5548,13 @@ function setupConnectionEvents() {
         if (data.type === 'zoom_senkron') {
             const bgStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
             bgStrokes.forEach(bg => { 
-                // 🚨 SİHİRLİ ÇÖZÜM: Tabletin X/Y koordinatlarını kopyalamak yerine, 
-                // bilgisayar eski merkezini koruyarak sadece boyutu günceller.
-                const yeniW = data.width;
-                const yeniH = data.height;
-                
-                // Resmi bulunduğu yerde, tam ortadan büyüt/küçült
-                bg.x = bg.x - (yeniW - bg.width) / 2;
-                bg.y = bg.y - (yeniH - bg.height) / 2;
-                
-                bg.width = yeniW; 
-                bg.height = yeniH; 
+                // 🚨 KESİN ÇÖZÜM: PC'nin kendi merkezini unutmasını sağlıyoruz!
+                // Tabletin resmi tam olarak hangi X ve Y koordinatında duruyorsa, 
+                // PC'de de resim tam oraya zımbalanır. Böylece kalem çizgileri %100 örtüşür!
+                bg.x = data.x;
+                bg.y = data.y;
+                bg.width = data.width; 
+                bg.height = data.height; 
             });
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
