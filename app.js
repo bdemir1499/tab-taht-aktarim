@@ -5436,19 +5436,20 @@ function setupConnectionEvents() {
 
         if (data.type === 'geri_al') { window.drawnStrokes.pop(); if (window.redrawAllStrokes) window.redrawAllStrokes(); }
         else if (data.type === 'hepsini_sil') { 
-            // PC İÇİN AKILLI FİLTRE: Sadece ana PDF/Resim zeminini hayatta bırak, diğerlerini uçur!
-            window.drawnStrokes = window.drawnStrokes.filter(stroke => {
-                return stroke.type === 'image' && stroke.isBoxCopy !== true && stroke.isBackground !== false;
-            });
+            // PC İÇİN KESİN ÇÖZÜM: Hafıza bağlantısını koparmadan filtreleme yapıyoruz!
+            const korunacakZeminler = window.drawnStrokes.filter(stroke => stroke.isBackground === true);
             
-            // 2. PC tarafındaki kayıtlı veriyi de temizle (LocalStorage)
+            window.drawnStrokes.length = 0; // 1. Orijinal hafızanın içini tamamen boşalt
+            window.drawnStrokes.push(...korunacakZeminler); // 2. Sadece PDF ve arka planları geri koy
+            
+            // PC tarafındaki kayıtlı veriyi de temizle (LocalStorage)
             if (window.localStorage) {
                 window.localStorage.removeItem('drawnStrokes'); 
             }
-            // 3. Ekranı yenile
+            // Ekranı yenile
             if (window.redrawAllStrokes) window.redrawAllStrokes(); 
             
-            console.log("PC: Silme komutu alındı, PDF zemin korundu, çizimler temizlendi.");
+            console.log("PC: Silme komutu alındı. Çizimler ve kopyalar uçuruldu, sadece zemin korundu.");
         }
         
         if (data.type === 'pdf_yukle') { 
