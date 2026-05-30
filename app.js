@@ -5294,6 +5294,7 @@ function setupConnectionEvents() {
             return;
         }
 
+
         // GÜVENLİK DUVARI
         if (!window.baglantiOnaylandi) return;
 
