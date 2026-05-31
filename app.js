@@ -6185,37 +6185,6 @@ toolFix.innerHTML = `
 `;
 document.head.appendChild(toolFix);
 
-// 🚨 ZIRH 2: PC'nin doğru hizalama yapabilmesi için gönderilen verilere Tabletin boyutlarını damgalar
-if (typeof window.sendNetworkData === 'function' && !window.networkResZirhi) {
-    const orijinalGonder = window.sendNetworkData;
-    window.sendNetworkData = function(data) {
-        const canvasElm = document.getElementById('drawing-canvas');
-        if (canvasElm && data) {
-            data.cw = canvasElm.width;
-            data.ch = canvasElm.height;
-        }
-        orijinalGonder(data);
-    };
-    window.networkResZirhi = true;
-}
-
-// =======================================================
-// --- ARAÇ TİTREME KORUMASI VE MERKEZ HİZALAYICI DAMGA ---
-// =======================================================
-
-// 🚨 ZIRH 1: Tablette araçları bırakınca oluşan sarsıntı ve titremeyi kilitler
-const toolFix = document.createElement('style');
-toolFix.innerHTML = `
-    #compass-container, #gonye-container, #aciolcer-container, #ruler-container,
-    .pergel-leg, .rotate-head, .ruler-body, .tool-handle, .gonye-body, .aciolcer-body {
-        touch-action: none !important;
-        -webkit-user-select: none !important;
-        user-select: none !important;
-        -webkit-touch-callout: none !important;
-    }
-`;
-document.head.appendChild(toolFix);
-
 // 🚨 ZIRH 2: PC'nin doğru hizalama yapabilmesi için gönderilen verilere Tabletin HD boyutlarını damgalar
 // ASLA ÇARPMA/BÜYÜTME YAPMAZ! Çünkü araçlar kendi dosyalarında bunu zaten kusursuz yapıyor.
 if (typeof window.sendNetworkData === 'function' && !window.networkResZirhi) {
