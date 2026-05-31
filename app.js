@@ -723,12 +723,12 @@ const ctx = canvas.getContext('2d');
 
 function setupCanvasResolution() {
     const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1; // 🚨 Cihazın HD piksel oranını (Retina Gücünü) al
     
-    // Kanvasın iç piksel sayısını, ekrandaki gerçek boyutuyla birebir eşitle
-    canvas.width = rect.width;
-    canvas.height = rect.height;
+    // Kanvasın iç piksel sayısını, ekranın gerçek HD çözünürlüğü ile eşitle
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
     
-    // Eğer çizimlerin varsa, çözünürlük değişince silinmemesi için yeniden çizdir
     if (typeof redrawAllStrokes === 'function') {
         redrawAllStrokes();
     }
@@ -3886,25 +3886,24 @@ async function renderPDFPage(num) {
 // --- app.js İÇİNDEKİ addNewImageToCanvas FONKSİYONU ---
 
 function addNewImageToCanvas(img, isPDF = false) {
-    let startWidth = 400; 
-    if (img.width < 400) startWidth = img.width;
+    // 🚨 YENİ: HD Kanvasta resmi 400px ile sıkıştırma, ekranın %80'i kadar devasa ve net aç!
+    let startWidth = canvas.width * 0.8; 
+    if (img.width < startWidth) startWidth = img.width; // Eğer resim kendi küçükse bozma
     
     let scaleFactor = startWidth / img.width;
     let startHeight = img.height * scaleFactor;
 
     const newStroke = {
         type: 'image',
-        id: Date.now() + Math.random(), // 🚨 SİHİRLİ DOKUNUŞ: PC'nin onu tanıması için kimlik veriyoruz 🚨
+        id: Date.now() + Math.random(), 
         img: img, 
-        // --- 1. KRİTİK DÜZELTME: TAM ORTALAMA HESABI ---
         x: (canvas.width / 2) - (startWidth / 2),
         y: (canvas.height / 2) - (startHeight / 2),
         width: startWidth,
         height: startHeight,
         rotation: 0,
         isBackground: true 
-    };
-    
+    };    
     // (Böylece üst üste binmezler)
 // 🚨 DİKKAT: .filter yerine .splice kullanarak sayfa değişiminde hafızanın kopmasını engelliyoruz 🚨
     if (isPDF && typeof pdfImageStroke !== 'undefined' && pdfImageStroke !== null) { 
@@ -4272,14 +4271,15 @@ function lockScreenSize() {
     // Ekranın o anki gerçek piksel boyutunu al
     const w = window.innerWidth;
     const h = window.innerHeight;
+    const dpr = window.devicePixelRatio || 1; // 🚨 HD Oranı
 
     // Kanvası ve body'yi bu piksel değerine beton gibi sabitle (100vh yerine px kullan)
     const canvas = document.getElementById('drawing-canvas');
     if (canvas) {
         canvas.style.width = w + 'px';
         canvas.style.height = h + 'px';
-        canvas.width = w;   // İç çizim çözünürlüğünü kilitle
-        canvas.height = h;
+        canvas.width = w * dpr;   // 🚨 Çözünürlüğü HD yap (Gerçek Pikseller)
+        canvas.height = h * dpr;
     }
 
     document.body.style.width = w + 'px';
