@@ -675,14 +675,22 @@ function getPointerPos(e) {
     let cX = e.clientX;
     let cY = e.clientY;
 
-    // 🚨 KESİN ÇÖZÜM: Tabletlerde ilk dokunuşta clientX sahte bir 0 (sıfır) gelebilir.
-    // Bu yüzden farenin değil, doğrudan ekrana değen parmağın (touches) koordinatını zorla alıyoruz!
-    if (e.touches && e.touches.length > 0) {
-        cX = e.touches[0].clientX;
-        cY = e.touches[0].clientY;
-    } else if (e.changedTouches && e.changedTouches.length > 0) {
-        cX = e.changedTouches[0].clientX;
-        cY = e.changedTouches[0].clientY;
+    // --- SİZİN ORİJİNAL HATA KORUMA MANTIĞINIZ (Avuç içi karışmasını engeller) ---
+    // Eğer cX tanımsızsa (saf dokunmatikse) o anki geçerli dokunuşu (targetTouches) alır.
+    if (cX === undefined || cX === null || isNaN(cX)) {
+        if (e.targetTouches && e.targetTouches.length > 0) {
+            cX = e.targetTouches[0].clientX;
+            cY = e.targetTouches[0].clientY;
+        } else if (e.touches && e.touches.length > 0) {
+            cX = e.touches[0].clientX;
+            cY = e.touches[0].clientY;
+        } else if (e.changedTouches && e.changedTouches.length > 0) {
+            cX = e.changedTouches[0].clientX;
+            cY = e.changedTouches[0].clientY;
+        } else {
+            cX = 0; 
+            cY = 0;
+        }
     }
 
     return {
@@ -2725,19 +2733,20 @@ if (typeof eraserPreview !== 'undefined' && eraserPreview) {
                 color: window.isToolThemeBlack ? '#000000' : (window.currentLineColor || '#FFFFFF'),
                 id: Date.now() + Math.random() 
             };
-            window.drawnStrokes.push(noktaObj);
+            
+            // DİKKAT: window eki kaldırıldı, doğrudan ana diziye gönderiliyor
+            drawnStrokes.push(noktaObj); 
             
             if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
                 window.sendNetworkData({ type: 'yeni_cizim', stroke: noktaObj });
             }
             
             nextPointChar = advanceChar(nextPointChar);
-            window.nextPointChar = nextPointChar;
+            if (typeof window.nextPointChar !== 'undefined') window.nextPointChar = nextPointChar;
             
-            // 🚨 SİHİRLİ ÇÖZÜM: Menü kapanırken ekranın noktayı yutmasını engellemek için 
-            // sisteme 10 milisaniyelik bir nefes alma payı bırakıp ekranı öyle tazeliyoruz.
+            // 🚨 İLK TIKLAMADA OLUŞMAMA SORUNUNU ÇÖZEN ASIL KOD: 10ms Avans
             setTimeout(() => {
-                if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes(); 
+                if (typeof redrawAllStrokes === 'function') redrawAllStrokes(); 
             }, 10);
             break;
 
