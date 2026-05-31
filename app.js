@@ -1118,12 +1118,10 @@ function redrawAllStrokes() {
 
 
        // --- RESİM / PDF VE CANLANDIR (SNAPSHOT) KOPYASI ---
-       // --- RESİM / PDF VE CANLANDIR (SNAPSHOT) KOPYASI ---
        else if (stroke.type === 'image') {
 
-            // YENİ ŞART: Kestiğimiz kopya değilse, kesinlikle ana zemindir. Sona sakla!
+            // 1. EĞER BU BİR PDF VEYA ARKA PLAN İSE SADECE ÇERÇEVESİNİ ÇİZ, KENDİNİ EN ARKAYA SAKLA
             if (stroke.isBackground !== false) {
-                // 🚨 KESİN ÇÖZÜM: Arka plan seçildiyse (Taşı modunda), SEÇİM ÇERÇEVESİNİ VE BUTONLARI EKRANA ÇİZ!
                 if (typeof currentTool !== 'undefined' && currentTool === 'move' && selectedItem === stroke) {
                     ctx.save();
                     const centerX = stroke.x + (stroke.width / 2);
@@ -1157,23 +1155,22 @@ function redrawAllStrokes() {
                     
                     ctx.restore();
                 }
-                continue; // Çerçeve çizildiyse işlemi bitir, resmin kendini en arkaya (destination-over) pasla
+                continue; // İşlemi bitir ve resmin kendini çizmesi için en arkaya (destination-over) pasla
             }
 
+            // 2. EĞER BU KESTİĞİMİZ BİR YÜZEN KOPYAYSA (CANLANDIR) EKRANA ÇİZ VE ÇERÇEVE EKLE
             let imgToDraw = null;
-            // 1. KAYNAK KONTROLÜ
             if (stroke.img && stroke.img instanceof HTMLImageElement) {
-                imgToDraw = stroke.img; // PDF veya Dosya yüklemesi
+                imgToDraw = stroke.img; 
             } else if (stroke.imgData) {
                 if (!stroke.imgObj) {
                     stroke.imgObj = new Image();
                     stroke.imgObj.src = stroke.imgData;
                     stroke.imgObj.onload = () => { if (window.redrawAllStrokes) window.redrawAllStrokes(); };
                 }
-                imgToDraw = stroke.imgObj; // Canlandır kopyası
+                imgToDraw = stroke.imgObj; 
             }
 
-            // 2. ÇİZİM MANTIĞI VE BUTONLARIN EKLENDİĞİ YER
             if (imgToDraw && (imgToDraw.complete || imgToDraw.readyState >= 2)) {
                 ctx.save();
                 const centerX = stroke.x + (stroke.width / 2);
@@ -1183,7 +1180,6 @@ function redrawAllStrokes() {
                 
                 ctx.drawImage(imgToDraw, -stroke.width / 2, -stroke.height / 2, stroke.width, stroke.height);
                 
-                // PARÇA SEÇİLİYSE ÇERÇEVE VE BUTONLARI ÇİZ
                 if (typeof currentTool !== 'undefined' && currentTool === 'move' && selectedItem === stroke) {
                     ctx.strokeStyle = '#00FFCC'; ctx.lineWidth = 2; ctx.setLineDash([5, 5]);
                     ctx.strokeRect(-stroke.width / 2, -stroke.height / 2, stroke.width, stroke.height);
