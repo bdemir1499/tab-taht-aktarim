@@ -13,17 +13,19 @@ if (kacakKullanimMi && mevcutAdres !== "") {
 // 🚨 KESİN ÇÖZÜM: Akıllı tahtalarda kayıp resim (X_X yüz) çökmesini TAMAMEN engeller 🚨
 const cursorFix = document.createElement('style');
 cursorFix.innerHTML = `
-    /* SADECE ÇİZİM TAHTASINDA RİSKLİ İMLEÇLERİ YASAKLA! */
-    /* Tahtanın çökmesine neden olan X_X resimlerini kalıcı olarak engeller */
-    
-    body.cursor-eraser #drawing-canvas {
-        cursor: none !important; /* Silgide imleç tamamen gizli */
-    }
-    body.cursor-pen #drawing-canvas {
-        cursor: crosshair !important; /* Kalem için güvenli artı (+) işareti */
-    }
-    body.cursor-snapshot #drawing-canvas {
-        cursor: crosshair !important; /* Canlandır için güvenli artı (+) işareti */
+    /* SADECE KANVASTA DEĞİL, BÜTÜN EKRANDA ZOMBİ İMLEÇLERİ KÖKÜNDEN YASAKLA! */
+    body.cursor-eraser { cursor: none !important; }
+    body.cursor-pen { cursor: crosshair !important; }
+    body.cursor-snapshot { cursor: crosshair !important; }
+
+    /* Çizim tahtası üzerinde de kesin yasak (Çifte güvenlik) */
+    body.cursor-eraser #drawing-canvas { cursor: none !important; }
+    body.cursor-pen #drawing-canvas { cursor: crosshair !important; }
+    body.cursor-snapshot #drawing-canvas { cursor: crosshair !important; }
+
+    /* Menülerin, panellerin ve butonların üzerinde her zaman normal ok/parmak işareti çıksın! */
+    .panel, .panel *, button, .tool-button, .tool-button-sub { 
+        cursor: pointer !important; 
     }
 `;
 document.head.appendChild(cursorFix);
