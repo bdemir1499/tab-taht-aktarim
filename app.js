@@ -5356,14 +5356,11 @@ function setupConnectionEvents() {
     
     myConnection.on('data', function(data) {
         
-        // 🚨 KESİN VE NİHAİ ÇÖZÜM: TERTEMİZ AĞ ALICISI 🚨
-        // Tablet (ruler.js, gonye.js) tüm hesaplamaları zaten yapıp gönderiyor.
-        // Bilgisayarın (Akıllı Tahtanın) tek yapması gereken bu veriyi HİÇ ÇARPMADAN ekrana çizmektir!
-
+        // 🚨 NİHAİ VE MATEMATİKSEL KESİN ÇÖZÜM: CSS ve Canvas HD Uyuşmazlığını Giderici 🚨
         function veriyiIsle(d) {
             if (!d) return;
 
-            // 1. ZOOM VE PDF SENKRONİZASYONU (Çarpma yok!)
+            // 1. ZOOM VE PDF SENKRONİZASYONU
             if (d.type === 'zoom_senkron') {
                 if (window.drawnStrokes) {
                     const bgStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
@@ -5378,28 +5375,67 @@ function setupConnectionEvents() {
                 return;
             }
 
-            // 2. ÇİZİM VERİSİ (Çarpma/Büyütme tamamen iptal edildi, direkt çiziliyor!)
+            // 🚨 2. SİHİRLİ MATEMATİK: Cihazlar arası piksel yoğunluğu (DPR) farkını çözen motor!
+            // Tabletin yüksek kaliteli HD sinyallerini, Akıllı tahtanın CSS piksellerine mükemmel hizalar.
+            if (d.cw && d.cssW) {
+                const canvasElm = document.getElementById('drawing-canvas');
+                const dpr_tablet = d.cw / d.cssW;
+                const dpr_pc = canvasElm ? (canvasElm.width / window.innerWidth) : 1;
+                const cssCarpan = dpr_tablet / dpr_pc;
+
+                if (Math.abs(cssCarpan - 1) > 0.05) {
+                    if (d.type === 'arac_senkron') {
+                        if (d.left) d.left = (parseFloat(d.left) * cssCarpan) + 'px';
+                        if (d.top) d.top = (parseFloat(d.top) * cssCarpan) + 'px';
+                        if (d.width) d.width = (parseFloat(d.width) * cssCarpan) + 'px';
+                        if (d.height) d.height = (parseFloat(d.height) * cssCarpan) + 'px';
+                    }
+                    else if (d.type === 'arac_state_senkron' && d.state) {
+                        if (d.state.x !== undefined) d.state.x *= cssCarpan;
+                        if (d.state.y !== undefined) d.state.y *= cssCarpan;
+                        if (d.state.width !== undefined) d.state.width *= cssCarpan;
+                        if (d.state.height !== undefined) d.state.height *= cssCarpan;
+                        if (d.state.radius !== undefined) d.state.radius *= cssCarpan;
+                        if (d.state.pivot) {
+                            d.state.pivot.x *= cssCarpan;
+                            d.state.pivot.y *= cssCarpan;
+                        }
+                        if (d.width) d.width = (parseFloat(d.width) * cssCarpan) + 'px';
+                        if (d.height) d.height = (parseFloat(d.height) * cssCarpan) + 'px';
+                    }
+                    else if (d.type === 'aktif_onizleme' && d.payload) {
+                        // Sadece fiziksel araçların önizlemeleri CSS pikselleriyle gelir, onları HD'ye hizala
+                        if (d.arac === 'ruler' || d.arac === 'gonye' || d.arac === 'aciolcer' || d.arac === 'lazer') {
+                            const p = d.payload;
+                            if (p.handleX !== undefined) p.handleX *= cssCarpan;
+                            if (p.handleY !== undefined) p.handleY *= cssCarpan;
+                            if (p.cx !== undefined) p.cx *= cssCarpan;
+                            if (p.cy !== undefined) p.cy *= cssCarpan;
+                            if (p.px !== undefined) p.px *= cssCarpan;
+                            if (p.py !== undefined) p.py *= cssCarpan;
+                            if (p.ldx !== undefined) p.ldx *= cssCarpan;
+                            if (p.ldy !== undefined) p.ldy *= cssCarpan;
+                            if (p.x !== undefined) p.x *= cssCarpan; 
+                            if (p.y !== undefined) p.y *= cssCarpan; 
+                        }
+                    }
+                }
+            }
+
             if (typeof processData === 'function') processData(d);
         }
 
-        // --- BÜYÜK DOSYALARI (CHUNKS) BİRLEŞTİRİCİ ---
         if (data && data.type === 'chunk') {
             const id = data.msgId || 'genel';
             if (!window.chunkBuffers[id]) window.chunkBuffers[id] = "";
             window.chunkBuffers[id] += data.data;
             if (data.isLast) {
-                try { 
-                    const tamVeri = JSON.parse(window.chunkBuffers[id]);
-                    veriyiIsle(tamVeri); 
-                } catch (e) {
-                    console.error("Paket birleştirme hatası:", e);
-                }
+                try { veriyiIsle(JSON.parse(window.chunkBuffers[id])); } catch (e) {}
                 delete window.chunkBuffers[id]; 
             }
             return;
         }
 
-        // Parçalı olmayan normal veriyi doğrudan işle
         veriyiIsle(data);
     });
 
@@ -6149,8 +6185,7 @@ toolFix.innerHTML = `
 `;
 document.head.appendChild(toolFix);
 
-// 🚨 ZIRH 2: PC'nin doğru hizalama yapabilmesi için gönderilen verilere Tabletin HD boyutlarını damgalar
-// ASLA ÇARPMA/BÜYÜTME YAPMAZ! Çünkü araçlar kendi dosyalarında bunu zaten kusursuz yapıyor.
+// 🚨 ZIRH 2: PC'nin doğru hizalama yapabilmesi için gönderilen verilere Tabletin HD ve CSS boyutlarını damgalar
 if (typeof window.sendNetworkData === 'function' && !window.networkResZirhi) {
     const orijinalGonder = window.sendNetworkData;
     window.sendNetworkData = function(data) {
@@ -6158,6 +6193,8 @@ if (typeof window.sendNetworkData === 'function' && !window.networkResZirhi) {
         if (canvasElm && data) {
             data.cw = canvasElm.width;
             data.ch = canvasElm.height;
+            data.cssW = window.innerWidth;      // <--- Buralar yeni eklendi
+            data.cssH = window.innerHeight;     // <--- Buralar yeni eklendi
         }
         orijinalGonder(data);
     };
