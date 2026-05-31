@@ -22,6 +22,54 @@ cursorFix.innerHTML = `
 `;
 document.head.appendChild(cursorFix);
 
+// 🚨 1. KESİN ÇÖZÜM: Tablette Araçları Bırakınca Oluşan Titreme ve Kaymayı Engeller
+const toolFix = document.createElement('style');
+toolFix.innerHTML = `
+    /* Tarayıcının araç tutamaçlarında saçmalamasını ve hayalet tıklama atmasını kökünden yasaklar */
+    #compass-container, #gonye-container, #aciolcer-container, #ruler-container,
+    .pergel-leg, .rotate-head, .ruler-body, .tool-handle, .gonye-body, .aciolcer-body {
+        touch-action: none !important;
+        -webkit-user-select: none !important;
+        user-select: none !important;
+        -webkit-touch-callout: none !important;
+    }
+`;
+document.head.appendChild(toolFix);
+
+
+// 🚨 2. KESİN ÇÖZÜM: Pergel ve Açıölçer PC'ye Giderken Koordinat Zıplamasını Düzeltir
+setTimeout(() => {
+    // Çizim hafızasının (drawnStrokes) arasına gizli bir filtre takıyoruz
+    if (typeof window.drawnStrokes !== 'undefined' && !window.drawnStrokes.isHDSecured) {
+        const originalPush = window.drawnStrokes.push.bind(window.drawnStrokes);
+        
+        window.drawnStrokes.push = function(...args) {
+            const stroke = args[0];
+            
+            // Eğer gelen çizim Pergel veya Açıölçerden (arc/circle) geliyorsa ve henüz düzeltilmediyse:
+            if (stroke && (stroke.type === 'arc' || stroke.type === 'circle') && !stroke.isHDFixed) {
+                const canvasElm = document.getElementById('drawing-canvas');
+                if (canvasElm) {
+                    const rect = canvasElm.getBoundingClientRect();
+                    
+                    // Kalemde kullandığımız o meşhur altın oran çeviricisi
+                    const scaleX = canvasElm.width / rect.width;
+                    const scaleY = canvasElm.height / rect.height;
+                    
+                    // Aracın CSS piksellerini, PC'nin devasa HD piksellerine %100 sapmasız çevir!
+                    stroke.cx = stroke.cx * scaleX;
+                    stroke.cy = stroke.cy * scaleY;
+                    if (stroke.radius) stroke.radius = stroke.radius * Math.max(scaleX, scaleY);
+                    
+                    stroke.isHDFixed = true; // PC'ye gittiğinde bir daha çarpılmasını engeller
+                }
+            }
+            return originalPush(...args); // Düzeltilmiş haliyle sisteme kaydet
+        };
+        window.drawnStrokes.isHDSecured = true;
+    }
+}, 1000); // Sistem yüklendikten 1 saniye sonra pusuya yatar
+
 
 // Artık sabit bir MY_SECRET_KEY yok, öğretmen her ders şifreyi belirleyecek
 window.sessionPassword = "";
