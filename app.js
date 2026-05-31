@@ -675,27 +675,17 @@ function getPointerPos(e) {
     let cX = e.clientX;
     let cY = e.clientY;
 
-    // --- SENİN MEVCUT HATA KORUMA MANTIĞIN (DOKUNULMADI) ---
-    if (cX === undefined || cX === null || isNaN(cX)) {
-        if (e.targetTouches && e.targetTouches.length > 0) {
-            cX = e.targetTouches[0].clientX;
-            cY = e.targetTouches[0].clientY;
-        } else if (e.touches && e.touches.length > 0) {
-            cX = e.touches[0].clientX;
-            cY = e.touches[0].clientY;
-        } else if (e.changedTouches && e.changedTouches.length > 0) {
-            cX = e.changedTouches[0].clientX;
-            cY = e.changedTouches[0].clientY;
-        } else {
-            cX = 0; 
-            cY = 0;
-        }
+    // 🚨 KESİN ÇÖZÜM: Tabletlerde ilk dokunuşta clientX sahte bir 0 (sıfır) gelebilir.
+    // Bu yüzden farenin değil, doğrudan ekrana değen parmağın (touches) koordinatını zorla alıyoruz!
+    if (e.touches && e.touches.length > 0) {
+        cX = e.touches[0].clientX;
+        cY = e.touches[0].clientY;
+    } else if (e.changedTouches && e.changedTouches.length > 0) {
+        cX = e.changedTouches[0].clientX;
+        cY = e.changedTouches[0].clientY;
     }
 
-    // --- YENİ DÜZELTİLMİŞ HESAPLAMA (ÖZELLİK KAYBI YOK) ---
     return {
-        // (cX - rect.left) ile ham koordinatı bulup, 
-        // kanvasın iç çözünürlüğü ile ekrandaki boyutu arasındaki orana (canvas.width / rect.width) çarpıyoruz.
         x: ((cX || 0) - rect.left) * (canvas.width / rect.width),
         y: ((cY || 0) - rect.top) * (canvas.height / rect.height)
     };
@@ -1188,8 +1178,8 @@ function redrawAllStrokes() {
 
         // --- NOKTA ---
         else if (stroke.type === 'point') {
-            drawDot(stroke);
-            drawLabel(stroke.label, stroke);
+            drawDot(stroke, stroke.color); // 🚨 Noktanın kendi rengini kullanmasını sağlar
+            drawLabel(stroke.label, stroke, stroke.color); // 🚨 Harfin de aynı renk olmasını sağlar
         }
 
         // --- DÜZ ÇİZGİ ---
@@ -2725,7 +2715,6 @@ if (typeof eraserPreview !== 'undefined' && eraserPreview) {
             });
             break;
 
-        // YERİNE BUNU YAPIŞTIRIN:
         case 'point':
             isDrawing = false; 
             const noktaObj = { 
@@ -2734,18 +2723,25 @@ if (typeof eraserPreview !== 'undefined' && eraserPreview) {
                 y: snapPos.y, 
                 label: nextPointChar,
                 color: window.isToolThemeBlack ? '#000000' : (window.currentLineColor || '#FFFFFF'),
-                id: Date.now() + Math.random() // 🚨 Silinmesi ve senkronize olması için KİMLİK ŞART
+                id: Date.now() + Math.random() 
             };
-            drawnStrokes.push(noktaObj);
+            window.drawnStrokes.push(noktaObj);
             
-            // 🚨 YENİ: Çizilen noktayı anında PC'ye fırlat
             if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
                 window.sendNetworkData({ type: 'yeni_cizim', stroke: noktaObj });
             }
             
             nextPointChar = advanceChar(nextPointChar);
-            redrawAllStrokes(); 
+            window.nextPointChar = nextPointChar;
+            
+            // 🚨 SİHİRLİ ÇÖZÜM: Menü kapanırken ekranın noktayı yutmasını engellemek için 
+            // sisteme 10 milisaniyelik bir nefes alma payı bırakıp ekranı öyle tazeliyoruz.
+            setTimeout(() => {
+                if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes(); 
+            }, 10);
             break;
+
+
         case 'eraser':
             isDrawing = true; 
             break;
