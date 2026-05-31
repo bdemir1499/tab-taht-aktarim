@@ -10,14 +10,20 @@ if (kacakKullanimMi && mevcutAdres !== "") {
     throw new Error("Korsan kullanım tespit edildi, sistem durduruldu!");
 }
 
-// 🚨 KESİN ÇÖZÜM: Akıllı tahtalarda kayıp silgi resmi (X_X yüz) çökmesini engeller 🚨
-// 🚨 KESİN ÇÖZÜM: Çift imleç çıkmasını ve kayıp silgi resmini (X_X yüz) tamamen engeller
-// 🚨 KESİN ÇÖZÜM: Çift imleç çıkmasını engeller ve panellerde fareyi geri getirir
+// 🚨 KESİN ÇÖZÜM: Akıllı tahtalarda kayıp resim (X_X yüz) çökmesini TAMAMEN engeller 🚨
 const cursorFix = document.createElement('style');
 cursorFix.innerHTML = `
-    /* SADECE ÇİZİM TAHTASINDA İMLECİ GİZLE! Panellerin üzerine gelindiğinde normal fare oku geri gelsin. */
+    /* SADECE ÇİZİM TAHTASINDA RİSKLİ İMLEÇLERİ YASAKLA! */
+    /* Tahtanın çökmesine neden olan X_X resimlerini kalıcı olarak engeller */
+    
     body.cursor-eraser #drawing-canvas {
-        cursor: none !important; 
+        cursor: none !important; /* Silgide imleç tamamen gizli */
+    }
+    body.cursor-pen #drawing-canvas {
+        cursor: crosshair !important; /* Kalem için güvenli artı (+) işareti */
+    }
+    body.cursor-snapshot #drawing-canvas {
+        cursor: crosshair !important; /* Canlandır için güvenli artı (+) işareti */
     }
 `;
 document.head.appendChild(cursorFix);
