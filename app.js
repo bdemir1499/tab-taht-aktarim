@@ -4962,19 +4962,41 @@ function akilliSilgi(e, isDown) {
     
     // Tıklanmıyorsa veya ekrana dokunulmuyorsa işlem yapma
     const isClicking = isDown || (typeof isDrawing !== 'undefined' && isDrawing) || e.buttons > 0 || (e.touches && e.touches.length > 0);
-    if (!isClicking) return false;
+    if (!isClicking) {
+        window.lastEraserPos = null; // Tıklama (silme) bitince hafızayı sıfırla
+        return false;
+    }
 
-    // 🚨 KRİTİK ÇÖZÜM: HD (Retina) ekrana özel uyarlanmış kusursuz koordinat fonksiyonunu kullanıyoruz!
-    // Bu sayede PC'deki silgi kare nereyi gösteriyorsa, altındaki pikselleri milimetrik olarak vurur.
     const pos = getPointerPos(e); 
     const ex = pos.x;
     const ey = pos.y;
 
-    // 🚨 KESİN ÇÖZÜM: Silginin "Etki Çapını (Hitbox)" Tahtanın HD Boyutuna Göre Devleştiriyoruz!
-    // 25 piksel HD ekranda iğne ucu kadar kalıyordu. Şimdi koca bir fırça gibi silecek.
+    // Tahtanın boyutuna göre devasa etki alanı
     const dpr = window.devicePixelRatio || 1;
-    const eR = 45 * dpr; 
+    const eR = 60 * dpr; 
+
+    // 🚨 KESİN ÇÖZÜM: Hızlı Silme (Işınlanma/Atlama) Koruması!
+    // Akıllı tahtada eli hızlı kaydırınca oluşan sensör boşluklarını doldurur.
+    let noktalar = [{x: ex, y: ey}];
     
+    if (window.lastEraserPos) {
+        const dx = ex - window.lastEraserPos.x;
+        const dy = ey - window.lastEraserPos.y;
+        const mesafe = Math.hypot(dx, dy);
+        
+        // Eğer iki algılama arasında 20 pikselden fazla boşluk varsa, araya "sanal silgiler" bas!
+        if (mesafe > 20) {
+            const adimSayisi = Math.floor(mesafe / 20); 
+            for (let i = 1; i <= adimSayisi; i++) {
+                noktalar.push({
+                    x: window.lastEraserPos.x + (dx * i / adimSayisi),
+                    y: window.lastEraserPos.y + (dy * i / adimSayisi)
+                });
+            }
+        }
+    }
+    window.lastEraserPos = {x: ex, y: ey};
+
     let silindiMi = false;
 
     const distToSeg = (p, v, w) => {
@@ -4992,41 +5014,47 @@ function akilliSilgi(e, isDown) {
 
             let vuruldu = false;
 
-            // 1. Serbest Kalem
-            if (s.type === 'pen' && s.path) {
-                for (let j = 1; j < s.path.length; j++) {
-                    if (distToSeg({x: ex, y: ey}, s.path[j-1], s.path[j]) < eR + (s.width || 3)) { vuruldu = true; break; }
+            // Boşlukları dolduran tüm sanal silgilerle tarama yap
+            for (let n of noktalar) {
+                if (vuruldu) break; // Zaten silindiyse diğer noktalara bakma
+                let nx = n.x, ny = n.y;
+
+                // 1. Serbest Kalem
+                if (s.type === 'pen' && s.path) {
+                    for (let j = 1; j < s.path.length; j++) {
+                        if (distToSeg({x: nx, y: ny}, s.path[j-1], s.path[j]) < eR + (s.width || 3)) { vuruldu = true; break; }
+                    }
+                    if (!vuruldu && s.path.length === 1) {
+                        if (Math.hypot(s.path[0].x - nx, s.path[0].y - ny) < eR + 5) vuruldu = true;
+                    }
+                } 
+                // 2. Kutu ve Serbest Kesimler
+                else if (s.type === 'image') {
+                     if (nx >= (s.x||0) && nx <= (s.x||0) + (s.width||0) && ny >= (s.y||0) && ny <= (s.y||0) + (s.height||0)) vuruldu = true;
+                } 
+                // 3. Çokgenler
+                else if (s.type === 'polygon' && s.center) {
+                     if (Math.hypot(s.center.x - nx, s.center.y - ny) <= (s.radius||0) + eR) vuruldu = true;
+                } 
+                // 4. Çember
+                else if (s.type === 'arc') {
+                     if (Math.hypot((s.cx||0) - nx, (s.cy||0) - ny) <= (s.radius||0) + eR) vuruldu = true;
+                } 
+                // 5. Cetvel Çizgileri
+                else if (s.p1 && s.p2) {
+                     if (distToSeg({x: nx, y: ny}, s.p1, s.p2) < eR + 10) vuruldu = true;
                 }
-                if (!vuruldu && s.path.length === 1) {
-                    if (Math.hypot(s.path[0].x - ex, s.path[0].y - ey) < eR + 5) vuruldu = true;
+                // 6. DİKDÖRTGEN DESTEĞİ
+                else if (s.type === 'rectangle' || s.type === 'rect') {
+                     let rx = s.x !== undefined ? s.x : Math.min(s.startPoint?.x||0, s.endPoint?.x||0);
+                     let ry = s.y !== undefined ? s.y : Math.min(s.startPoint?.y||0, s.endPoint?.y||0);
+                     let rw = s.width !== undefined ? s.width : Math.abs((s.startPoint?.x||0) - (s.endPoint?.x||0));
+                     let rh = s.height !== undefined ? s.height : Math.abs((s.startPoint?.y||0) - (s.endPoint?.y||0));
+                     
+                     if (nx >= rx - eR && nx <= rx + rw + eR && ny >= ry - eR && ny <= ry + rh + eR) {
+                         vuruldu = true;
+                     }
                 }
-            } 
-            // 2. Kutu ve Serbest Kesimler
-            else if (s.type === 'image') {
-                 if (ex >= (s.x||0) && ex <= (s.x||0) + (s.width||0) && ey >= (s.y||0) && ey <= (s.y||0) + (s.height||0)) vuruldu = true;
-            } 
-            // 3. Çokgenler
-            else if (s.type === 'polygon' && s.center) {
-                 if (Math.hypot(s.center.x - ex, s.center.y - ey) <= (s.radius||0) + eR) vuruldu = true;
-            } 
-            // 4. Çember
-            else if (s.type === 'arc') {
-                 if (Math.hypot((s.cx||0) - ex, (s.cy||0) - ey) <= (s.radius||0) + eR) vuruldu = true;
-            } 
-            // 5. Cetvel Çizgileri
-            else if (s.p1 && s.p2) {
-                 if (distToSeg({x: ex, y: ey}, s.p1, s.p2) < eR + 10) vuruldu = true;
-            }
-            // 6. DİKDÖRTGEN DESTEĞİ
-            else if (s.type === 'rectangle' || s.type === 'rect') {
-                 let rx = s.x !== undefined ? s.x : Math.min(s.startPoint?.x||0, s.endPoint?.x||0);
-                 let ry = s.y !== undefined ? s.y : Math.min(s.startPoint?.y||0, s.endPoint?.y||0);
-                 let rw = s.width !== undefined ? s.width : Math.abs((s.startPoint?.x||0) - (s.endPoint?.x||0));
-                 let rh = s.height !== undefined ? s.height : Math.abs((s.startPoint?.y||0) - (s.endPoint?.y||0));
-                 
-                 if (ex >= rx - eR && ex <= rx + rw + eR && ey >= ry - eR && ey <= ry + rh + eR) {
-                     vuruldu = true;
-                 }
             }
 
             // VURULDUYSA SİL VE AĞA GÖNDER
@@ -5045,7 +5073,7 @@ function akilliSilgi(e, isDown) {
     if (silindiMi && window.redrawAllStrokes) {
         window.redrawAllStrokes(); 
     }
-} // AKILLI SİLGİ FONKSİYONU BURADA TEMİZCE KAPANDI
+}
 
 // --- SİLGİ OLAY DİNLEYİCİLERİ (Artık Güvende) ---
 if (canvasElm) {
