@@ -1156,7 +1156,7 @@ function redrawAllStrokes() {
                     
                     ctx.restore();
                 }
-                continue; // İşlemi bitir ve resmin kendini çizmesi için en arkaya (destination-over) pasla
+                continue; // Çerçeve çizildiyse işlemi bitir, resmin kendini en arkaya (destination-over) pasla
             }
 
             let imgToDraw = null;
@@ -2563,9 +2563,6 @@ if (animateButton) {
 // Mevcut pointerdown dinleyicisinin en başına (yaklaşık 5100. satırlar civarı)
 canvas.addEventListener('pointerdown', (e) => {
 
-// 🚨 FİLTRE: Eğer ekrana değen şey parmak veya avuç içi ise (touch), işlemi durdur!
-    // Bu sayede sistem sadece 'pen' (kalem) veya 'mouse' algıladığında çizim yapar.
-    if (e.pointerType === 'touch') return;
 
 // (Mühürleme kodu tamamen silindi)
     // AKILLI TAHTA YAMASI:
