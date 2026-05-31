@@ -2725,9 +2725,24 @@ if (typeof eraserPreview !== 'undefined' && eraserPreview) {
             });
             break;
 
+        // YERİNE BUNU YAPIŞTIRIN:
         case 'point':
             isDrawing = false; 
-            drawnStrokes.push({ type: 'point', x: snapPos.x, y: snapPos.y, label: nextPointChar });
+            const noktaObj = { 
+                type: 'point', 
+                x: snapPos.x, 
+                y: snapPos.y, 
+                label: nextPointChar,
+                color: window.isToolThemeBlack ? '#000000' : (window.currentLineColor || '#FFFFFF'),
+                id: Date.now() + Math.random() // 🚨 Silinmesi ve senkronize olması için KİMLİK ŞART
+            };
+            drawnStrokes.push(noktaObj);
+            
+            // 🚨 YENİ: Çizilen noktayı anında PC'ye fırlat
+            if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                window.sendNetworkData({ type: 'yeni_cizim', stroke: noktaObj });
+            }
+            
             nextPointChar = advanceChar(nextPointChar);
             redrawAllStrokes(); 
             break;
@@ -3157,29 +3172,30 @@ window.sendNetworkData({ type: 'arac_senkron', selector: '.yuzen-kopya-container
             ctx.stroke();
 // --- BURADAN İTİBAREN EKLE ---
         
-        // --- CANLI ÇİZİM ÖNİZLEMESİNİ PC'YE FIRLAT (DOKUNMATİK UYUMLU) ---
-        if (typeof isConnected !== 'undefined' && isConnected) {
+        // --- CANLI ÇİZİM ÖNİZLEMESİNİ PC'YE FIRLAT ---
+        // 🚨 KESİN ÇÖZÜM: Tablet dokunuşlarındaki (e.buttons) PC gönderim engelini kaldırıyoruz!
+        const aktifCizimVarMi = isDrawingLine || isDrawingInfinityLine || isDrawingSegment || isDrawingRay || isDrawingRectangle || (window.tempPolygonData && window.tempPolygonData.center);
+        
+        if (typeof isConnected !== 'undefined' && isConnected && aktifCizimVarMi) {
+            
+            const anlikPos = typeof getPointerPos === 'function' ? getPointerPos(e) : { x: e.clientX, y: e.clientY };
             let previewData = null;
 
-            // 1. Çizgi Çeşitleri
             if (['straightLine', 'line', 'segment', 'ray'].includes(currentTool) && typeof lineStartPoint !== 'undefined' && lineStartPoint) {
-                previewData = { tool: currentTool, start: lineStartPoint, end: endPos };
+                previewData = { tool: currentTool, start: lineStartPoint, end: anlikPos };
             }
-            // 2. Dikdörtgen
             else if (currentTool === 'rectangle' && typeof rectStartPoint !== 'undefined' && rectStartPoint) {
-                previewData = { tool: currentTool, start: rectStartPoint, end: endPos };
+                previewData = { tool: currentTool, start: rectStartPoint, end: anlikPos };
             }
-            // 3. Çokgen ve Çember
             else if (window.tempPolygonData && window.tempPolygonData.center) {
                 previewData = { 
                     tool: 'polygon',
                     start: window.tempPolygonData.center,
-                    end: endPos,
-                    radius: window.tempPolygonData.radius || Math.hypot(endPos.x - window.tempPolygonData.center.x, endPos.y - window.tempPolygonData.center.y)
+                    end: anlikPos,
+                    radius: Math.hypot(anlikPos.x - window.tempPolygonData.center.x, anlikPos.y - window.tempPolygonData.center.y)
                 };
             }
 
-            // PC'ye ateşle!
             if (previewData) {
                 window.sendNetworkData({
                     type: 'aktif_onizleme',
@@ -3386,20 +3402,23 @@ canvas.addEventListener('pointerup', (e) => {
     if (lineStartPoint && finalPos) {
         let strokeObj = null;
 
+        // 🚨 KESİN ÇÖZÜM: Çökmeye neden olan hatalı değişken ismi düzeltildi!
+        const cizgiRengi = window.isToolThemeBlack ? '#000000' : (window.currentLineColor || '#FFFFFF');
+
         if (isDrawingLine) {
-            strokeObj = { type: 'straightLine', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3 };
+            strokeObj = { type: 'straightLine', p1: lineStartPoint, p2: finalPos, color: cizgiRengi, width: 3 };
         } 
         else if (isDrawingInfinityLine) {
             const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
-            strokeObj = { type: 'line', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3, label1: l1, label2: l2 };
+            strokeObj = { type: 'line', p1: lineStartPoint, p2: finalPos, color: cizgiRengi, width: 3, label1: l1, label2: l2 };
         } 
         else if (isDrawingSegment) {
             const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
-            strokeObj = { type: 'segment', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3, label1: l1, label2: l2 };
+            strokeObj = { type: 'segment', p1: lineStartPoint, p2: finalPos, color: cizgiRengi, width: 3, label1: l1, label2: l2 };
         } 
         else if (isDrawingRay) {
             const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
-            strokeObj = { type: 'ray', p1: lineStartPoint, p2: finalPos, color: currentLineColor, width: 3, label1: l1, label2: l2 };
+            strokeObj = { type: 'ray', p1: lineStartPoint, p2: finalPos, color: cizgiRengi, width: 3, label1: l1, label2: l2 };
         }
 
         if (strokeObj) {
@@ -5059,7 +5078,8 @@ function akilliSilgi(e, isDown) {
                 else if (s.p1 && s.p2) {
                      if (distToSeg({x: nx, y: ny}, s.p1, s.p2) < eR + 10) vuruldu = true;
                 }
-                // 6. DİKDÖRTGEN DESTEĞİ
+
+               // 6. DİKDÖRTGEN DESTEĞİ
                 else if (s.type === 'rectangle' || s.type === 'rect') {
                      let rx = s.x !== undefined ? s.x : Math.min(s.startPoint?.x||0, s.endPoint?.x||0);
                      let ry = s.y !== undefined ? s.y : Math.min(s.startPoint?.y||0, s.endPoint?.y||0);
@@ -5070,7 +5090,11 @@ function akilliSilgi(e, isDown) {
                          vuruldu = true;
                      }
                 }
-            }
+                // 🚨 7. YENİ: NOKTA SİLME DESTEĞİ 🚨
+                else if (s.type === 'point') {
+                     if (Math.hypot((s.x||0) - nx, (s.y||0) - ny) <= 15 + eR) vuruldu = true;
+                }
+            } // <--- DİKKAT: Noktalar tarama döngüsünün bitiş parantezi!
 
             // VURULDUYSA SİL VE AĞA GÖNDER
             if (vuruldu) {
