@@ -1118,6 +1118,7 @@ function redrawAllStrokes() {
 
 
        // --- RESİM / PDF VE CANLANDIR (SNAPSHOT) KOPYASI ---
+       // --- RESİM / PDF VE CANLANDIR (SNAPSHOT) KOPYASI ---
        else if (stroke.type === 'image') {
 
             // YENİ ŞART: Kestiğimiz kopya değilse, kesinlikle ana zemindir. Sona sakla!
@@ -1160,15 +1161,13 @@ function redrawAllStrokes() {
             }
 
             let imgToDraw = null;
-
-            // 1. KAYNAK KONTROLÜ (Kayıp olan Canlandır kodunu geri ekledik)
+            // 1. KAYNAK KONTROLÜ
             if (stroke.img && stroke.img instanceof HTMLImageElement) {
                 imgToDraw = stroke.img; // PDF veya Dosya yüklemesi
             } else if (stroke.imgData) {
                 if (!stroke.imgObj) {
                     stroke.imgObj = new Image();
                     stroke.imgObj.src = stroke.imgData;
-                    // Resim yüklendiğinde ekranı tazele
                     stroke.imgObj.onload = () => { if (window.redrawAllStrokes) window.redrawAllStrokes(); };
                 }
                 imgToDraw = stroke.imgObj; // Canlandır kopyası
@@ -1190,32 +1189,16 @@ function redrawAllStrokes() {
                     ctx.strokeRect(-stroke.width / 2, -stroke.height / 2, stroke.width, stroke.height);
                     ctx.setLineDash([]);
 
-                    // 1. Döndürme Butonu (Üst Orta - Yeşil)
-                    const rotX = 0;
-                    const rotY = -stroke.height / 2 - 25;
-                    ctx.beginPath();
-                    ctx.arc(rotX, rotY, 12, 0, 2 * Math.PI); 
-                    ctx.fillStyle = '#0F0'; ctx.fill();
-                    ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
-                    
-                    // İçine Döndürme Simgesi (↻) Ekle - BEYAZ
-                    ctx.font = "bold 16px Arial"; 
-                    ctx.fillStyle = "#FFF"; 
-                    ctx.textAlign = "center"; 
-                    ctx.textBaseline = "middle";
+                    const rotX = 0; const rotY = -stroke.height / 2 - 25;
+                    ctx.beginPath(); ctx.arc(rotX, rotY, 12, 0, 2 * Math.PI); 
+                    ctx.fillStyle = '#0F0'; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
+                    ctx.font = "bold 16px Arial"; ctx.fillStyle = "#FFF"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
                     ctx.fillText("↻", rotX, rotY - 1); 
 
-                    // 2. Boyutlandırma Butonu (Sağ Alt - Pembe)
-                    const resX = stroke.width / 2;
-                    const resY = stroke.height / 2;
-                    ctx.beginPath();
-                    ctx.arc(resX, resY, 12, 0, 2 * Math.PI);
-                    ctx.fillStyle = '#F0F'; ctx.fill();
-                    ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
-                    
-                    // İçine Boyutlandırma Simgesi (⤢) Ekle - BEYAZ
-                    ctx.fillStyle = "#FFF"; 
-                    ctx.fillText("⤢", resX, resY);
+                    const resX = stroke.width / 2; const resY = stroke.height / 2;
+                    ctx.beginPath(); ctx.arc(resX, resY, 12, 0, 2 * Math.PI);
+                    ctx.fillStyle = '#F0F'; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
+                    ctx.fillStyle = "#FFF"; ctx.fillText("⤢", resX, resY);
                 }
                 ctx.restore();
             }
@@ -4984,36 +4967,9 @@ if (document.readyState === 'loading') {
     window.addEventListener('DOMContentLoaded', dilButonlariniHazirla);
 } else {
     dilButonlariniHazirla();
-}// Akıllı tahtada parmak/kalem kaydırırken tarayıcının araya girmesini kesin olarak engeller
-const canvasEl = document.getElementById('drawing-canvas');
-
-canvasEl.addEventListener('touchstart', function(e) {
-    if (e.cancelable) e.preventDefault();
-}, { passive: false });
-
-canvasEl.addEventListener('touchmove', function(e) {
-    if (e.cancelable) e.preventDefault();
-}, { passive: false });
-
-
-// Akıllı tahtalarda kalemin sayfayı kaydırmasını (scroll) JS seviyesinde durdurur
-const canvasElement = document.getElementById('drawing-canvas');
-
-canvasElement.addEventListener('touchstart', (e) => {
-    if (e.cancelable) e.preventDefault();
-}, { passive: false });
-
-canvasElement.addEventListener('touchmove', (e) => {
-    if (e.cancelable) e.preventDefault();
-}, { passive: false });
-
-// AKILLI TAHTALARDA KALEMİN KAYDIRMA (SCROLL) YAPMASINI KESİN ENGELLER
-const kanvasSabitleyici = document.getElementById('drawing-canvas');
-if (kanvasSabitleyici) {
-    kanvasSabitleyici.addEventListener('touchmove', function(e) {
-        if (e.cancelable) e.preventDefault();
-    }, { passive: false });
 }
+
+
 
 // =========================================================================
 // KUSURSUZ AKILLI NESNE SİLGİSİ v2 (ZOMBİ KORUMALI VE EKSİKSİZ)
@@ -6206,12 +6162,6 @@ document.documentElement.style.overscrollBehavior = 'none';
 document.body.style.overscrollBehavior = 'none';
 document.body.style.touchAction = 'none'; // Tarayıcının sayfayı kaydırmasını kökünden yasaklar
 
-// Ekrana avuç içi (çoklu temas) değdiğinde tarayıcının saçmalamasını engelle
-document.addEventListener('touchstart', function(e) {
-    if (e.touches && e.touches.length > 1) {
-        e.preventDefault(); // İki parmak veya avuç değdiğinde sayfayı oynatma
-    }
-}, { passive: false });
 
 // 2. Çizim esnasında panelleri "Hayalet" moda al (Avuç içi butonlara kazara basamasın)
 const drawingBoard = document.getElementById('drawing-canvas');
