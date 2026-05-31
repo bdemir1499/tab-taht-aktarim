@@ -2816,6 +2816,17 @@ if (typeof eraserPreview !== 'undefined' && eraserPreview) {
 
 canvas.addEventListener('pointermove', (e) => {
 
+// 🚨 AKILLI FİLTRE: Kalemle yazarken avucun iz bırakmasını engelle!
+    if (e.pointerType === 'touch') {
+        // Eğer "Taşı" aracında DEĞİLSEK ve ekranda çift parmak (Zoom) yoksa:
+        if (typeof currentTool !== 'undefined' && currentTool !== 'move') {
+            const parmakSayisi = typeof pointers !== 'undefined' ? pointers.size : (e.touches ? e.touches.length : 1);
+            if (parmakSayisi < 2) {
+                return; // Çizgi çizmeyi / iz bırakmayı anında iptal et!
+            }
+        }
+    }
+
 
     // PARDUS KORUMASI: Sürükleme sırasında tarayıcının araya girmesini kesin engelle
     if (e.cancelable) e.preventDefault();
@@ -6231,4 +6242,16 @@ const cCnv = document.getElementById('drawing-canvas');
 if (cCnv) {
     cCnv.addEventListener('touchstart', function(e) { e.preventDefault(); }, { passive: false });
     cCnv.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
+}
+
+// 🚨 AKILLI ZIRH: Avuç İçiyle Sayfa Kaymasını Engeller, Zoom'u Bozmaz!
+const smartCanvas = document.getElementById('drawing-canvas');
+if (smartCanvas) {
+    smartCanvas.addEventListener('touchmove', function(e) {
+        // Eğer ekrana sadece 1 temas varsa (avuç içi veya tek parmak sürtünmesi)
+        // sayfanın lastik gibi kaymasını kesin olarak kilitler!
+        if (e.touches && e.touches.length === 1 && e.cancelable) {
+            e.preventDefault();
+        }
+    }, { passive: false });
 }
