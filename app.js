@@ -5355,67 +5355,65 @@ function setupConnectionEvents() {
     window.chunkBuffers = {}; // 🚨 YENİ: Her mesaja özel ayrı bir kutu açıyoruz
     
     myConnection.on('data', function(data) {
-        // 🚨 EVRENSEL HD ÇEVİRİCİ: Tabletin küçük koordinatlarını PC'nin dev ekranına kusursuz uydurur!
-        function scaleIncomingData(d) {
+        // 🚨 KUSURSUZ ÇÖZÜM: Tablet ve PC ekranı arasındaki merkez kaymasını hesaplayıp hizalar!
+        // Çizimleri asla büyütüp bozmaz, sadece doğru noktaya kaydırır.
+        function hizala(d) {
             const canvasElm = document.getElementById('drawing-canvas');
             if (!canvasElm || !d || !d.cw || !d.ch) return d;
             
-            const ratioX = canvasElm.width / d.cw;
-            const ratioY = canvasElm.height / d.ch;
+            // Farkı hesapla (PC Merkezi - Tablet Merkezi)
+            const shiftX = (canvasElm.width / 2) - (d.cw / 2);
+            const shiftY = (canvasElm.height / 2) - (d.ch / 2);
             
-            // Eğer iki cihazın çözünürlüğü zaten aynıysa boşuna işlem yapma
-            if (Math.abs(ratioX - 1) < 0.01 && Math.abs(ratioY - 1) < 0.01) return d;
+            if (shiftX === 0 && shiftY === 0) return d;
 
-            // Arka planı büyüt
-            if (d.type === 'zoom_senkron') {
-                if(d.x !== undefined) d.x *= ratioX;
-                if(d.y !== undefined) d.y *= ratioY;
-                if(d.width !== undefined) d.width *= ratioX;
-                if(d.height !== undefined) d.height *= ratioY;
-            } 
-            // Tüm araç çizimlerini (Cetvel, Gönye, Pergel vb.) oranla büyüt
-            else if (d.type === 'yeni_cizim' && d.stroke) {
-                const s = d.stroke;
-                if (s.x !== undefined) s.x *= ratioX;
-                if (s.y !== undefined) s.y *= ratioY;
-                if (s.width !== undefined) s.width *= ratioX;
-                if (s.height !== undefined) s.height *= ratioY;
-                if (s.cx !== undefined) s.cx *= ratioX;
-                if (s.cy !== undefined) s.cy *= ratioY;
-                if (s.radius !== undefined) s.radius *= Math.max(ratioX, ratioY);
-                
-                if (s.path && Array.isArray(s.path)) s.path.forEach(p => { p.x *= ratioX; p.y *= ratioY; });
-                if (s.p1) { s.p1.x *= ratioX; s.p1.y *= ratioY; }
-                if (s.p2) { s.p2.x *= ratioX; s.p2.y *= ratioY; }
-                if (s.startPoint) { s.startPoint.x *= ratioX; s.startPoint.y *= ratioY; }
-                if (s.endPoint) { s.endPoint.x *= ratioX; s.endPoint.y *= ratioY; }
-                if (s.center) { s.center.x *= ratioX; s.center.y *= ratioY; }
-                if (s.points && Array.isArray(s.points)) s.points.forEach(p => { p.x *= ratioX; p.y *= ratioY; });
+            function objeyiKaydir(s) {
+                if (!s) return;
+                if (s.x !== undefined) s.x += shiftX;
+                if (s.y !== undefined) s.y += shiftY;
+                if (s.cx !== undefined) s.cx += shiftX;
+                if (s.cy !== undefined) s.cy += shiftY;
+                if (s.path && Array.isArray(s.path)) s.path.forEach(p => { p.x += shiftX; p.y += shiftY; });
+                if (s.p1) { s.p1.x += shiftX; s.p1.y += shiftY; }
+                if (s.p2) { s.p2.x += shiftX; s.p2.y += shiftY; }
+                if (s.startPoint) { s.startPoint.x += shiftX; s.startPoint.y += shiftY; }
+                if (s.endPoint) { s.endPoint.x += shiftX; s.endPoint.y += shiftY; }
+                if (s.center) { s.center.x += shiftX; s.center.y += shiftY; }
+                if (s.points && Array.isArray(s.points)) s.points.forEach(p => { p.x += shiftX; p.y += shiftY; });
+            }
+
+            if (d.type === 'yeni_cizim' && d.stroke) {
+                if (Array.isArray(d.stroke)) d.stroke.forEach(s => objeyiKaydir(s));
+                else objeyiKaydir(d.stroke);
+            }
+            else if (d.type === 'sekil_guncelle' && d.stroke) {
+                objeyiKaydir(d.stroke);
+            }
+            else if (d.type === 'zoom_senkron') {
+                if (d.x !== undefined) d.x += shiftX;
+                if (d.y !== undefined) d.y += shiftY;
+            }
+            else if (d.type === 'aktif_onizleme' && d.payload) {
+                const p = d.payload;
+                if (p.startX !== undefined) { p.startX += shiftX; p.startY += shiftY; }
+                if (p.endX !== undefined) { p.endX += shiftX; p.endY += shiftY; }
+                if (p.start) { p.start.x += shiftX; p.start.y += shiftY; }
+                if (p.end) { p.end.x += shiftX; p.end.y += shiftY; }
             }
             return d;
         }
 
-        // Parçalı veri geliyorsa birleştir ve çeviriciden geçir
         if (data && data.type === 'chunk') {
             const id = data.msgId || 'genel';
             if (!window.chunkBuffers[id]) window.chunkBuffers[id] = "";
-            
             window.chunkBuffers[id] += data.data;
-            
             if (data.isLast) {
-                try {
-                    let tamVeri = JSON.parse(window.chunkBuffers[id]);
-                    processData(scaleIncomingData(tamVeri));
-                } catch (e) {
-                    console.error("Paket birleştirme hatası:", e);
-                }
+                try { processData(hizala(JSON.parse(window.chunkBuffers[id]))); } catch (e) {}
                 delete window.chunkBuffers[id]; 
             }
             return;
         }
-        
-        // Normal veri geliyorsa doğrudan çeviriciden geçir
-        processData(scaleIncomingData(data));
+        processData(hizala(data));
     });
 
 
@@ -5649,13 +5647,11 @@ function setupConnectionEvents() {
         if (data.type === 'zoom_senkron') {
             const bgStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
             bgStrokes.forEach(bg => { 
-                // 🚨 KESİN ÇÖZÜM: PC'nin kendi merkezini unutmasını sağlıyoruz!
-                // Tabletin resmi tam olarak hangi X ve Y koordinatında duruyorsa, 
-                // PC'de de resim tam oraya zımbalanır. Böylece kalem çizgileri %100 örtüşür!
-                bg.x = data.x;
-                bg.y = data.y;
-                bg.width = data.width; 
-                bg.height = data.height; 
+                // Hizalanmış kusursuz koordinatları doğrudan uygula
+                if (data.x !== undefined) bg.x = data.x;
+                if (data.y !== undefined) bg.y = data.y;
+                if (data.width !== undefined) bg.width = data.width; 
+                if (data.height !== undefined) bg.height = data.height; 
             });
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
@@ -6150,10 +6146,10 @@ if (drawingBoard) {
 
 
 // =======================================================
-// --- ARAÇ TİTREME KORUMASI VE AĞ ÇÖZÜNÜRLÜK MOTORU ---
+// --- ARAÇ TİTREME KORUMASI VE MERKEZ HİZALAYICI DAMGA ---
 // =======================================================
 
-// 🚨 1. ZIRH: Tablette araçları bırakınca oluşan sarsıntıyı ve titremeyi tamamen kilitler
+// 🚨 ZIRH 1: Tablette araçları bırakınca oluşan sarsıntı ve titremeyi kilitler
 const toolFix = document.createElement('style');
 toolFix.innerHTML = `
     #compass-container, #gonye-container, #aciolcer-container, #ruler-container,
@@ -6166,12 +6162,12 @@ toolFix.innerHTML = `
 `;
 document.head.appendChild(toolFix);
 
-// 🚨 2. ZIRH: Gönderilen tüm verilere cihazın ekran boyutunu (cw, ch) damgalar
+// 🚨 ZIRH 2: PC'nin doğru hizalama yapabilmesi için gönderilen verilere Tabletin boyutlarını damgalar
 if (typeof window.sendNetworkData === 'function' && !window.networkResZirhi) {
     const orijinalGonder = window.sendNetworkData;
     window.sendNetworkData = function(data) {
         const canvasElm = document.getElementById('drawing-canvas');
-        if (canvasElm && data && (data.type === 'yeni_cizim' || data.type === 'zoom_senkron')) {
+        if (canvasElm && data) {
             data.cw = canvasElm.width;
             data.ch = canvasElm.height;
         }
