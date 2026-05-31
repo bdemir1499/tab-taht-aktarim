@@ -2816,8 +2816,6 @@ if (typeof eraserPreview !== 'undefined' && eraserPreview) {
 
 canvas.addEventListener('pointermove', (e) => {
 
-// 🚨 FİLTRE: Avuç içi sürükleniyorsa çizgi çizme!
-    if (e.pointerType === 'touch') return;
 
     // PARDUS KORUMASI: Sürükleme sırasında tarayıcının araya girmesini kesin engelle
     if (e.cancelable) e.preventDefault();
