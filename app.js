@@ -5356,83 +5356,33 @@ function setupConnectionEvents() {
     
     myConnection.on('data', function(data) {
         
-        // 🚨 KUSURSUZ ÇEVİRİCİ: Tabletin küçük koordinatlarını PC'nin dev ekranına eksiksiz uydurur!
-        function veriyiPCyeUyarla(d) {
-            const canvasElm = document.getElementById('drawing-canvas');
-            if (!canvasElm || !d || !d.cw || !d.ch) return d;
-            
-            // 1. Tablet ile PC arasındaki Çözünürlük (Büyüklük) Oranını Bul
-            const ratioX = canvasElm.width / d.cw;
-            const ratioY = canvasElm.height / d.ch;
-            
-            // Eğer cihazlar birebir aynıysa dokunma
-            if (Math.abs(ratioX - 1) < 0.01 && Math.abs(ratioY - 1) < 0.01) return d;
+        // 🚨 KESİN VE NİHAİ ÇÖZÜM: TERTEMİZ AĞ ALICISI 🚨
+        // Tablet (ruler.js, gonye.js) tüm hesaplamaları zaten yapıp gönderiyor.
+        // Bilgisayarın (Akıllı Tahtanın) tek yapması gereken bu veriyi HİÇ ÇARPMADAN ekrana çizmektir!
 
-            // 2. Arka Planı ve Zoom'u PC'nin Devasa Ekranına Oranla
+        function veriyiIsle(d) {
+            if (!d) return;
+
+            // 1. ZOOM VE PDF SENKRONİZASYONU (Çarpma yok!)
             if (d.type === 'zoom_senkron') {
                 if (window.drawnStrokes) {
                     const bgStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
                     bgStrokes.forEach(bg => { 
-                        if (d.x !== undefined) bg.x = d.x * ratioX; 
-                        if (d.y !== undefined) bg.y = d.y * ratioY;
-                        if (d.width !== undefined) bg.width = d.width * ratioX; 
-                        if (d.height !== undefined) bg.height = d.height * ratioY; 
+                        if (d.x !== undefined) bg.x = d.x; 
+                        if (d.y !== undefined) bg.y = d.y;
+                        if (d.width !== undefined) bg.width = d.width; 
+                        if (d.height !== undefined) bg.height = d.height; 
                     });
                     if (window.redrawAllStrokes) window.redrawAllStrokes();
                 }
-                return d; // İşlem bitti
+                return;
             }
 
-            // 3. Kalem ve Fiziksel Araçların Tüm Çizimlerini Oranlayarak Büyüt
-            function objeyiOranla(s) {
-                if (!s) return;
-                
-                // Temel koordinatlar
-                if (s.x !== undefined) s.x *= ratioX;
-                if (s.y !== undefined) s.y *= ratioY;
-                if (s.cx !== undefined) s.cx *= ratioX;
-                if (s.cy !== undefined) s.cy *= ratioY;
-                if (s.width !== undefined) s.width *= ratioX;
-                if (s.height !== undefined) s.height *= ratioY;
-                
-                // 🚨 Zıplayan Pergelin Kesin Çözümü: Yarıçapı da ekran oranında büyüt!
-                if (s.radius !== undefined) s.radius *= Math.max(ratioX, ratioY); 
-                
-                // Kalem noktaları
-                if (s.path && Array.isArray(s.path)) s.path.forEach(p => { p.x *= ratioX; p.y *= ratioY; });
-                if (s.points && Array.isArray(s.points)) s.points.forEach(p => { p.x *= ratioX; p.y *= ratioY; });
-                
-                // Araç Çizgileri (Cetvel, Gönye, Açıölçer)
-                if (s.p1) { s.p1.x *= ratioX; s.p1.y *= ratioY; }
-                if (s.p2) { s.p2.x *= ratioX; s.p2.y *= ratioY; }
-                if (s.startPoint) { s.startPoint.x *= ratioX; s.startPoint.y *= ratioY; }
-                if (s.endPoint) { s.endPoint.x *= ratioX; s.endPoint.y *= ratioY; }
-                if (s.center) { s.center.x *= ratioX; s.center.y *= ratioY; }
-                
-                // 🚨 Zıplayan Cetvel/Gönye Kesin Çözümü: "5.0 cm" yazısının koordinatını da büyüt!
-                if (s.lengthLabelPos) { 
-                    s.lengthLabelPos.x *= ratioX; 
-                    s.lengthLabelPos.y *= ratioY; 
-                }
-            }
-
-            if (d.type === 'yeni_cizim' && d.stroke) {
-                if (Array.isArray(d.stroke)) d.stroke.forEach(s => objeyiOranla(s));
-                else objeyiOranla(d.stroke);
-            } else if (d.type === 'sekil_guncelle' && d.stroke) {
-                objeyiOranla(d.stroke);
-            } else if (d.type === 'aktif_onizleme' && d.payload) {
-                const p = d.payload;
-                if (p.startX !== undefined) { p.startX *= ratioX; p.startY *= ratioY; }
-                if (p.endX !== undefined) { p.endX *= ratioX; p.endY *= ratioY; }
-                if (p.start) { p.start.x *= ratioX; p.start.y *= ratioY; }
-                if (p.end) { p.end.x *= ratioX; p.end.y *= ratioY; }
-            }
-            
-            return d;
+            // 2. ÇİZİM VERİSİ (Çarpma/Büyütme tamamen iptal edildi, direkt çiziliyor!)
+            if (typeof processData === 'function') processData(d);
         }
 
-        // Parçalı Veri (Chunk) Birleştirici
+        // --- BÜYÜK DOSYALARI (CHUNKS) BİRLEŞTİRİCİ ---
         if (data && data.type === 'chunk') {
             const id = data.msgId || 'genel';
             if (!window.chunkBuffers[id]) window.chunkBuffers[id] = "";
@@ -5440,15 +5390,17 @@ function setupConnectionEvents() {
             if (data.isLast) {
                 try { 
                     const tamVeri = JSON.parse(window.chunkBuffers[id]);
-                    if (typeof processData === 'function') processData(veriyiPCyeUyarla(tamVeri)); 
-                } catch (e) {}
+                    veriyiIsle(tamVeri); 
+                } catch (e) {
+                    console.error("Paket birleştirme hatası:", e);
+                }
                 delete window.chunkBuffers[id]; 
             }
             return;
         }
 
-        // Normal veriyi uyarla ve sisteme ver
-        if (typeof processData === 'function') processData(veriyiPCyeUyarla(data));
+        // Parçalı olmayan normal veriyi doğrudan işle
+        veriyiIsle(data);
     });
 
 
