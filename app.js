@@ -10,6 +10,15 @@ if (kacakKullanimMi && mevcutAdres !== "") {
     throw new Error("Korsan kullanım tespit edildi, sistem durduruldu!");
 }
 
+// 🚨 KESİN ÇÖZÜM: Akıllı tahtalarda kayıp silgi resmi (X_X yüz) çökmesini engeller 🚨
+const cursorFix = document.createElement('style');
+cursorFix.innerHTML = `
+    body.cursor-eraser, .cursor-eraser * {
+        cursor: crosshair !important; /* Bozuk resim aramak yerine güvenli artı işaretini kullanır */
+    }
+`;
+document.head.appendChild(cursorFix);
+
 
 // Artık sabit bir MY_SECRET_KEY yok, öğretmen her ders şifreyi belirleyecek
 window.sessionPassword = "";
