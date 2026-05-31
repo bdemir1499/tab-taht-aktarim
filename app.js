@@ -11,10 +11,11 @@ if (kacakKullanimMi && mevcutAdres !== "") {
 }
 
 // 🚨 KESİN ÇÖZÜM: Akıllı tahtalarda kayıp silgi resmi (X_X yüz) çökmesini engeller 🚨
+// 🚨 KESİN ÇÖZÜM: Çift imleç çıkmasını ve kayıp silgi resmini (X_X yüz) tamamen engeller
 const cursorFix = document.createElement('style');
 cursorFix.innerHTML = `
     body.cursor-eraser, .cursor-eraser * {
-        cursor: crosshair !important; /* Bozuk resim aramak yerine güvenli artı işaretini kullanır */
+        cursor: none !important; /* İmleci KÖKÜNDEN gizler! Sadece kırmızı karemiz görünür. */
     }
 `;
 document.head.appendChild(cursorFix);
@@ -4956,16 +4957,11 @@ function akilliSilgi(e, isDown) {
     const isClicking = isDown || (typeof isDrawing !== 'undefined' && isDrawing) || e.buttons > 0 || (e.touches && e.touches.length > 0);
     if (!isClicking) return false;
 
-    const rect = canvasElm.getBoundingClientRect();
-    
-    let ex, ey;
-    if (e.touches && e.touches.length > 0) {
-        ex = e.touches[0].clientX - rect.left;
-        ey = e.touches[0].clientY - rect.top;
-    } else {
-        ex = e.clientX - rect.left;
-        ey = e.clientY - rect.top;
-    }
+    // 🚨 KRİTİK ÇÖZÜM: HD (Retina) ekrana özel uyarlanmış kusursuz koordinat fonksiyonunu kullanıyoruz!
+    // Bu sayede PC'deki silgi kare nereyi gösteriyorsa, altındaki pikselleri milimetrik olarak vurur.
+    const pos = getPointerPos(e); 
+    const ex = pos.x;
+    const ey = pos.y;
 
     const eR = 25; 
     let silindiMi = false;
