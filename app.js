@@ -1116,6 +1116,7 @@ function redrawAllStrokes() {
             }
         }
 
+
        // --- RESİM / PDF VE CANLANDIR (SNAPSHOT) KOPYASI ---
        else if (stroke.type === 'image') {
 
