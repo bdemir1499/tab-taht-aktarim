@@ -12,10 +12,12 @@ if (kacakKullanimMi && mevcutAdres !== "") {
 
 // 🚨 KESİN ÇÖZÜM: Akıllı tahtalarda kayıp silgi resmi (X_X yüz) çökmesini engeller 🚨
 // 🚨 KESİN ÇÖZÜM: Çift imleç çıkmasını ve kayıp silgi resmini (X_X yüz) tamamen engeller
+// 🚨 KESİN ÇÖZÜM: Çift imleç çıkmasını engeller ve panellerde fareyi geri getirir
 const cursorFix = document.createElement('style');
 cursorFix.innerHTML = `
-    body.cursor-eraser, .cursor-eraser * {
-        cursor: none !important; /* İmleci KÖKÜNDEN gizler! Sadece kırmızı karemiz görünür. */
+    /* SADECE ÇİZİM TAHTASINDA İMLECİ GİZLE! Panellerin üzerine gelindiğinde normal fare oku geri gelsin. */
+    body.cursor-eraser #drawing-canvas {
+        cursor: none !important; 
     }
 `;
 document.head.appendChild(cursorFix);
