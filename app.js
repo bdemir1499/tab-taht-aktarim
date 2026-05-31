@@ -5355,7 +5355,47 @@ function setupConnectionEvents() {
     window.chunkBuffers = {}; // 🚨 YENİ: Her mesaja özel ayrı bir kutu açıyoruz
     
     myConnection.on('data', function(data) {
-        // Parçalı veri geliyorsa barkoduna göre kendi kutusunda birleştir
+        // 🚨 EVRENSEL HD ÇEVİRİCİ: Tabletin küçük koordinatlarını PC'nin dev ekranına kusursuz uydurur!
+        function scaleIncomingData(d) {
+            const canvasElm = document.getElementById('drawing-canvas');
+            if (!canvasElm || !d || !d.cw || !d.ch) return d;
+            
+            const ratioX = canvasElm.width / d.cw;
+            const ratioY = canvasElm.height / d.ch;
+            
+            // Eğer iki cihazın çözünürlüğü zaten aynıysa boşuna işlem yapma
+            if (Math.abs(ratioX - 1) < 0.01 && Math.abs(ratioY - 1) < 0.01) return d;
+
+            // Arka planı büyüt
+            if (d.type === 'zoom_senkron') {
+                if(d.x !== undefined) d.x *= ratioX;
+                if(d.y !== undefined) d.y *= ratioY;
+                if(d.width !== undefined) d.width *= ratioX;
+                if(d.height !== undefined) d.height *= ratioY;
+            } 
+            // Tüm araç çizimlerini (Cetvel, Gönye, Pergel vb.) oranla büyüt
+            else if (d.type === 'yeni_cizim' && d.stroke) {
+                const s = d.stroke;
+                if (s.x !== undefined) s.x *= ratioX;
+                if (s.y !== undefined) s.y *= ratioY;
+                if (s.width !== undefined) s.width *= ratioX;
+                if (s.height !== undefined) s.height *= ratioY;
+                if (s.cx !== undefined) s.cx *= ratioX;
+                if (s.cy !== undefined) s.cy *= ratioY;
+                if (s.radius !== undefined) s.radius *= Math.max(ratioX, ratioY);
+                
+                if (s.path && Array.isArray(s.path)) s.path.forEach(p => { p.x *= ratioX; p.y *= ratioY; });
+                if (s.p1) { s.p1.x *= ratioX; s.p1.y *= ratioY; }
+                if (s.p2) { s.p2.x *= ratioX; s.p2.y *= ratioY; }
+                if (s.startPoint) { s.startPoint.x *= ratioX; s.startPoint.y *= ratioY; }
+                if (s.endPoint) { s.endPoint.x *= ratioX; s.endPoint.y *= ratioY; }
+                if (s.center) { s.center.x *= ratioX; s.center.y *= ratioY; }
+                if (s.points && Array.isArray(s.points)) s.points.forEach(p => { p.x *= ratioX; p.y *= ratioY; });
+            }
+            return d;
+        }
+
+        // Parçalı veri geliyorsa birleştir ve çeviriciden geçir
         if (data && data.type === 'chunk') {
             const id = data.msgId || 'genel';
             if (!window.chunkBuffers[id]) window.chunkBuffers[id] = "";
@@ -5364,16 +5404,18 @@ function setupConnectionEvents() {
             
             if (data.isLast) {
                 try {
-                    processData(JSON.parse(window.chunkBuffers[id]));
+                    let tamVeri = JSON.parse(window.chunkBuffers[id]);
+                    processData(scaleIncomingData(tamVeri));
                 } catch (e) {
-                    console.error("Paket birleştirme hatası (Kayıp Parça):", e);
+                    console.error("Paket birleştirme hatası:", e);
                 }
-                delete window.chunkBuffers[id]; // İşlem bitince kutuyu silerek hafızayı temizle
+                delete window.chunkBuffers[id]; 
             }
             return;
         }
-        // Normal veri geliyorsa direkt işle
-        processData(data);
+        
+        // Normal veri geliyorsa doğrudan çeviriciden geçir
+        processData(scaleIncomingData(data));
     });
 
 
@@ -6104,4 +6146,36 @@ if (drawingBoard) {
     window.addEventListener('pointercancel', () => {
         toolPanels.forEach(panel => panel.style.pointerEvents = 'auto');
     });
+}
+
+
+// =======================================================
+// --- ARAÇ TİTREME KORUMASI VE AĞ ÇÖZÜNÜRLÜK MOTORU ---
+// =======================================================
+
+// 🚨 1. ZIRH: Tablette araçları bırakınca oluşan sarsıntıyı ve titremeyi tamamen kilitler
+const toolFix = document.createElement('style');
+toolFix.innerHTML = `
+    #compass-container, #gonye-container, #aciolcer-container, #ruler-container,
+    .pergel-leg, .rotate-head, .ruler-body, .tool-handle, .gonye-body, .aciolcer-body {
+        touch-action: none !important;
+        -webkit-user-select: none !important;
+        user-select: none !important;
+        -webkit-touch-callout: none !important;
+    }
+`;
+document.head.appendChild(toolFix);
+
+// 🚨 2. ZIRH: Gönderilen tüm verilere cihazın ekran boyutunu (cw, ch) damgalar
+if (typeof window.sendNetworkData === 'function' && !window.networkResZirhi) {
+    const orijinalGonder = window.sendNetworkData;
+    window.sendNetworkData = function(data) {
+        const canvasElm = document.getElementById('drawing-canvas');
+        if (canvasElm && data && (data.type === 'yeni_cizim' || data.type === 'zoom_senkron')) {
+            data.cw = canvasElm.width;
+            data.ch = canvasElm.height;
+        }
+        orijinalGonder(data);
+    };
+    window.networkResZirhi = true;
 }
