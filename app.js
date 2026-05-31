@@ -2525,6 +2525,11 @@ if (animateButton) {
 
 // Mevcut pointerdown dinleyicisinin en başına (yaklaşık 5100. satırlar civarı)
 canvas.addEventListener('pointerdown', (e) => {
+
+// 🚨 FİLTRE: Eğer ekrana değen şey parmak veya avuç içi ise (touch), işlemi durdur!
+    // Bu sayede sistem sadece 'pen' (kalem) veya 'mouse' algıladığında çizim yapar.
+    if (e.pointerType === 'touch') return;
+
 // (Mühürleme kodu tamamen silindi)
     // AKILLI TAHTA YAMASI:
     // Eğer kalemle dokunuluyorsa, dokunmatik (el) verisini geçici olarak devre dışı bırak
@@ -2802,6 +2807,10 @@ if (typeof eraserPreview !== 'undefined' && eraserPreview) {
 }, { passive: false });
 
 canvas.addEventListener('pointermove', (e) => {
+
+// 🚨 FİLTRE: Avuç içi sürükleniyorsa çizgi çizme!
+    if (e.pointerType === 'touch') return;
+
     // PARDUS KORUMASI: Sürükleme sırasında tarayıcının araya girmesini kesin engelle
     if (e.cancelable) e.preventDefault();
 
@@ -6228,4 +6237,25 @@ if (typeof window.sendNetworkData === 'function' && !window.networkResZirhi) {
         orijinalGonder(data);
     };
     window.networkResZirhi = true;
+}
+
+// 🚨 1. ZIRH: EKRAN KAYDIRMA VE YAYLANMA ENGELLEYİCİ 🚨
+const palmZirhi = document.createElement('style');
+palmZirhi.innerHTML = `
+    body, html {
+        overscroll-behavior: none !important; /* Ekranın lastik gibi yaylanmasını bitirir */
+    }
+    #drawing-canvas {
+        touch-action: none !important; /* Tarayıcıya kaydırma yapmayı kesinlikle yasaklar */
+        -webkit-user-select: none !important;
+        -webkit-touch-callout: none !important;
+    }
+`;
+document.head.appendChild(palmZirhi);
+
+// iOS/Safari ve Android'in inatçı kaydırma (scroll) huylarını zorla durduran motor
+const cCnv = document.getElementById('drawing-canvas');
+if (cCnv) {
+    cCnv.addEventListener('touchstart', function(e) { e.preventDefault(); }, { passive: false });
+    cCnv.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
 }
