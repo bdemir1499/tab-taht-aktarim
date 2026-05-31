@@ -1082,33 +1082,37 @@ function redrawAllStrokes() {
             continue; 
         }
         
-        // --- KALEM (PEN) GRAFİK TABLET DESTEKLİ ---
+        // --- KALEM (PEN) SABİT KALINLIK VE YUMUŞATILMIŞ ÇİZİM (BEZIER CURVE) ---
         if (stroke.type === 'pen') {
             const points = stroke.path;
             
             if (points.length < 2) {
-                // Sadece tıklandıysa tek bir nokta koy
+                // Sadece tıklandıysa tek bir nokta koy (Basınç iptal)
                 ctx.beginPath();
-                ctx.arc(points[0].x, points[0].y, (stroke.baseWidth * (points[0].p || 1)) / 2, 0, Math.PI * 2);
+                ctx.arc(points[0].x, points[0].y, stroke.baseWidth / 2, 0, Math.PI * 2);
                 ctx.fillStyle = stroke.color;
                 ctx.fill();
             } else {
-                // Çizgiyi basınç hassasiyetiyle çiz
-                for (let i = 1; i < points.length; i++) {
-                    ctx.beginPath();
-                    ctx.moveTo(points[i - 1].x, points[i - 1].y);
-                    ctx.lineTo(points[i].x, points[i].y);
-                    ctx.strokeStyle = stroke.color;
-                    
-                    // Basıncı genişliğe uygula (En az %20 kalınlık olsun)
-                    let currentPressure = points[i].p !== undefined ? points[i].p : 1;
-                    let dynamicWidth = stroke.baseWidth * Math.max(0.2, currentPressure);
-                    
-                    ctx.lineWidth = dynamicWidth;
-                    ctx.lineCap = 'round';
-                    ctx.lineJoin = 'round';
-                    ctx.stroke();
+                // --- KÖŞELERİ YOK EDEN YUMUŞATMA (SMOOTHING) ALGORİTMASI ---
+                ctx.beginPath();
+                ctx.moveTo(points[0].x, points[0].y);
+                ctx.strokeStyle = stroke.color;
+                
+                // 1. BASINÇ İPTALİ: Kalınlık her zaman standart ve sabittir
+                ctx.lineWidth = stroke.baseWidth; 
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
+                // 2. KÖŞE İPTALİ: Noktaları düz çizgiyle değil, esnek eğrilerle (Bezier) bağlar
+                for (let i = 1; i < points.length - 1; i++) {
+                    const xc = (points[i].x + points[i + 1].x) / 2;
+                    const yc = (points[i].y + points[i + 1].y) / 2;
+                    ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
                 }
+                
+                // Son noktayı eğrinin ucuna bağla
+                ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
+                ctx.stroke();
             }
         }
 
