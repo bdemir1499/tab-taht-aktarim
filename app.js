@@ -6200,52 +6200,33 @@ if (typeof window.sendNetworkData === 'function' && !window.networkResZirhi) {
 }
 
 // =======================================================
-// 🚨 EVRENSEL HD ARAÇ ZIRHI (TÜM ARAÇLAR İÇİN) 🚨
+// --- ARAÇ TİTREME KORUMASI VE MERKEZ HİZALAYICI DAMGA ---
 // =======================================================
-if (typeof window.sendNetworkData === 'function' && !window.toolHDZirhi) {
+
+// 🚨 ZIRH 1: Tablette araçları bırakınca oluşan sarsıntı ve titremeyi kilitler
+const toolFix = document.createElement('style');
+toolFix.innerHTML = `
+    #compass-container, #gonye-container, #aciolcer-container, #ruler-container,
+    .pergel-leg, .rotate-head, .ruler-body, .tool-handle, .gonye-body, .aciolcer-body {
+        touch-action: none !important;
+        -webkit-user-select: none !important;
+        user-select: none !important;
+        -webkit-touch-callout: none !important;
+    }
+`;
+document.head.appendChild(toolFix);
+
+// 🚨 ZIRH 2: PC'nin doğru hizalama yapabilmesi için gönderilen verilere Tabletin HD boyutlarını damgalar
+// ASLA ÇARPMA/BÜYÜTME YAPMAZ! Çünkü araçlar kendi dosyalarında bunu zaten kusursuz yapıyor.
+if (typeof window.sendNetworkData === 'function' && !window.networkResZirhi) {
     const orijinalGonder = window.sendNetworkData;
     window.sendNetworkData = function(data) {
-        if (data && data.type === 'yeni_cizim' && data.stroke) {
-            const s = data.stroke;
-            
-            // Kalem ve Resim zaten kusursuz çalışıyor. Onlar HARİCİNDEKİ tüm araçları çevir:
-            if (s.type !== 'pen' && s.type !== 'image') {
-                const canvasElm = document.getElementById('drawing-canvas');
-                if (canvasElm) {
-                    // Ekranın CSS boyutu ile HD boyutu arasındaki oranı bul
-                    const rect = canvasElm.getBoundingClientRect();
-                    const scaleX = canvasElm.width / rect.width; 
-                    const scaleY = canvasElm.height / rect.height;
-                    
-                    // Tabletteki orijinal çizimi bozmamak için verinin kopyasını al
-                    const kopya = JSON.parse(JSON.stringify(s));
-                    
-                    // Aracın içindeki tüm koordinatları HD ekrana göre büyüt
-                    const hdCevir = (obj) => {
-                        if (!obj) return;
-                        if (obj.x !== undefined) obj.x *= scaleX;
-                        if (obj.y !== undefined) obj.y *= scaleY;
-                        if (obj.cx !== undefined) obj.cx *= scaleX;
-                        if (obj.cy !== undefined) obj.cy *= scaleY;
-                        if (obj.width !== undefined) obj.width *= scaleX;
-                        if (obj.height !== undefined) obj.height *= scaleY;
-                        if (obj.radius !== undefined) obj.radius *= Math.max(scaleX, scaleY);
-                        
-                        if (obj.path) obj.path.forEach(p => { p.x *= scaleX; p.y *= scaleY; });
-                        if (obj.p1) { obj.p1.x *= scaleX; obj.p1.y *= scaleY; }
-                        if (obj.p2) { obj.p2.x *= scaleX; obj.p2.y *= scaleY; }
-                        if (obj.startPoint) { obj.startPoint.x *= scaleX; obj.startPoint.y *= scaleY; }
-                        if (obj.endPoint) { obj.endPoint.x *= scaleX; obj.endPoint.y *= scaleY; }
-                        if (obj.center) { obj.center.x *= scaleX; obj.center.y *= scaleY; }
-                        if (obj.points) obj.points.forEach(p => { p.x *= scaleX; p.y *= scaleY; });
-                    };
-                    
-                    hdCevir(kopya);
-                    data.stroke = kopya; // Ağa küçük pikselleri değil, HD kopyayı yolla!
-                }
-            }
+        const canvasElm = document.getElementById('drawing-canvas');
+        if (canvasElm && data) {
+            data.cw = canvasElm.width;
+            data.ch = canvasElm.height;
         }
         orijinalGonder(data);
     };
-    window.toolHDZirhi = true;
+    window.networkResZirhi = true;
 }
