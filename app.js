@@ -4963,20 +4963,32 @@ function akilliSilgi(e, isDown) {
     // Tıklanmıyorsa veya ekrana dokunulmuyorsa işlem yapma
     const isClicking = isDown || (typeof isDrawing !== 'undefined' && isDrawing) || e.buttons > 0 || (e.touches && e.touches.length > 0);
     if (!isClicking) {
-        window.lastEraserPos = null; // Tıklama (silme) bitince hafızayı sıfırla
+        window.lastEraserPos = null; // Tıklama bitince hafızayı sıfırla
         return false;
     }
 
-    const pos = getPointerPos(e); 
-    const ex = pos.x;
-    const ey = pos.y;
+    // 🚨 KESİN VE KUSURSUZ ÇÖZÜM: Windows Ekran Ölçeklendirmesini (%125, %150) Yenen Evrensel Formül!
+    const canvasElm = document.getElementById('drawing-canvas') || e.target;
+    const rect = canvasElm.getBoundingClientRect();
+    
+    let clientX = e.clientX;
+    let clientY = e.clientY;
+    if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+    }
 
-    // Tahtanın boyutuna göre devasa etki alanı
-    const dpr = window.devicePixelRatio || 1;
-    const eR = 60 * dpr; 
+    // Çarpma/bölme hilesiyle farenin CSS pikselini, HD Canvas pikseline %100 sapmasız çeviriyoruz:
+    const scaleX = canvasElm.width / rect.width;
+    const scaleY = canvasElm.height / rect.height;
+    
+    const ex = (clientX - rect.left) * scaleX;
+    const ey = (clientY - rect.top) * scaleY;
 
-    // 🚨 KESİN ÇÖZÜM: Hızlı Silme (Işınlanma/Atlama) Koruması!
-    // Akıllı tahtada eli hızlı kaydırınca oluşan sensör boşluklarını doldurur.
+    // Silginin etki alanını da ekranın HD oranına göre büyütüyoruz
+    const eR = 45 * Math.max(scaleX, scaleY); 
+
+    // --- Işınlanma (Hızlı Silme) Koruması ---
     let noktalar = [{x: ex, y: ey}];
     
     if (window.lastEraserPos) {
@@ -4984,9 +4996,9 @@ function akilliSilgi(e, isDown) {
         const dy = ey - window.lastEraserPos.y;
         const mesafe = Math.hypot(dx, dy);
         
-        // Eğer iki algılama arasında 20 pikselden fazla boşluk varsa, araya "sanal silgiler" bas!
-        if (mesafe > 20) {
-            const adimSayisi = Math.floor(mesafe / 20); 
+        // Eğer fare hızlı kaydırılıp boşluk oluştuysa, arayı daha sık (15px) sanal silgilerle doldur
+        if (mesafe > 15) {
+            const adimSayisi = Math.floor(mesafe / 15); 
             for (let i = 1; i <= adimSayisi; i++) {
                 noktalar.push({
                     x: window.lastEraserPos.x + (dx * i / adimSayisi),
@@ -4998,7 +5010,8 @@ function akilliSilgi(e, isDown) {
     window.lastEraserPos = {x: ex, y: ey};
 
     let silindiMi = false;
-
+    
+    // ... BU SATIRDAN AŞAĞISINA (const distToSeg... kısmına) DOKUNMAYIN ...
     const distToSeg = (p, v, w) => {
         let l2 = (v.x - w.x)**2 + (v.y - w.y)**2;
         if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
