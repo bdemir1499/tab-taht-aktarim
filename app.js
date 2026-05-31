@@ -2702,14 +2702,6 @@ if (typeof eraserPreview !== 'undefined' && eraserPreview) {
                     initialHeight = selectedItem.height;
                 }
             }
-                // --------------------------------
-                
-                if (hit.item.type === 'rectangle' || hit.item.type === 'image') {
-    initialWidth = hit.item.width;
-    initialHeight = hit.item.height;
-}
-                // --------------------------------------------------
-            }
             
             const itemType = hit.item.type;
             if ((itemType === 'line' || itemType === 'segment' || itemType === 'ray' || itemType === 'straightLine') && (hit.pointKey === 'p1' || hit.pointKey === 'p2')) {
@@ -2735,6 +2727,7 @@ if (typeof eraserPreview !== 'undefined' && eraserPreview) {
             redrawAllStrokes();
         }
     }
+
 
     // --- 3. DİĞER ÇİZİM ARAÇLARI KONTROLÜ ---
     if (currentTool === 'none') return;
