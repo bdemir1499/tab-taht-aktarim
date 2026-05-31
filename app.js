@@ -5355,65 +5355,88 @@ function setupConnectionEvents() {
     window.chunkBuffers = {}; // 🚨 YENİ: Her mesaja özel ayrı bir kutu açıyoruz
     
     myConnection.on('data', function(data) {
-        // 🚨 KUSURSUZ ÇÖZÜM: Tablet ve PC ekranı arasındaki merkez kaymasını hesaplayıp hizalar!
-        // Çizimleri asla büyütüp bozmaz, sadece doğru noktaya kaydırır.
-        function hizala(d) {
+        
+        // 🚨 KUSURSUZ HİZALAYICI VE ZOOM MOTORU 🚨
+        function veriyiIsle(d) {
             const canvasElm = document.getElementById('drawing-canvas');
-            if (!canvasElm || !d || !d.cw || !d.ch) return d;
-            
-            // Farkı hesapla (PC Merkezi - Tablet Merkezi)
-            const shiftX = (canvasElm.width / 2) - (d.cw / 2);
-            const shiftY = (canvasElm.height / 2) - (d.ch / 2);
-            
-            if (shiftX === 0 && shiftY === 0) return d;
+            if (!canvasElm) return;
 
-            function objeyiKaydir(s) {
-                if (!s) return;
-                if (s.x !== undefined) s.x += shiftX;
-                if (s.y !== undefined) s.y += shiftY;
-                if (s.cx !== undefined) s.cx += shiftX;
-                if (s.cy !== undefined) s.cy += shiftY;
-                if (s.path && Array.isArray(s.path)) s.path.forEach(p => { p.x += shiftX; p.y += shiftY; });
-                if (s.p1) { s.p1.x += shiftX; s.p1.y += shiftY; }
-                if (s.p2) { s.p2.x += shiftX; s.p2.y += shiftY; }
-                if (s.startPoint) { s.startPoint.x += shiftX; s.startPoint.y += shiftY; }
-                if (s.endPoint) { s.endPoint.x += shiftX; s.endPoint.y += shiftY; }
-                if (s.center) { s.center.x += shiftX; s.center.y += shiftY; }
-                if (s.points && Array.isArray(s.points)) s.points.forEach(p => { p.x += shiftX; p.y += shiftY; });
+            // 1. ZOOM VE PDF/RESİM SENKRONİZASYONU (Sildiğimiz kod geri geldi!)
+            if (d.type === 'zoom_senkron') {
+                let sX = 0, sY = 0;
+                if (d.cw && d.ch) {
+                    // Cihazlar arası merkez farkını hesapla
+                    sX = (canvasElm.width / 2) - (d.cw / 2);
+                    sY = (canvasElm.height / 2) - (d.ch / 2);
+                }
+                
+                if (window.drawnStrokes) {
+                    const bgStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
+                    bgStrokes.forEach(bg => { 
+                        if (d.x !== undefined) bg.x = d.x + sX; // Resmi HD merkeze kaydır
+                        if (d.y !== undefined) bg.y = d.y + sY;
+                        if (d.width !== undefined) bg.width = d.width; 
+                        if (d.height !== undefined) bg.height = d.height; 
+                    });
+                    if (window.redrawAllStrokes) window.redrawAllStrokes();
+                }
+                return; // İşlem bitti, aşağıya inmesine gerek yok
             }
 
-            if (d.type === 'yeni_cizim' && d.stroke) {
-                if (Array.isArray(d.stroke)) d.stroke.forEach(s => objeyiKaydir(s));
-                else objeyiKaydir(d.stroke);
+            // 2. ARAÇ VE ÇİZİM HİZALAMASI (Asla esnetmez, sadece doğru yere kaydırır)
+            let shiftX = 0, shiftY = 0;
+            if (d.cw && d.ch) {
+                shiftX = (canvasElm.width / 2) - (d.cw / 2);
+                shiftY = (canvasElm.height / 2) - (d.ch / 2);
             }
-            else if (d.type === 'sekil_guncelle' && d.stroke) {
-                objeyiKaydir(d.stroke);
+
+            if (shiftX !== 0 || shiftY !== 0) {
+                function objeyiKaydir(s) {
+                    if (!s) return;
+                    if (s.x !== undefined) s.x += shiftX;
+                    if (s.y !== undefined) s.y += shiftY;
+                    if (s.cx !== undefined) s.cx += shiftX;
+                    if (s.cy !== undefined) s.cy += shiftY;
+                    if (s.path && Array.isArray(s.path)) s.path.forEach(p => { p.x += shiftX; p.y += shiftY; });
+                    if (s.p1) { s.p1.x += shiftX; s.p1.y += shiftY; }
+                    if (s.p2) { s.p2.x += shiftX; s.p2.y += shiftY; }
+                    if (s.startPoint) { s.startPoint.x += shiftX; s.startPoint.y += shiftY; }
+                    if (s.endPoint) { s.endPoint.x += shiftX; s.endPoint.y += shiftY; }
+                    if (s.center) { s.center.x += shiftX; s.center.y += shiftY; }
+                    if (s.points && Array.isArray(s.points)) s.points.forEach(p => { p.x += shiftX; p.y += shiftY; });
+                }
+
+                if (d.type === 'yeni_cizim' && d.stroke) {
+                    if (Array.isArray(d.stroke)) d.stroke.forEach(s => objeyiKaydir(s));
+                    else objeyiKaydir(d.stroke);
+                } else if (d.type === 'sekil_guncelle' && d.stroke) {
+                    objeyiKaydir(d.stroke);
+                } else if (d.type === 'aktif_onizleme' && d.payload) {
+                    const p = d.payload;
+                    if (p.startX !== undefined) { p.startX += shiftX; p.startY += shiftY; }
+                    if (p.endX !== undefined) { p.endX += shiftX; p.endY += shiftY; }
+                    if (p.start) { p.start.x += shiftX; p.start.y += shiftY; }
+                    if (p.end) { p.end.x += shiftX; p.end.y += shiftY; }
+                }
             }
-            else if (d.type === 'zoom_senkron') {
-                if (d.x !== undefined) d.x += shiftX;
-                if (d.y !== undefined) d.y += shiftY;
-            }
-            else if (d.type === 'aktif_onizleme' && d.payload) {
-                const p = d.payload;
-                if (p.startX !== undefined) { p.startX += shiftX; p.startY += shiftY; }
-                if (p.endX !== undefined) { p.endX += shiftX; p.endY += shiftY; }
-                if (p.start) { p.start.x += shiftX; p.start.y += shiftY; }
-                if (p.end) { p.end.x += shiftX; p.end.y += shiftY; }
-            }
-            return d;
+
+            // Çizimleri ana sisteme aktar
+            if (typeof processData === 'function') processData(d);
         }
 
+        // 3. Parçalı Veri (Chunk) Birleştirici
         if (data && data.type === 'chunk') {
             const id = data.msgId || 'genel';
             if (!window.chunkBuffers[id]) window.chunkBuffers[id] = "";
             window.chunkBuffers[id] += data.data;
             if (data.isLast) {
-                try { processData(hizala(JSON.parse(window.chunkBuffers[id]))); } catch (e) {}
+                try { veriyiIsle(JSON.parse(window.chunkBuffers[id])); } catch (e) {}
                 delete window.chunkBuffers[id]; 
             }
             return;
         }
-        processData(hizala(data));
+
+        veriyiIsle(data);
     });
 
 
@@ -6174,4 +6197,55 @@ if (typeof window.sendNetworkData === 'function' && !window.networkResZirhi) {
         orijinalGonder(data);
     };
     window.networkResZirhi = true;
+}
+
+// =======================================================
+// 🚨 EVRENSEL HD ARAÇ ZIRHI (TÜM ARAÇLAR İÇİN) 🚨
+// =======================================================
+if (typeof window.sendNetworkData === 'function' && !window.toolHDZirhi) {
+    const orijinalGonder = window.sendNetworkData;
+    window.sendNetworkData = function(data) {
+        if (data && data.type === 'yeni_cizim' && data.stroke) {
+            const s = data.stroke;
+            
+            // Kalem ve Resim zaten kusursuz çalışıyor. Onlar HARİCİNDEKİ tüm araçları çevir:
+            if (s.type !== 'pen' && s.type !== 'image') {
+                const canvasElm = document.getElementById('drawing-canvas');
+                if (canvasElm) {
+                    // Ekranın CSS boyutu ile HD boyutu arasındaki oranı bul
+                    const rect = canvasElm.getBoundingClientRect();
+                    const scaleX = canvasElm.width / rect.width; 
+                    const scaleY = canvasElm.height / rect.height;
+                    
+                    // Tabletteki orijinal çizimi bozmamak için verinin kopyasını al
+                    const kopya = JSON.parse(JSON.stringify(s));
+                    
+                    // Aracın içindeki tüm koordinatları HD ekrana göre büyüt
+                    const hdCevir = (obj) => {
+                        if (!obj) return;
+                        if (obj.x !== undefined) obj.x *= scaleX;
+                        if (obj.y !== undefined) obj.y *= scaleY;
+                        if (obj.cx !== undefined) obj.cx *= scaleX;
+                        if (obj.cy !== undefined) obj.cy *= scaleY;
+                        if (obj.width !== undefined) obj.width *= scaleX;
+                        if (obj.height !== undefined) obj.height *= scaleY;
+                        if (obj.radius !== undefined) obj.radius *= Math.max(scaleX, scaleY);
+                        
+                        if (obj.path) obj.path.forEach(p => { p.x *= scaleX; p.y *= scaleY; });
+                        if (obj.p1) { obj.p1.x *= scaleX; obj.p1.y *= scaleY; }
+                        if (obj.p2) { obj.p2.x *= scaleX; obj.p2.y *= scaleY; }
+                        if (obj.startPoint) { obj.startPoint.x *= scaleX; obj.startPoint.y *= scaleY; }
+                        if (obj.endPoint) { obj.endPoint.x *= scaleX; obj.endPoint.y *= scaleY; }
+                        if (obj.center) { obj.center.x *= scaleX; obj.center.y *= scaleY; }
+                        if (obj.points) obj.points.forEach(p => { p.x *= scaleX; p.y *= scaleY; });
+                    };
+                    
+                    hdCevir(kopya);
+                    data.stroke = kopya; // Ağa küçük pikselleri değil, HD kopyayı yolla!
+                }
+            }
+        }
+        orijinalGonder(data);
+    };
+    window.toolHDZirhi = true;
 }
