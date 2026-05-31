@@ -4957,8 +4957,7 @@ function akilliSilgi(e, isDown) {
     const isClicking = isDown || (typeof isDrawing !== 'undefined' && isDrawing) || e.buttons > 0 || (e.touches && e.touches.length > 0);
     if (!isClicking) return false;
 
-    // 🚨 KRİTİK ÇÖZÜM: HD (Retina) ekrana özel uyarlanmış kusursuz koordinat fonksiyonunu kullanıyoruz!
-    // Bu sayede PC'deki silgi kare nereyi gösteriyorsa, altındaki pikselleri milimetrik olarak vurur.
+    // 🚨 KRİTİK ÇÖZÜM: HD (Retina) ekrana özel uyarlanmış kusursuz koordinat fonksiyonu!
     const pos = getPointerPos(e); 
     const ex = pos.x;
     const ey = pos.y;
