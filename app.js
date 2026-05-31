@@ -1121,7 +1121,44 @@ function redrawAllStrokes() {
        else if (stroke.type === 'image') {
 
             // YENİ ŞART: Kestiğimiz kopya değilse, kesinlikle ana zemindir. Sona sakla!
-            if (stroke.isBackground !== false) continue;
+            if (stroke.isBackground !== false) {
+                // 🚨 KESİN ÇÖZÜM: Arka plan seçildiyse (Taşı modunda), SEÇİM ÇERÇEVESİNİ VE BUTONLARI EKRANA ÇİZ!
+                if (typeof currentTool !== 'undefined' && currentTool === 'move' && selectedItem === stroke) {
+                    ctx.save();
+                    const centerX = stroke.x + (stroke.width / 2);
+                    const centerY = stroke.y + (stroke.height / 2);
+                    ctx.translate(centerX, centerY);
+                    ctx.rotate((stroke.rotation || 0) * Math.PI / 180);
+                    
+                    // Kesikli Seçim Çerçevesi
+                    ctx.strokeStyle = '#00FFCC'; ctx.lineWidth = 2; ctx.setLineDash([5, 5]);
+                    ctx.strokeRect(-stroke.width / 2, -stroke.height / 2, stroke.width, stroke.height);
+                    ctx.setLineDash([]);
+
+                    // 1. Döndürme Butonu (Üst Orta - Yeşil)
+                    const rotX = 0;
+                    const rotY = -stroke.height / 2 - 25;
+                    ctx.beginPath();
+                    ctx.arc(rotX, rotY, 12, 0, 2 * Math.PI); 
+                    ctx.fillStyle = '#0F0'; ctx.fill();
+                    ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
+                    ctx.font = "bold 16px Arial"; ctx.fillStyle = "#FFF"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                    ctx.fillText("↻", rotX, rotY - 1); 
+
+                    // 2. Boyutlandırma Butonu (Sağ Alt - Pembe)
+                    const resX = stroke.width / 2;
+                    const resY = stroke.height / 2;
+                    ctx.beginPath();
+                    ctx.arc(resX, resY, 12, 0, 2 * Math.PI);
+                    ctx.fillStyle = '#F0F'; ctx.fill();
+                    ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
+                    ctx.fillStyle = "#FFF"; ctx.fillText("⤢", resX, resY);
+                    
+                    ctx.restore();
+                }
+                continue; // İşlemi bitir ve resmin kendini çizmesi için en arkaya (destination-over) pasla
+            }
+
             let imgToDraw = null;
 
             // 1. KAYNAK KONTROLÜ (Kayıp olan Canlandır kodunu geri ekledik)
@@ -1163,7 +1200,7 @@ function redrawAllStrokes() {
                     
                     // İçine Döndürme Simgesi (↻) Ekle - BEYAZ
                     ctx.font = "bold 16px Arial"; 
-                    ctx.fillStyle = "#FFF"; // Siyah yerine BEYAZ yapıldı
+                    ctx.fillStyle = "#FFF"; 
                     ctx.textAlign = "center"; 
                     ctx.textBaseline = "middle";
                     ctx.fillText("↻", rotX, rotY - 1); 
@@ -1177,7 +1214,7 @@ function redrawAllStrokes() {
                     ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
                     
                     // İçine Boyutlandırma Simgesi (⤢) Ekle - BEYAZ
-                    ctx.fillStyle = "#FFF"; // Pembe butonun simgesi için de rengi BEYAZ yaptık
+                    ctx.fillStyle = "#FFF"; 
                     ctx.fillText("⤢", resX, resY);
                 }
                 ctx.restore();
@@ -2649,20 +2686,22 @@ if (typeof eraserPreview !== 'undefined' && eraserPreview) {
                 originalStartPos = { x: hit.item.p2.x, y: hit.item.p2.y };
             } else if (hit.pointKey === 'center') {
                 originalStartPos = { x: (hit.item.cx || hit.item.center.x), y: (hit.item.cy || hit.item.center.y) };
-            } else if (hit.pointKey === 'rotate' || hit.pointKey === 'resize' || hit.pointKey === 'image_resize') {
-    // Hem çokgen hem dikdörtgen verilerini tek seferde yedekle
-    originalStartPos = { 
-        radius: hit.item.radius, 
-        rotation: hit.item.rotation,
-        x: hit.item.x || (hit.item.center ? hit.item.center.x : 0),
-        y: hit.item.y || (hit.item.center ? hit.item.center.y : 0)
-    };
+
+            } else if (hit.pointKey === 'rotate' || hit.pointKey === 'resize' || hit.pointKey === 'image_resize' || hit.pointKey === 'image_rotate') {
+                // Hem çokgen hem dikdörtgen verilerini tek seferde yedekle
+                originalStartPos = { 
+                    radius: hit.item.radius, 
+                    rotation: hit.item.rotation,
+                    x: hit.item.x || (hit.item.center ? hit.item.center.x : 0),
+                    y: hit.item.y || (hit.item.center ? hit.item.center.y : 0)
+                };
 
                 // --- TABLET İÇİN KRİTİK EKLEME ---
-                if (selectedItem.type === 'rectangle') {
+                if (selectedItem.type === 'rectangle' || selectedItem.type === 'image') {
                     initialWidth = selectedItem.width;
                     initialHeight = selectedItem.height;
                 }
+            }
                 // --------------------------------
                 
                 if (hit.item.type === 'rectangle' || hit.item.type === 'image') {
