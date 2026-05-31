@@ -2542,8 +2542,9 @@ if (animateButton) {
 // Mevcut pointerdown dinleyicisinin en başına (yaklaşık 5100. satırlar civarı)
 canvas.addEventListener('pointerdown', (e) => {
 
+    // 🚨 SİHİRLİ DOKUNUŞ 1: Ne olursa olsun ÖNCE tarayıcının yerleşik kaydırmasını (titremeyi) kilitliyoruz!
+    if (e.cancelable) e.preventDefault();
 
-// (Mühürleme kodu tamamen silindi)
     // AKILLI TAHTA YAMASI:
     // Eğer kalemle dokunuluyorsa, dokunmatik (el) verisini geçici olarak devre dışı bırak
     if (e.pointerType === 'pen') {
@@ -2557,9 +2558,6 @@ canvas.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'touch' && isPenActive) {
         return; 
     }
-
-    // 1. Tarayıcıyı sabitle
-    if (e.cancelable) e.preventDefault();
     // NOT: setPointerCapture komutu Vestel tahtaları kilitlediği için tamamen kaldırıldı.
 
     // --- KRİTİK EKLENTİ: HAYALET PARMAK SIFIRLAYICI ---
@@ -2816,20 +2814,21 @@ if (typeof eraserPreview !== 'undefined' && eraserPreview) {
 
 canvas.addEventListener('pointermove', (e) => {
 
-// 🚨 AKILLI FİLTRE: Kalemle yazarken avucun iz bırakmasını engelle!
+    // 🚨 SİHİRLİ DOKUNUŞ 2: Sürükleme sırasında ekran titremesinin 1 numaralı düşmanı olan zıplamayı EN BAŞTA yok et!
+    if (e.cancelable) e.preventDefault();
+
+    // 🚨 AKILLI FİLTRE: Kalemle yazarken avucun iz bırakmasını engelle!
     if (e.pointerType === 'touch') {
-        // Eğer "Taşı" aracında DEĞİLSEK ve ekranda çift parmak (Zoom) yoksa:
-        if (typeof currentTool !== 'undefined' && currentTool !== 'move') {
+        const isPhysicalTool = ['ruler', 'gonye', 'aciolcer', 'pergel'].includes(currentTool);
+        
+        // Eğer Taşı modunda DEĞİLSEK ve Fiziksel Araç KULLANMIYORSAK avucu filtrele
+        if (typeof currentTool !== 'undefined' && currentTool !== 'move' && !isPhysicalTool) {
             const parmakSayisi = typeof pointers !== 'undefined' ? pointers.size : (e.touches ? e.touches.length : 1);
             if (parmakSayisi < 2) {
-                return; // Çizgi çizmeyi / iz bırakmayı anında iptal et!
+                return; // Sadece çizimi iptal et, ama en üstte preventDefault çalıştığı için araçlar ASLA titremez!
             }
         }
     }
-
-
-    // PARDUS KORUMASI: Sürükleme sırasında tarayıcının araya girmesini kesin engelle
-    if (e.cancelable) e.preventDefault();
 
     // --- AVUÇ İÇİ REDDİ (SÜREKLİ GÜNCELLEME) ---
     const currentPointerMove = getPointerInfo(e);
