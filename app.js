@@ -2137,7 +2137,8 @@ if (prevPageBtn && nextPageBtn) {
             }
         }
     });
-}
+} // <-- EKSİK OLAN VE HATAYA SEBEP OLAN PARANTEZ BURADA KAPANIYOR!
+
 
 // --- YENİ: Sayfa numarasına tıklayınca hızlı gitme kutusunu aç ---
 if (pageCountLabel) {
@@ -4005,11 +4006,15 @@ function addNewImageToCanvas(img, isPDF = false, pcKordinatlari = null) {
     if (!pcKordinatlari && typeof isConnected !== 'undefined' && isConnected) {
         window.sendNetworkData({
             type: 'arka_plan_resmi_aktar', 
-            imgData: isPDF ? "SADECE_KOORDINAT" : img.src, // PDF ise resmi GÖNDERME
+            imgData: isPDF ? "SADECE_KOORDINAT" : img.src,
             isPDF: isPDF,
             kordinatlar: { x: newStroke.x, y: newStroke.y, width: newStroke.width, height: newStroke.height }
         });
     }
+}
+
+
+
 // --- ARAÇ RENGİ DEĞİŞTİRME MANTIĞI (SİYAH / NEON / TOK MAVİ) ---
 const toolColorBtn = document.getElementById('btn-tool-color');
 let isBlackTheme = false;
