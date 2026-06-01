@@ -2117,16 +2117,24 @@ if (prevPageBtn && nextPageBtn) {
     // Önceki Sayfa (<)
     prevPageBtn.addEventListener('click', () => {
         if (currentPDF && currentPDFPage > 1) {
-            currentPDFPage--; // Sayfayı 1 azalt
-            renderPDFPage(currentPDFPage); // Yeni sayfayı çiz
+            currentPDFPage--; 
+            renderPDFPage(currentPDFPage); 
+            // 🚨 YENİ: PC'ye sayfayı değiştirmesini söyle
+            if (typeof isConnected !== 'undefined' && isConnected) {
+                window.sendNetworkData({ type: 'pdf_sayfa_degis', sayfa: currentPDFPage });
+            }
         }
     });
 
     // Sonraki Sayfa (>)
     nextPageBtn.addEventListener('click', () => {
         if (currentPDF && currentPDFPage < totalPDFPages) {
-            currentPDFPage++; // Sayfayı 1 artır
-            renderPDFPage(currentPDFPage); // Yeni sayfayı çiz
+            currentPDFPage++; 
+            renderPDFPage(currentPDFPage); 
+            // 🚨 YENİ: PC'ye sayfayı değiştirmesini söyle
+            if (typeof isConnected !== 'undefined' && isConnected) {
+                window.sendNetworkData({ type: 'pdf_sayfa_degis', sayfa: currentPDFPage });
+            }
         }
     });
 }
@@ -2167,6 +2175,11 @@ if (uploadButton && fileInput) {
             fileReader.onload = async function() {
                 // 1. AĞA GÖNDERMEK İÇİN (Base64 Metni Olarak)
                 const base64String = this.result; 
+
+                // 🚨 KESİN ÇÖZÜM: Koca PDF dosyasını PC'nin kendi okuması için ağa fırlat!
+                if (typeof isConnected !== 'undefined' && isConnected) {
+                    window.sendNetworkData({ type: 'pdf_yukle', pdfData: base64String });
+                }
                 
                 // 2. TABLET EKRANI İÇİN (PDF.js'in anladığı formata geri çeviriyoruz)
                 const base64Data = base64String.split(',')[1];
@@ -3931,9 +3944,9 @@ async function renderPDFPage(num) {
     
     if(pageCountLabel) pageCountLabel.innerText = `Sayfa: ${num} / ${totalPDFPages}`;
 
-
-
 }
+
+
 function addNewImageToCanvas(img, isPDF = false, pcKordinatlari = null) {
     let startWidth, startHeight, posX, posY;
 
@@ -3988,16 +4001,15 @@ function addNewImageToCanvas(img, isPDF = false, pcKordinatlari = null) {
 
     redrawAllStrokes();
 
-    // 🚨 NİHAİ ÇÖZÜM: Resmi VE Koordinatları TEK PAKETTE PC'ye fırlat!
+    // 🚨 NİHAİ ÇÖZÜM: PC zaten PDF'i kendi çiziyor, 20MB resmi yollama! Sadece koordinatları yolla!
     if (!pcKordinatlari && typeof isConnected !== 'undefined' && isConnected) {
         window.sendNetworkData({
             type: 'arka_plan_resmi_aktar', 
-            imgData: img.src,
+            imgData: isPDF ? "SADECE_KOORDINAT" : img.src, // PDF ise resmi GÖNDERME
             isPDF: isPDF,
             kordinatlar: { x: newStroke.x, y: newStroke.y, width: newStroke.width, height: newStroke.height }
         });
     }
-}
 // --- ARAÇ RENGİ DEĞİŞTİRME MANTIĞI (SİYAH / NEON / TOK MAVİ) ---
 const toolColorBtn = document.getElementById('btn-tool-color');
 let isBlackTheme = false;
@@ -5463,6 +5475,22 @@ function setupConnectionEvents() {
 
 // 🚨 YENİ ALICI: TABLETTEN GELEN KUSURSUZ RESMİ VE PDF'İ EKRANA ÇİZER
         if (data.type === 'arka_plan_resmi_aktar') {
+            // PDF sayfaları için devasa resim gelmez, sadece hizalama koordinatları gelir!
+            if (data.isPDF && data.imgData === "SADECE_KOORDINAT") {
+                setTimeout(() => {
+                    let zemin = window.drawnStrokes.find(s => s.isBackground === true);
+                    if (zemin) {
+                        zemin.x = data.kordinatlar.x;
+                        zemin.y = data.kordinatlar.y;
+                        zemin.width = data.kordinatlar.width;
+                        zemin.height = data.kordinatlar.height;
+                        if (window.redrawAllStrokes) window.redrawAllStrokes();
+                    }
+                }, 200); // PC'nin kendi PDF'ini çizmesi için mini bir an bekleyip koordinatları kitleriz
+                return;
+            }
+
+            // Normal JPG/PNG resimler aynen aktarılır
             const img = new Image();
             img.onload = () => { 
                 if (typeof addNewImageToCanvas === 'function') {
@@ -5471,8 +5499,7 @@ function setupConnectionEvents() {
             };
             img.src = data.imgData;
             return; // İşlemi bitir
-        }
-        if (!data || !data.type) return;
+        }        if (!data || !data.type) return;
         if (!window.drawnStrokes) window.drawnStrokes = [];
 
         // DİL SEÇİMİ HER ZAMAN GEÇSİN
