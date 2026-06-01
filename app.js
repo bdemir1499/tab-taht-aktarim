@@ -5986,22 +5986,23 @@ window.sendNetworkData = function(dataPackage) {
     }
 };
 
-// --- AĞ PANELİ BUTONLARI (DOKUNULMADI, AYNEN KORUNDU) ---
-const closeBtn = document.getElementById('network-close-btn');
+// --- AĞ PANELİ BUTONLARI (İSİM ÇAKIŞMASI DÜZELTİLDİ) ---
+const agKapatBtn = document.getElementById('network-close-btn');
 const miniBtn = document.getElementById('network-mini-btn');
-const panel = document.getElementById('network-panel');
+const agPanel = document.getElementById('network-panel');
 
-if (closeBtn && miniBtn && panel) {
-    closeBtn.addEventListener('click', () => {
-        panel.style.display = 'none';
+if (agKapatBtn && miniBtn && agPanel) {
+    agKapatBtn.addEventListener('click', () => {
+        agPanel.style.display = 'none';
         miniBtn.style.display = 'block';
     });
 
     miniBtn.addEventListener('click', () => {
         miniBtn.style.display = 'none';
-        panel.style.display = 'block';
+        agPanel.style.display = 'block';
     });
 }
+
 // =========================================================
 // FİZİKSEL ARAÇLAR İÇİN RADAR (ÇÖKMEYE KARŞI KORUMALI)
 // =========================================================
