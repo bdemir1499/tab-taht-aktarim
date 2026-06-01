@@ -796,7 +796,42 @@ let currentPenWidth = 3;
 window.currentLineColor = '#FFFFFF'; // Varsayılan Renk: BEYAZ
 const SNAP_THRESHOLD = 10;
 let returnToSnapshot = false; // İşlem bitince geri dönülecek mi? 
+// ==========================================
+// --- 3D CİSİMLER İÇİN YENİ DEĞİŞKENLER VE SÜRGÜ OLUŞTURUCU (ADIM 1) ---
+// ==========================================
+let isDrawing3D = false;
+let current3DShape = null; // Hangi 3D şekil seçili (örn: '3d_kare_piramit')
+let temp3DData = null;     // Çizim esnasındaki canlı önizleme verisi
+let active3DSliderStroke = null; // Sürgüsü oynatılan seçili 3D cisim
 
+// Sürgü (Slider) Kutusunu HTML'e Otomatik Ekle
+const sliderContainer = document.createElement('div');
+sliderContainer.id = 'slider-container';
+sliderContainer.innerHTML = `
+    <label>Açınım (Katlama)</label>
+    <input type="range" id="shape-slider" min="0" max="100" value="0">
+`;
+document.body.appendChild(sliderContainer);
+const shapeSlider = document.getElementById('shape-slider');
+
+// Alan / Hacim Gösterge Kutusunu HTML'e Otomatik Ekle
+const infoTooltip = document.createElement('div');
+infoTooltip.id = 'info-tooltip';
+document.body.appendChild(infoTooltip);
+
+// Sürgü hareket ettiğinde seçili 3D cismin açınımını güncelle
+shapeSlider.addEventListener('input', (e) => {
+    if (active3DSliderStroke) {
+        // Değeri 0 (Kapalı) ile 1 (Tam Açık) arasında bir orana çevir
+        active3DSliderStroke.openRatio = parseInt(e.target.value) / 100;
+        
+        // Tahtaya veya PC'ye canlı açınım senkronizasyonu yolla
+        if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+            window.sendNetworkData({ type: 'sekil_guncelle', stroke: active3DSliderStroke });
+        }
+        if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
+    }
+});
  
 
 let nextPointChar = 'A'; 
@@ -1323,6 +1358,11 @@ function redrawAllStrokes() {
             }
         }
 
+// --- 3D ŞEKİLLER (HOLOGRRAM MOTORU) ---
+        else if (stroke.type === '3d_shape') {
+            window.ThreeDTool.drawShape(ctx, stroke);
+        }
+
 
 else if (stroke.type === 'rectangle') {
             ctx.save();
@@ -1813,7 +1853,36 @@ if (stroke.type === 'image') {
             if (localClickX > -halfW && localClickX < halfW && localClickY > -halfH && localClickY < halfH) {
                 return { item: stroke, pointKey: 'self' };
             }
-        }        if (currentTool === 'move' && selectedItem === stroke) {
+        }        
+
+// --- 3D ŞEKİL YAKALAMA (TABLET UYUMLU) ---
+        if (stroke.type === '3d_shape') {
+            const cX = stroke.x + stroke.width / 2;
+            const cY = stroke.y + stroke.height / 2;
+            const angleRad = (stroke.rotation || 0) * (Math.PI / 180);
+
+            // A. Döndürme Butonu (Yeşil)
+            const rotX = cX + Math.sin(angleRad) * (stroke.height / 2 + 40);
+            const rotY = cY - Math.cos(angleRad) * (stroke.height / 2 + 40);
+            if (distance(pos, {x: rotX, y: rotY}) < 30) return { item: stroke, pointKey: 'image_rotate' };
+
+            // B. Boyutlandırma Butonu (Pembe)
+            const resX = cX + (stroke.width / 2 * Math.cos(angleRad) - stroke.height / 2 * Math.sin(angleRad)) + 20 * Math.cos(angleRad);
+            const resY = cY + (stroke.width / 2 * Math.sin(angleRad) + stroke.height / 2 * Math.cos(angleRad)) + 20 * Math.sin(angleRad);
+            if (distance(pos, {x: resX, y: resY}) < 35) return { item: stroke, pointKey: 'image_resize' };
+
+            // C. Gövde
+            const dx = pos.x - cX; const dy = pos.y - cY;
+            const localX = dx * Math.cos(-angleRad) - dy * Math.sin(-angleRad);
+            const localY = dx * Math.sin(-angleRad) + dy * Math.cos(-angleRad);
+            if (Math.abs(localX) < stroke.width / 2 && Math.abs(localY) < stroke.height / 2) {
+                return { item: stroke, pointKey: 'self' };
+            }
+        }
+
+
+
+if (currentTool === 'move' && selectedItem === stroke) {
             if (stroke.type === 'polygon') {
                 const rotateHandlePos = 
 window.PolygonTool.getRotateHandlePosition(stroke);
@@ -2822,6 +2891,35 @@ if (typeof eraserPreview !== 'undefined' && eraserPreview) {
             rectStartPoint = pos; 
             break;
 
+case 'draw_3d_kare_piramit':
+        case 'draw_3d_silindir':
+        case 'draw_3d_koni':
+            const shapeType = currentTool.replace('draw_', ''); 
+            const new3DStroke = {
+                type: '3d_shape',
+                shapeType: shapeType,
+                x: snapPos.x - 100, 
+                y: snapPos.y - 100,
+                width: 200,
+                height: 200,
+                rotation: 0,
+                openRatio: 0,
+                color: window.isToolThemeBlack ? '#000000' : (window.currentLineColor || '#00ffcc'),
+                id: Date.now() + Math.random()
+            };
+            drawnStrokes.push(new3DStroke);
+            
+            if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                window.sendNetworkData({ type: 'yeni_cizim', stroke: new3DStroke });
+            }
+            
+            // Otomatik Taşı moduna geç ve seç
+            if (typeof setActiveTool === 'function') setActiveTool('move');
+            selectedItem = new3DStroke;
+            if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
+            break;
+
+
         case 'draw_polygon_circle':
         case 'draw_polygon_3_sides':
         case 'draw_polygon_4_sides':
@@ -2983,7 +3081,7 @@ window.sendNetworkData({ type: 'arac_senkron', selector: '.yuzen-kopya-container
         // B) YEŞİL BUTON: DÖNDÜRME
         else if (selectedPointKey === 'rotate' || selectedPointKey === 'image_rotate') {
             // Dikdörtgen ve Resim için merkezi hesapla
-            const isRect = (selectedItem.type === 'rectangle' || selectedItem.type === 'rect' || selectedItem.type === 'image');
+            const isRect = (selectedItem.type === 'rectangle' || selectedItem.type === 'rect' || selectedItem.type === 'image' || selectedItem.type === '3d_shape');
             const cX = isRect ? selectedItem.x + selectedItem.width / 2 : selectedItem.center.x;
             const cY = isRect ? selectedItem.y + selectedItem.height / 2 : selectedItem.center.y;
             
@@ -2996,7 +3094,7 @@ window.sendNetworkData({ type: 'arac_senkron', selector: '.yuzen-kopya-container
         
         // C) PEMBE BUTON: DİKDÖRTGEN VE ÇOKGEN BOYUTLANDIRMA (GÜNCEL VERSİYON)
         else if (selectedPointKey === 'resize' || selectedPointKey === 'image_resize') {
-            const isRect = (selectedItem.type === 'rectangle' || selectedItem.type === 'rect' || selectedItem.type === 'image');
+            const isRect = (selectedItem.type === 'rectangle' || selectedItem.type === 'rect' || selectedItem.type === 'image' || selectedItem.type === '3d_shape');
             
             if (isRect) {
                 // Konum ve boyutları 'originalStartPos' ve 'initialWidth' üzerinden al (DİKDÖRTGEN İÇİN)
@@ -6307,3 +6405,240 @@ if (smartCanvas) {
         }
     }, { passive: false });
 }
+
+// ==========================================
+// --- 3D ÇİZİM VE AÇINIM MOTORU (ADIM 2) ---
+// ==========================================
+window.ThreeDTool = {
+    drawShape: function(ctx, stroke) {
+        const cx = stroke.x + stroke.width / 2;
+        const cy = stroke.y + stroke.height / 2;
+        const w = stroke.width;
+        const h = stroke.height;
+        const ratio = stroke.openRatio || 0; // 0 = Kapalı, 1 = Tam Açık
+        const type = stroke.shapeType;
+        
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate((stroke.rotation || 0) * Math.PI / 180);
+        
+        // SİBERPUNK HOLOGRAFİK EFEKTLER (Neon Parlama ve Şeffaflık)
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = stroke.color;
+        ctx.strokeStyle = stroke.color;
+        ctx.lineWidth = 3;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        
+        // Cam Hissi Veren Şeffaf Dolgu
+        let rgb = stroke.color === '#00ffcc' ? '0, 255, 204' : '255, 0, 255';
+        ctx.fillStyle = `rgba(${rgb}, 0.15)`;
+
+        if (type === '3d_kare_piramit') {
+            this.drawKarePiramit(ctx, w, h, ratio);
+        } else if (type === '3d_silindir') {
+            this.drawSilindir(ctx, w, h, ratio);
+        } else if (type === '3d_koni') {
+            this.drawKoni(ctx, w, h, ratio);
+        }
+        
+        // TAŞI BUTONU İLE SEÇİLDİYSE KONTROLLERİ ÇİZ (Yeşil ve Pembe Butonlar)
+        if (window.currentTool === 'move' && window.selectedItem === stroke) {
+            ctx.fillStyle = '#0F0'; ctx.shadowBlur = 0; ctx.beginPath(); ctx.arc(0, -h/2 - 40, 12, 0, 7); ctx.fill();
+            ctx.fillStyle = '#F0F'; ctx.beginPath(); ctx.arc(w/2 + 20, h/2 + 20, 12, 0, 7); ctx.fill();
+        }
+        
+        ctx.restore();
+    },
+
+    // 1. KARE PİRAMİT ÇİZİMİ VE SÜRGÜLÜ AÇINIMI
+    drawKarePiramit: function(ctx, w, h, ratio) {
+        const bW = w / 2; const bH = w / 4; // Perspektif açısı
+        const pFront = {x: 0, y: bH}; const pBack = {x: 0, y: -bH};
+        const pLeft = {x: -bW, y: 0}; const pRight = {x: bW, y: 0};
+        
+        // Tabanı Çiz
+        ctx.beginPath(); ctx.moveTo(pFront.x, pFront.y); ctx.lineTo(pRight.x, pRight.y);
+        ctx.lineTo(pBack.x, pBack.y); ctx.lineTo(pLeft.x, pLeft.y); ctx.closePath(); ctx.fill(); 
+        
+        // Görünmez arka çizgiler (kesikli)
+        ctx.save(); ctx.setLineDash([5, 5]); ctx.globalAlpha = 0.5; ctx.stroke(); ctx.restore();
+
+        // Görünen taban çizgileri
+        ctx.beginPath(); ctx.moveTo(pLeft.x, pLeft.y); ctx.lineTo(pFront.x, pFront.y); ctx.lineTo(pRight.x, pRight.y); ctx.stroke();
+
+        const apexY = -h / 2; // Tepe Noktası
+        
+        // Sürgüye (ratio) Göre Yüzeylerin Yana Açılması
+        const fApex = { x: 0, y: apexY * (1 - ratio) + (bH + Math.hypot(bH, h/2)) * ratio };
+        ctx.beginPath(); ctx.moveTo(pLeft.x, pLeft.y); ctx.lineTo(fApex.x, fApex.y); ctx.lineTo(pRight.x, pRight.y); ctx.fill(); ctx.stroke();
+
+        const bApex = { x: 0, y: apexY * (1 - ratio) + (-bH - Math.hypot(bH, h/2)) * ratio };
+        ctx.beginPath(); ctx.moveTo(pLeft.x, pLeft.y); ctx.lineTo(bApex.x, bApex.y); ctx.lineTo(pRight.x, pRight.y); 
+        ctx.save(); ctx.setLineDash([5,5]); ctx.stroke(); ctx.restore();
+
+        const lApex = { x: (0) * (1-ratio) + (-bW - Math.hypot(bW, h/2)) * ratio, y: apexY * (1-ratio) };
+        ctx.beginPath(); ctx.moveTo(pFront.x, pFront.y); ctx.lineTo(lApex.x, lApex.y); ctx.lineTo(pBack.x, pBack.y); ctx.stroke();
+
+        const rApex = { x: (0) * (1-ratio) + (bW + Math.hypot(bW, h/2)) * ratio, y: apexY * (1-ratio) };
+        ctx.beginPath(); ctx.moveTo(pFront.x, pFront.y); ctx.lineTo(rApex.x, rApex.y); ctx.lineTo(pBack.x, pBack.y); ctx.stroke();
+    },
+    
+    // 2. SİLİNDİR ÇİZİMİ VE SÜRGÜLÜ AÇINIMI
+    drawSilindir: function(ctx, w, h, ratio) {
+        const bW = w/2; const bH = w/6;
+        const topY = -h/2; const botY = h/2;
+        
+        const tCy = topY * (1-ratio) + (-h) * ratio;
+        const bCy = botY * (1-ratio) + (h) * ratio;
+        
+        ctx.beginPath(); ctx.ellipse(0, tCy, bW, bH, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(0, bCy, bW, bH, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        
+        if (ratio < 0.99) {
+            ctx.globalAlpha = 1 - ratio;
+            ctx.beginPath(); ctx.moveTo(-bW, topY); ctx.lineTo(-bW, botY); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(bW, topY); ctx.lineTo(bW, botY); ctx.stroke();
+            ctx.globalAlpha = 1.0;
+        }
+        if (ratio > 0) {
+            const rectW = (2 * Math.PI * bW) * ratio;
+            ctx.beginPath(); ctx.rect(-rectW/2, -h/2, rectW, h);
+            ctx.save(); ctx.globalAlpha = 0.3 * ratio; ctx.fill(); ctx.globalAlpha = ratio; ctx.stroke(); ctx.restore();
+        }
+    },
+    
+    // 3. KONİ ÇİZİMİ VE SÜRGÜLÜ AÇINIMI
+    drawKoni: function(ctx, w, h, ratio) {
+        const bW = w/2; const bH = w/6;
+        const apexY = -h/2; const botY = h/2;
+        const bCy = botY * (1-ratio) + (h) * ratio;
+        
+        ctx.beginPath(); ctx.ellipse(0, bCy, bW, bH, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        
+        if (ratio < 0.99) {
+            ctx.globalAlpha = 1 - ratio;
+            ctx.beginPath(); ctx.moveTo(-bW, botY); ctx.lineTo(0, apexY); ctx.lineTo(bW, botY); ctx.stroke();
+            ctx.globalAlpha = 1.0;
+        }
+        if (ratio > 0) {
+            ctx.save(); ctx.globalAlpha = 0.5 * ratio;
+            ctx.beginPath(); ctx.arc(0, botY, Math.hypot(bW, h), Math.PI + Math.PI/4, Math.PI*2 - Math.PI/4);
+            ctx.lineTo(0, apexY); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+        }
+    },
+
+    // SARI KUTU MATEMATİK VE FORMÜL MOTORU
+    getFormulas: function(stroke) {
+        const type = stroke.shapeType;
+        const w = stroke.width; const h = stroke.height;
+        const p = 3; // Pi = 3 alındı
+        
+        const a = (w / 30).toFixed(1); 
+        const hc = (h / 30).toFixed(1);
+        const r = (w/2 / 30).toFixed(1);
+
+        if (type === '3d_kare_piramit') {
+            return `KARE PİRAMİT\nTaban Ayrıtı (a) = ${a} cm\nYükseklik (h) = ${hc} cm\nTaban Alanı = a² = ${(a*a).toFixed(1)} cm²\nHacim = (a².h)/3 = ${((a*a*hc)/3).toFixed(1)} cm³`;
+        } else if (type === '3d_silindir') {
+            return `SİLİNDİR (π=3)\nYarıçap (r) = ${r} cm\nYükseklik (h) = ${hc} cm\nTaban Alanı = π.r² = ${(p*r*r).toFixed(1)} cm²\nYanal Alan = 2.π.r.h = ${(2*p*r*hc).toFixed(1)} cm²\nHacim = π.r².h = ${(p*r*r*hc).toFixed(1)} cm³`;
+        } else if (type === '3d_koni') {
+            return `KONİ (π=3)\nYarıçap (r) = ${r} cm\nYükseklik (h) = ${hc} cm\nTaban Alanı = π.r² = ${(p*r*r).toFixed(1)} cm²\nHacim = (π.r².h)/3 = ${((p*r*r*hc)/3).toFixed(1)} cm³`;
+        }
+        return "";
+    }
+};
+
+// ==========================================
+// --- 3D OTOMATİK MENÜ VE ARAYÜZ MOTORU (ADIM 3) ---
+// ==========================================
+window.addEventListener('load', () => {
+    // 1. Sol Panele "3D Cisimler" Butonunu Otomatik Ekle
+    const polyBtn = document.getElementById('btn-cokgenler');
+    if (polyBtn && !document.getElementById('btn-3d-menu')) {
+        const btn3D = document.createElement('button');
+        btn3D.id = 'btn-3d-menu';
+        btn3D.className = 'tool-button';
+        btn3D.innerHTML = '3D Cisimler';
+        polyBtn.parentNode.insertBefore(btn3D, polyBtn.nextSibling);
+
+        const menu3D = document.createElement('div');
+        menu3D.id = '3d-options';
+        menu3D.className = 'tool-options hidden';
+        // Yeni temanızın buzlu cam görünümü otomatik atanır
+        menu3D.style.cssText = `position: absolute; left: 100%; margin-left: 10px; z-index: 20; background-color: rgba(30, 30, 46, 0.75); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 15px 35px rgba(0,0,0,0.4); padding: 15px; border-radius: 15px; flex-direction: column; gap: 8px; width: 200px;`;
+        
+        menu3D.innerHTML = `
+            <button class="tool-button-sub" data-3d="3d_kare_piramit">Kare Piramit</button>
+            <button class="tool-button-sub" data-3d="3d_silindir">Silindir</button>
+            <button class="tool-button-sub" data-3d="3d_koni">Koni</button>
+        `;
+        btn3D.parentNode.insertBefore(menu3D, btn3D.nextSibling);
+
+        btn3D.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isHidden = menu3D.classList.contains('hidden');
+            // Diğer açık menüleri kapat
+            document.querySelectorAll('.tool-options').forEach(m => { m.classList.add('hidden'); m.style.display = 'none'; });
+            
+            if (isHidden) {
+                menu3D.classList.remove('hidden');
+                menu3D.style.display = 'flex';
+                const rect = btn3D.getBoundingClientRect();
+                const panelRect = btn3D.parentElement.getBoundingClientRect();
+                menu3D.style.top = (rect.top - panelRect.top) + 'px';
+                btn3D.classList.add('active');
+            } else {
+                btn3D.classList.remove('active');
+            }
+        });
+
+        menu3D.querySelectorAll('button').forEach(b => {
+            b.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const targetTool = 'draw_' + b.getAttribute('data-3d');
+                if (typeof setActiveTool === 'function') setActiveTool(targetTool);
+                else window.currentTool = targetTool;
+                
+                menu3D.classList.add('hidden');
+                menu3D.style.display = 'none';
+                btn3D.classList.remove('active');
+            });
+        });
+    }
+
+    // 2. Sürgü ve Formül Kutusunu Saniyede 60 Kez Eşitleyen Dinamik Motor
+    const uiMotor = () => {
+        const slider = document.getElementById('slider-container');
+        const info = document.getElementById('info-tooltip');
+        
+        if (window.currentTool === 'move' && window.selectedItem && window.selectedItem.type === '3d_shape') {
+            const s = window.selectedItem;
+            window.active3DSliderStroke = s;
+            
+            // Sürgü ve bilgi paneli tam şeklin yanına gelir ve şekille beraber hareket eder
+            if (slider) {
+                slider.style.display = 'flex';
+                slider.style.left = (s.x + s.width + 40) + 'px';
+                slider.style.top = (s.y) + 'px';
+            }
+            if (info) {
+                info.style.display = 'block';
+                info.innerText = window.ThreeDTool.getFormulas(s);
+                info.style.left = (s.x + s.width + 40) + 'px';
+                info.style.top = (s.y + 80) + 'px';
+            }
+            
+            const sInput = document.getElementById('shape-slider');
+            if (sInput && document.activeElement !== sInput) {
+                sInput.value = (s.openRatio || 0) * 100;
+            }
+        } else {
+            if (slider) slider.style.display = 'none';
+            if (info) info.style.display = 'none';
+            window.active3DSliderStroke = null;
+        }
+        requestAnimationFrame(uiMotor);
+    };
+    requestAnimationFrame(uiMotor);
+});

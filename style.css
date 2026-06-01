@@ -1044,3 +1044,54 @@ canvas {
 .disclaimer-hidden {
     display: none !important;
 }
+
+/* =========================================
+   3D CİSİMLER: SÜRGÜ VE BİLGİ KUTUSU (ADIM 1)
+   ========================================= */
+#slider-container {
+    position: fixed;
+    display: none;
+    z-index: 10000;
+    background: rgba(30, 30, 46, 0.85);
+    padding: 12px 20px;
+    border-radius: 15px;
+    border: 2px solid #00ffcc;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    touch-action: none;
+}
+
+#slider-container label {
+    font-family: 'Fredoka', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: #00ffcc;
+    text-shadow: 0 0 5px rgba(0, 255, 204, 0.5);
+}
+
+#shape-slider {
+    width: 180px;
+    cursor: pointer;
+    accent-color: #ff00ff; /* Sürgü rengi pembe */
+}
+
+#info-tooltip {
+    position: fixed;
+    display: none;
+    z-index: 9999;
+    background: rgba(10, 10, 31, 0.95);
+    border: 2px solid #FFFF00;
+    color: #FFFF00;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-family: 'Arial', sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    pointer-events: none; /* Farenin/parmağın tıklamasını engellemesin */
+    box-shadow: 0 0 15px rgba(255, 255, 0, 0.3);
+    white-space: pre-line; /* Alt satıra inmeyi tanır */
+}
