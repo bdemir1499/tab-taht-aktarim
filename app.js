@@ -5020,6 +5020,12 @@ function akilliSilgi(e, isDown) {
     // Silginin etki alanını da ekranın HD oranına göre büyütüyoruz
     const eR = 45 * Math.max(scaleX, scaleY); 
 
+    // 🚨 KESİN ÇÖZÜM: Yeni bir yere dokunulduğunda eski hafızayı SIFIRLA!
+    // Böylece eski noktadan yeni noktaya görünmez bir lazer çekip diğer şekilleri yutmaz.
+    if (isDown) {
+        window.lastEraserPos = null;
+    }
+
     // --- Işınlanma (Hızlı Silme) Koruması ---
     let noktalar = [{x: ex, y: ey}];
     
@@ -5131,14 +5137,20 @@ if (canvasElm) {
     canvasElm.addEventListener('pointermove', (e) => akilliSilgi(e, false));
     canvasElm.addEventListener('touchmove', (e) => akilliSilgi(e, false), {passive: true});
     
-    // Fare veya parmak kanvas alanından çıkarsa silgi imlecini zorla kapat
+    // 🚨 ZIRH 1: Parmak veya Fare ekrandan kalktığı an silgi hafızasını zorla sıfırla!
+    canvasElm.addEventListener('pointerup', () => { 
+        window.lastEraserPos = null; 
+    });
+    
+    // 🚨 ZIRH 2: Fare veya parmak kanvas alanından çıkarsa hem hafızayı sil hem imleci kapat!
     canvasElm.addEventListener('pointerleave', () => {
+        window.lastEraserPos = null; 
         if (typeof eraserPreview !== 'undefined' && eraserPreview) {
             eraserPreview.style.display = 'none';
         }
     });
 }
-// =========================================================================
+
 
 // Fare veya parmak kanvas alanından çıkarsa silgi imlecini zorla kapat
 canvas.addEventListener('pointerleave', () => {
