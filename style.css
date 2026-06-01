@@ -44,56 +44,55 @@ input, textarea {
    2. TARAYICI ARAYÜZÜNÜ VE KAYDIRMAYI ÇİVİLEME
    ========================================= */
 html, body {
-    width: 100vw;
-    height: 100vh;
-    margin: 0;
-    padding: 0;
-    
-    /* SAYFAYI EKRANA ÇİVİLER: Adres çubuğunun ekranı kaydırmasını KESİN engeller */
-    position: fixed; 
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    
-    /* Tüm yaylanma, kaydırma ve zoom hareketlerini kapatır */
+    width: 100vw; height: 100vh; margin: 0; padding: 0;
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
     overflow: hidden !important; 
     overscroll-behavior: none !important; 
     touch-action: none !important; 
     
-    /* Tema renkleriniz */
-    font-family: 'Arial', sans-serif;
-    background-color: #0d0d2b; 
-    color: #00ffcc; 
+    /* GÖZ YORMAYAN YENİ TEMA: Koyu Füme/Antrasit */
+    font-family: 'Fredoka', 'Arial', sans-serif;
+    background-color: #181825; 
+    color: #cdd6f4; 
 }
 
 /* =========================================
-   3. ANA ÇİZİM ALANI (KANVAS)
+   3. ANA ÇİZİM ALANI VE NOKTALI GEOMETRİ DEFTERİ SİHRİ
    ========================================= */
 #drawing-canvas {
-    display: block;
-    width: 100vw;
-    height: 100vh;
-    background-color: #0a0a1f; 
+    display: block; width: 100vw; height: 100vh;
     
-    /* Kanvas üzerindeki tüm dokunmatik hareketleri JS'e bırak */
+    /* Zemin Rengi */
+    background-color: #1e1e2e; 
+    
+    /* 🚨 SİHİRLİ DOKUNUŞ: 30 Piksellik (1cm) Geometri Noktaları! 🚨 */
+    background-image: radial-gradient(rgba(205, 214, 244, 0.15) 2px, transparent 2px);
+    background-size: 30px 30px; /* Sizin 30px = 1cm kalibrasyonunuza birebir uyar! */
+    
     touch-action: none !important; 
 }
 
 /* --- BURADAN AŞAĞISI SİZİN PANELLER VE ARAÇ STİLLERİNİZ OLSUN (.panel, .tool-button vs.) --- */
-/* Panellerin Genel Stili */
+/* Panellerin Genel Stili (BUZLU CAM EFEKTİ) */
 .panel {
     position: fixed;
     top: 50%;
     transform: translateY(-50%);
-    background-color: rgba(10, 10, 31, 0.8); /* Yarı saydam panel arka planı */
-    border: 2px solid #00ffcc; /* Neon çerçeve */
-    box-shadow: 0 0 15px #00ffcc;
+    
+    /* Yarı saydam pastel arka plan ve bulanıklaştırma */
+    background-color: rgba(30, 30, 46, 0.75); 
+    backdrop-filter: blur(12px); /* Arka planı buzlu cam gibi flulaştırır */
+    -webkit-backdrop-filter: blur(12px);
+    
+    /* Zarif çerçeve ve yumuşak gölge */
+    border: 1px solid rgba(255, 255, 255, 0.15); 
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+    
     padding: 15px;
-    border-radius: 15px;
+    border-radius: 20px; /* Daha yumuşak köşeler */
     display: flex;
     flex-direction: column;
-    gap: 10px; /* Butonlar arası boşluk */
+    gap: 10px; 
     z-index: 10;
 }
 
@@ -102,39 +101,59 @@ html, body {
     left: 15px;
 }
 
-/* İstenen "Tombik Buton" Stili */
+/* Premium Buton Stili */
 .tool-button {
-    background: linear-gradient(145deg, #f0f, #0ff); /* Parlak karışık neon renkler */
-    border: none;
-    border-radius: 12px; /* Tombik görünüm için yuvarlak köşe */
+    background: rgba(255, 255, 255, 0.05); /* Çok hafif gri şeffaf zemin */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px; 
     padding: 12px 18px;
     font-size: 16px;
-    font-weight: bold;
-    color: #0a0a1f; /* Koyu metin (kontrast için) */
+    font-weight: 600;
+    color: #cdd6f4; /* Mat beyaz/gri okunaklı metin */
     cursor: pointer;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3), 
-                inset 0 2px 4px rgba(255, 255, 255, 0.4); /* 3D ve "tombik" efekti */
-    transition: all 0.2s ease;
-    min-width: 120px; /* Butonların aynı genişlikte olması için */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); 
+    transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    min-width: 120px; 
 }
 
-/* Buton üzerine gelince ve tıklanınca */
+/* Buton üzerine gelince (Hover) - Pastel Mavi Parlama */
 .tool-button:hover {
+    background: rgba(137, 180, 250, 0.15); 
+    border-color: #89b4fa;
+    color: #89b4fa;
     transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4),
-                inset 0 2px 4px rgba(255, 255, 255, 0.4);
+    box-shadow: 0 6px 15px rgba(137, 180, 250, 0.2);
 }
 
 .tool-button:active {
-    transform: translateY(1px);
-    background: linear-gradient(145deg, #0ff, #f0f); /* Tıklama efekti için renk değişimi */
+    transform: scale(0.92);
 }
 
-/* Hangi aracın seçili olduğunu gösteren stil */
+/* Seçili (Aktif) Araç Butonu - Tam Pastel Mavi */
 .tool-button.active {
-    background: #00ffcc; /* Neon yeşili aktif renk */
-    color: #0d0d2b;
-    box-shadow: 0 0 20px #00ffcc;
+    background: #89b4fa; 
+    color: #1e1e2e; /* Koyu metin, tam zıtlık */
+    border-color: #89b4fa;
+    box-shadow: 0 0 20px rgba(137, 180, 250, 0.5);
+    font-weight: bold;
+}
+
+/* Alt menü butonlarını (.tool-button-sub) da buna uyduralım */
+.tool-button-sub {
+    background: rgba(255, 255, 255, 0.05);
+    color: #cdd6f4;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s;
+}
+
+.tool-button-sub.active, .tool-button-sub:hover {
+    background: rgba(137, 180, 250, 0.2);
+    color: #89b4fa;
+    border-color: #89b4fa;
 }
 
 /* Kalem ve Silgi için özel imleçler (Temsili araç) */
@@ -214,10 +233,12 @@ body.cursor-eraser .eraser-cursor-preview {
     margin-left: 10px; /* Sol panelle arasına boşluk koy */
     z-index: 20; /* Diğer her şeyin üzerinde görünsün */
 
-    /* Panel stilini kopyala */
-    background-color: rgba(10, 10, 31, 0.8);
-    border: 2px solid #00ffcc;
-    box-shadow: 0 0 15px #00ffcc;
+    /* Yeni Buzlu Cam Panel Stili */
+    background-color: rgba(30, 30, 46, 0.75); 
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15); 
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
     padding: 15px;
     border-radius: 15px;
     
@@ -237,22 +258,7 @@ body.cursor-eraser .eraser-cursor-preview {
     width: 160px; 
 }
 
-/* Alt menü butonları (Nokta, Düz Çizgi vb.) */
-.tool-button-sub {
-    background: #333;
-    color: #0ff;
-    border: 1px solid #0ff;
-    padding: 8px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: bold;
-}
 
-.tool-button-sub.active {
-    background: #0ff;
-    color: #333;
-    box-shadow: 0 0 10px #0ff;
-}
 
 /* .hidden sınıfı zaten mevcut (menüleri gizlemek için) */
 .tool-options.hidden {
@@ -319,9 +325,12 @@ body.cursor-eraser .eraser-cursor-preview {
     /* Konum (top) artık JS tarafından ayarlanacağı için buradan kaldırıldı. */
     /* KRİTİK: 'display: flex;' buradan kaldırıldı, çünkü .hidden sınıfını eziyordu. */
     
-    background-color: rgba(10, 10, 31, 0.8);
-    border: 2px solid #00ffcc;
-    box-shadow: 0 0 15px #00ffcc;
+    /* Yeni Buzlu Cam Panel Stili */
+    background-color: rgba(30, 30, 46, 0.75); 
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15); 
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
     padding: 15px;
     border-radius: 15px;
     
@@ -354,9 +363,12 @@ body.cursor-eraser .eraser-cursor-preview {
     margin-left: 10px; 
     z-index: 20; 
 
-    background-color: rgba(10, 10, 31, 0.8);
-    border: 2px solid #00ffcc;
-    box-shadow: 0 0 15px #00ffcc;
+    /* Yeni Buzlu Cam Panel Stili */
+    background-color: rgba(30, 30, 46, 0.75); 
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15); 
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
     padding: 15px;
     border-radius: 15px;
     
