@@ -101,28 +101,32 @@ html, body {
     left: 15px;
 }
 
-/* Premium Buton Stili */
+/* Premium Buton Stili (İnatçı Eski Renkleri Ezen Zırhlı Versiyon) */
 .tool-button {
-    background: rgba(255, 255, 255, 0.05); /* Çok hafif gri şeffaf zemin */
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    /* 🚨 !important zırhı ile eski HTML renkleri kesin olarak ezilir 🚨 */
+    background: rgba(255, 255, 255, 0.05) !important; 
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #cdd6f4 !important; 
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important; 
+    
+    /* Sağ paneldeki küçük butonları bozmamak için boyutlara !important koymuyoruz */
     border-radius: 12px; 
     padding: 12px 18px;
     font-size: 16px;
     font-weight: 600;
-    color: #cdd6f4; /* Mat beyaz/gri okunaklı metin */
     cursor: pointer;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); 
     transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     min-width: 120px; 
 }
 
-/* Buton üzerine gelince (Hover) - Pastel Mavi Parlama */
+/* Buton üzerine gelince (Hover) */
 .tool-button:hover {
-    background: rgba(137, 180, 250, 0.15); 
-    border-color: #89b4fa;
-    color: #89b4fa;
+    background: rgba(137, 180, 250, 0.15) !important; 
+    border-color: #89b4fa !important;
+    color: #89b4fa !important;
+    box-shadow: 0 6px 15px rgba(137, 180, 250, 0.2) !important;
+    
     transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(137, 180, 250, 0.2);
 }
 
 .tool-button:active {
@@ -131,18 +135,18 @@ html, body {
 
 /* Seçili (Aktif) Araç Butonu - Tam Pastel Mavi */
 .tool-button.active {
-    background: #89b4fa; 
-    color: #1e1e2e; /* Koyu metin, tam zıtlık */
-    border-color: #89b4fa;
-    box-shadow: 0 0 20px rgba(137, 180, 250, 0.5);
-    font-weight: bold;
+    background: #89b4fa !important; 
+    color: #1e1e2e !important; /* Koyu metin, tam zıtlık */
+    border-color: #89b4fa !important;
+    box-shadow: 0 0 20px rgba(137, 180, 250, 0.5) !important;
 }
 
-/* Alt menü butonlarını (.tool-button-sub) da buna uyduralım */
+/* Alt menü butonlarını (.tool-button-sub) da zırhlayalım */
 .tool-button-sub {
-    background: rgba(255, 255, 255, 0.05);
-    color: #cdd6f4;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: #cdd6f4 !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    
     padding: 8px;
     border-radius: 8px;
     cursor: pointer;
@@ -151,9 +155,9 @@ html, body {
 }
 
 .tool-button-sub.active, .tool-button-sub:hover {
-    background: rgba(137, 180, 250, 0.2);
-    color: #89b4fa;
-    border-color: #89b4fa;
+    background: rgba(137, 180, 250, 0.2) !important;
+    color: #89b4fa !important;
+    border-color: #89b4fa !important;
 }
 
 /* Kalem ve Silgi için özel imleçler (Temsili araç) */

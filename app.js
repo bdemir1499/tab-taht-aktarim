@@ -2100,9 +2100,28 @@ function setActiveTool(tool) {
 
 penButton.addEventListener('click', () => setActiveTool(currentTool === 'pen' ? 'none' : 'pen'));
 eraserButton.addEventListener('click', () => setActiveTool(currentTool === 'eraser' ? 'none' : 'eraser'));
-rulerButton.addEventListener('click', () => { if (window.RulerTool) { window.RulerTool.toggle(); rulerButton.classList.toggle('active', !window.RulerTool.rulerElement.style.display); } });
-gonyeButton.addEventListener('click', () => { if (window.GonyeTool) { window.GonyeTool.toggle(); gonyeButton.classList.toggle('active', !window.GonyeTool.gonyeElement.style.display); } });
-aciolcerButton.addEventListener('click', () => { if (window.AciolcerTool) { window.AciolcerTool.toggle(); aciolcerButton.classList.toggle('active', !window.AciolcerTool.aciolcerElement.style.display); } });
+// --- FİZİKSEL ARAÇ BUTONLARI KESİN ÇÖZÜMÜ ---
+rulerButton.addEventListener('click', () => { 
+    if (window.RulerTool) { 
+        window.RulerTool.toggle(); 
+        const isHidden = window.RulerTool.rulerElement.style.display === 'none' || window.RulerTool.rulerElement.classList.contains('hidden');
+        rulerButton.classList.toggle('active', !isHidden); 
+    } 
+});
+gonyeButton.addEventListener('click', () => { 
+    if (window.GonyeTool) { 
+        window.GonyeTool.toggle(); 
+        const isHidden = window.GonyeTool.gonyeElement.style.display === 'none' || window.GonyeTool.gonyeElement.classList.contains('hidden');
+        gonyeButton.classList.toggle('active', !isHidden); 
+    } 
+});
+aciolcerButton.addEventListener('click', () => { 
+    if (window.AciolcerTool) { 
+        window.AciolcerTool.toggle(); 
+        const isHidden = window.AciolcerTool.aciolcerElement.style.display === 'none' || window.AciolcerTool.aciolcerElement.classList.contains('hidden');
+        aciolcerButton.classList.toggle('active', !isHidden); 
+    } 
+});
 pergelButton.addEventListener('click', () => {
     setActiveTool(currentTool === 'pergel' ? 'none' : 'pergel');
 });
