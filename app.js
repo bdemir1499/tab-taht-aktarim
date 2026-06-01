@@ -2822,19 +2822,7 @@ canvas.addEventListener('pointermove', (e) => {
     // 🚨 SİHİRLİ DOKUNUŞ 2: Sürükleme sırasında ekran titremesinin 1 numaralı düşmanı olan zıplamayı EN BAŞTA yok et!
     if (e.cancelable) e.preventDefault();
 
-    // 🚨 AKILLI FİLTRE: Kalemle yazarken avucun iz bırakmasını engelle!
-    if (e.pointerType === 'touch') {
-        const isPhysicalTool = ['ruler', 'gonye', 'aciolcer', 'pergel'].includes(currentTool);
-        
-        // Eğer Taşı modunda DEĞİLSEK ve Fiziksel Araç KULLANMIYORSAK avucu filtrele
-        if (typeof currentTool !== 'undefined' && currentTool !== 'move' && !isPhysicalTool) {
-            const parmakSayisi = typeof pointers !== 'undefined' ? pointers.size : (e.touches ? e.touches.length : 1);
-            if (parmakSayisi < 2) {
-                return; // Sadece çizimi iptal et, ama en üstte preventDefault çalıştığı için araçlar ASLA titremez!
-            }
-        }
-    }
-
+    
     // --- AVUÇ İÇİ REDDİ (SÜREKLİ GÜNCELLEME) ---
     const currentPointerMove = getPointerInfo(e);
     
@@ -3942,13 +3930,14 @@ async function renderPDFPage(num) {
     
     
     if(pageCountLabel) pageCountLabel.innerText = `Sayfa: ${num} / ${totalPDFPages}`;
-}
-// --- app.js İÇİNDEKİ addNewImageToCanvas FONKSİYONU ---
 
+
+
+}
 function addNewImageToCanvas(img, isPDF = false, pcKordinatlari = null) {
     let startWidth, startHeight, posX, posY;
 
-    // 🚨 KESİN ÇÖZÜM: Eğer PC isek, tabletin bize gönderdiği kusursuz koordinatları kullan!
+    // Eğer PC isek, tabletin bize gönderdiği kusursuz koordinatları kullan!
     if (pcKordinatlari) {
         startWidth = pcKordinatlari.width;
         startHeight = pcKordinatlari.height;
@@ -3958,10 +3947,8 @@ function addNewImageToCanvas(img, isPDF = false, pcKordinatlari = null) {
         // Eğer Tabletsek kendi ekranımıza göre hesapla
         startWidth = canvas.width * 0.8; 
         if (img.width < startWidth) startWidth = img.width; 
-        
         let scaleFactor = startWidth / img.width;
         startHeight = img.height * scaleFactor;
-        
         posX = (canvas.width / 2) - (startWidth / 2);
         posY = (canvas.height / 2) - (startHeight / 2);
     }
@@ -3978,9 +3965,6 @@ function addNewImageToCanvas(img, isPDF = false, pcKordinatlari = null) {
         isBackground: true 
     };    
 
-
-    // (Böylece üst üste binmezler)
-// 🚨 DİKKAT: .filter yerine .splice kullanarak sayfa değişiminde hafızanın kopmasını engelliyoruz 🚨
     if (isPDF && typeof pdfImageStroke !== 'undefined' && pdfImageStroke !== null) { 
         for (let i = window.drawnStrokes.length - 1; i >= 0; i--) {
             let s = window.drawnStrokes[i];
@@ -3990,53 +3974,30 @@ function addNewImageToCanvas(img, isPDF = false, pcKordinatlari = null) {
                 window.drawnStrokes.splice(i, 1);
             }
         }
-        // Ana hafızayı eşitle
         if (typeof drawnStrokes !== 'undefined') drawnStrokes = window.drawnStrokes; 
     } 
-    // --------------------------------------------
 
     drawnStrokes.push(newStroke);
+    if (isPDF) { pdfImageStroke = newStroke; }
     
-    if (isPDF) {
-        pdfImageStroke = newStroke; // Yeni sayfayı sisteme tanıt
-    }
-    
-    // --- 2. KRİTİK DÜZELTME: BUTONU DOĞRU ZAMANDA GÖSTER ---
-    // Resim veya PDF ekrana "gerçekten" çizildiği an bu buton görünür olacak
-
-    // 1. Sağ paneldeki İleri/Geri tuşlarını (pdf-controls) geri getir
     const pdfControls = document.getElementById('pdf-controls');
-    if (pdfControls) {
-        pdfControls.classList.remove('hidden');
-        pdfControls.style.display = 'flex'; 
+    if (pdfControls) { pdfControls.classList.remove('hidden'); pdfControls.style.display = 'flex'; }
+
+    const closeBtn = document.getElementById('btn-close-pdf');
+    if (closeBtn) { closeBtn.classList.remove('hidden'); closeBtn.style.display = 'flex'; }
+
+    redrawAllStrokes();
+
+    // 🚨 NİHAİ ÇÖZÜM: Resmi VE Koordinatları TEK PAKETTE PC'ye fırlat!
+    if (!pcKordinatlari && typeof isConnected !== 'undefined' && isConnected) {
+        window.sendNetworkData({
+            type: 'arka_plan_resmi_aktar', 
+            imgData: img.src,
+            isPDF: isPDF,
+            kordinatlar: { x: newStroke.x, y: newStroke.y, width: newStroke.width, height: newStroke.height }
+        });
     }
-
-    // 2. Kırmızı Kapatma Butonunu geri getir
-        const closeBtn = document.getElementById('btn-close-pdf');
-        if (closeBtn) {
-            closeBtn.classList.remove('hidden');
-            closeBtn.style.display = 'flex';
-        }
-
-        redrawAllStrokes();
-
-       // 🚨 NİHAİ ÇÖZÜM: 300ms avans gibi hatalı taktikleri siliyoruz.
-        // Tablet resmi hesapladıktan SONRA, hem resmi hem koordinatları TEK PAKETTE PC'ye fırlatıyoruz!
-        if (!pcKordinatlari && typeof isConnected !== 'undefined' && isConnected) {
-            window.sendNetworkData({
-                type: 'arka_plan_resmi_aktar', 
-                imgData: img.src,
-                isPDF: isPDF,
-                kordinatlar: {
-                    x: newStroke.x,
-                    y: newStroke.y,
-                    width: newStroke.width,
-                    height: newStroke.height
-                }
-            });
-        }
-    }
-
+}
 // --- ARAÇ RENGİ DEĞİŞTİRME MANTIĞI (SİYAH / NEON / TOK MAVİ) ---
 const toolColorBtn = document.getElementById('btn-tool-color');
 let isBlackTheme = false;
@@ -5499,6 +5460,18 @@ function setupConnectionEvents() {
 
     // --- VERİ İŞLEME MERKEZİ ---
     function processData(data) {
+
+// 🚨 YENİ ALICI: TABLETTEN GELEN KUSURSUZ RESMİ VE PDF'İ EKRANA ÇİZER
+        if (data.type === 'arka_plan_resmi_aktar') {
+            const img = new Image();
+            img.onload = () => { 
+                if (typeof addNewImageToCanvas === 'function') {
+                    addNewImageToCanvas(img, data.isPDF, data.kordinatlar); 
+                }
+            };
+            img.src = data.imgData;
+            return; // İşlemi bitir
+        }
         if (!data || !data.type) return;
         if (!window.drawnStrokes) window.drawnStrokes = [];
 
