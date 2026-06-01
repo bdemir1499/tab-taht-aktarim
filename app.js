@@ -2217,10 +2217,7 @@ if (uploadButton && fileInput) {
             reader.onload = (event) => {
                 const imgData = event.target.result;
                 
-                // --- 2. AĞA FIRLAT (RESİM DOSYASI) ---
-                if (typeof isConnected !== 'undefined' && isConnected) {
-                    window.sendNetworkData({ type: 'resim_yukle', imgData: imgData });
-                }
+                
 
                 const img = new Image();
                 img.onload = () => {
@@ -3943,34 +3940,45 @@ async function renderPDFPage(num) {
     const sayfaResmi = tempCanvas.toDataURL('image/png', 1.0);
     img.src = sayfaResmi; 
     
-    // YENİ EKLENEN KISIM: Koca kitap yerine sadece bu sayfayı PC'ye fırlat
-    if (typeof isConnected !== 'undefined' && isConnected) {
-        window.sendNetworkData({ type: 'pdf_sayfa_resmi_aktar', imgData: sayfaResmi });
-    }
     
     if(pageCountLabel) pageCountLabel.innerText = `Sayfa: ${num} / ${totalPDFPages}`;
 }
 // --- app.js İÇİNDEKİ addNewImageToCanvas FONKSİYONU ---
 
-function addNewImageToCanvas(img, isPDF = false) {
-    // 🚨 YENİ: HD Kanvasta resmi 400px ile sıkıştırma, ekranın %80'i kadar devasa ve net aç!
-    let startWidth = canvas.width * 0.8; 
-    if (img.width < startWidth) startWidth = img.width; // Eğer resim kendi küçükse bozma
-    
-    let scaleFactor = startWidth / img.width;
-    let startHeight = img.height * scaleFactor;
+function addNewImageToCanvas(img, isPDF = false, pcKordinatlari = null) {
+    let startWidth, startHeight, posX, posY;
+
+    // 🚨 KESİN ÇÖZÜM: Eğer PC isek, tabletin bize gönderdiği kusursuz koordinatları kullan!
+    if (pcKordinatlari) {
+        startWidth = pcKordinatlari.width;
+        startHeight = pcKordinatlari.height;
+        posX = pcKordinatlari.x;
+        posY = pcKordinatlari.y;
+    } else {
+        // Eğer Tabletsek kendi ekranımıza göre hesapla
+        startWidth = canvas.width * 0.8; 
+        if (img.width < startWidth) startWidth = img.width; 
+        
+        let scaleFactor = startWidth / img.width;
+        startHeight = img.height * scaleFactor;
+        
+        posX = (canvas.width / 2) - (startWidth / 2);
+        posY = (canvas.height / 2) - (startHeight / 2);
+    }
 
     const newStroke = {
         type: 'image',
         id: Date.now() + Math.random(), 
         img: img, 
-        x: (canvas.width / 2) - (startWidth / 2),
-        y: (canvas.height / 2) - (startHeight / 2),
+        x: posX,
+        y: posY,
         width: startWidth,
         height: startHeight,
         rotation: 0,
         isBackground: true 
     };    
+
+
     // (Böylece üst üste binmezler)
 // 🚨 DİKKAT: .filter yerine .splice kullanarak sayfa değişiminde hafızanın kopmasını engelliyoruz 🚨
     if (isPDF && typeof pdfImageStroke !== 'undefined' && pdfImageStroke !== null) { 
@@ -4012,18 +4020,20 @@ function addNewImageToCanvas(img, isPDF = false) {
 
         redrawAllStrokes();
 
-        // 🚨 YENİ: Resim ekrana ilk yüklendiğinde de Tabletin mutlak koordinatlarını PC'ye dayat!
-        // Böylece daha hiç zoom yapmadan bile çizgileriniz kusursuz örtüşür.
-        if (typeof isConnected !== 'undefined' && isConnected) {
-            setTimeout(() => {
-                window.sendNetworkData({
-                    type: 'zoom_senkron', 
+       // 🚨 NİHAİ ÇÖZÜM: 300ms avans gibi hatalı taktikleri siliyoruz.
+        // Tablet resmi hesapladıktan SONRA, hem resmi hem koordinatları TEK PAKETTE PC'ye fırlatıyoruz!
+        if (!pcKordinatlari && typeof isConnected !== 'undefined' && isConnected) {
+            window.sendNetworkData({
+                type: 'arka_plan_resmi_aktar', 
+                imgData: img.src,
+                isPDF: isPDF,
+                kordinatlar: {
                     x: newStroke.x,
                     y: newStroke.y,
                     width: newStroke.width,
                     height: newStroke.height
-                });
-            }, 300); // PC'nin resmi yüklemesi için milisaniyelik minik bir avans
+                }
+            });
         }
     }
 
@@ -5523,14 +5533,6 @@ function setupConnectionEvents() {
             return; 
         }
 
-// Yeni Sayfa Resmi geldiğinde PC ekranına yansıt
-        if (data.type === 'pdf_sayfa_resmi_aktar') {
-            const img = new Image();
-            img.onload = () => { 
-                if (typeof addNewImageToCanvas === 'function') addNewImageToCanvas(img, true); 
-            };
-            img.src = data.imgData;
-        }
 
         // --- B) TEKİL ÇİZİM/KALEM/RESİM ALICISI ---
         if (data.type === 'yeni_cizim') {
@@ -5662,9 +5664,15 @@ function setupConnectionEvents() {
 
         if (data.type === 'pdf_sayfa_degis') { window.currentPDFPage = data.sayfa; if (typeof renderPDFPage === 'function') renderPDFPage(window.currentPDFPage); }
         
-        if (data.type === 'resim_yukle') {
+        // 🚨 NİHAİ ÇÖZÜM: Yeni Sayfa veya Resim geldiğinde PC ekranına KUSURSUZ yansıt 🚨
+        if (data.type === 'arka_plan_resmi_aktar') {
             const img = new Image();
-            img.onload = () => { if (typeof addNewImageToCanvas === 'function') addNewImageToCanvas(img, false); };
+            img.onload = () => { 
+                if (typeof addNewImageToCanvas === 'function') {
+                    // Resmi tabletin bize yolladığı KESİN koordinatlarla oluştur!
+                    addNewImageToCanvas(img, data.isPDF, data.kordinatlar); 
+                }
+            };
             img.src = data.imgData;
         }
 
