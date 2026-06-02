@@ -1077,6 +1077,9 @@ canvas {
     width: 180px;
     cursor: pointer;
     accent-color: #ff00ff; /* Sürgü rengi pembe */
+    /* 🚨 TABLET İÇİN KRİTİK İZİNLER 🚨 */
+    touch-action: auto !important; 
+    pointer-events: auto !important;
 }
 
 #info-tooltip {
