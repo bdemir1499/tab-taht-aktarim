@@ -6606,41 +6606,52 @@ canvasFor3DPhysics.addEventListener('pointerdown', (e) => {
         const hit = check3DHit(pos);
         if (hit) {
             e.stopImmediatePropagation();
-            // Diğer şekillerin seçimini iptal et (Ağ senkronizasyonlu)
+            window.selectedItem = hit.item; // 🚨 Zıplamayı önler, ana uygulamaya seçimi bildirir!
+            
             if (window.drawnStrokes) {
                 window.drawnStrokes.forEach(s => {
-                    if (s.type === '3d_shape' && s.id !== hit.item.id && s.rotation >= 36000) {
-                        s.rotation -= 36000;
+                    let cRot = s.rotation || 0;
+                    if (s.type === '3d_shape' && s.id !== hit.item.id && cRot >= 36000) {
+                        s.rotation = cRot - 36000;
                         if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: s });
                     }
                 });
             }
-            // Şekli Hayalet Rotasyon ile seçili yap
-            if (hit.item.rotation < 36000) {
-                hit.item.rotation += 36000;
+            
+            // 🚨 SİHİR: Tanımsız (NaN) Hatasını Önleyen Güvenli Seçim
+            let myRot = hit.item.rotation || 0;
+            if (myRot < 36000) {
+                hit.item.rotation = myRot + 36000;
                 if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: hit.item });
             }
+            
             active3DManipulator = hit.action;
             const cX = hit.item.x + hit.item.width / 2; const cY = hit.item.y + hit.item.height / 2;
             
-           if (hit.action === 'rotate') {
+            if (hit.action === 'rotate') {
                 initialMouseAngle = Math.atan2(pos.y - cY, pos.x - cX) * 180 / Math.PI;
-                initial3DAngle = hit.item.rotation - 36000; 
+                initial3DAngle = (hit.item.rotation || 36000) - 36000; 
                 initialMouseY = pos.y; initialMouseX = pos.x; 
                 initial3DPitch = hit.item.pitch !== undefined ? hit.item.pitch : 1;
                 initial3DYaw = hit.item.yaw !== undefined ? hit.item.yaw : 0;
+            } else if (hit.action === 'resize') {
+                initial3DSize = { w: hit.item.width, h: hit.item.height }; initial3DPos = { x: pos.x, y: pos.y };
+            } else if (hit.action === 'move') {
+                initial3DPos = { x: pos.x, y: pos.y }; hit.item._startX = hit.item.x; hit.item._startY = hit.item.y;
             }
             if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
         } else {
-            // Boşluğa tıklanırsa tüm 3D seçimlerini PC'den ve tabletten temizle
+            // Boşluğa tıklanırsa seçimi temizle
             if (window.drawnStrokes) {
                 window.drawnStrokes.forEach(s => {
-                    if (s.type === '3d_shape' && s.rotation >= 36000) {
-                        s.rotation -= 36000;
+                    let cRot = s.rotation || 0;
+                    if (s.type === '3d_shape' && cRot >= 36000) {
+                        s.rotation = cRot - 36000;
                         if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: s });
                     }
                 });
             }
+            window.selectedItem = null;
             if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
         }
     }
@@ -6655,16 +6666,15 @@ window.addEventListener('pointermove', (e) => {
         const cX = stroke.x + stroke.width / 2; const cY = stroke.y + stroke.height / 2;
 
         if (active3DManipulator === 'rotate') {
-            // 1. Z-Ekseni (Direksiyon gibi dönüş / Roll)
             const currentMouseAngle = Math.atan2(pos.y - cY, pos.x - cX) * 180 / Math.PI;
             let rawRot = initial3DAngle + (currentMouseAngle - initialMouseAngle);
-            stroke.rotation = (rawRot % 360) + 36000; 
             
-            // 2. X-Ekseni (Yukarı/Aşağı çekince öne arkaya yatma / Pitch)
+            // 🚨 NEGATİF AÇI KORUMASI (Eksiye düşüp seçimin iptal olmasını engeller)
+            stroke.rotation = (((rawRot % 360) + 360) % 360) + 36000; 
+            
             let deltaY = pos.y - initialMouseY;
             stroke.pitch = Math.max(-1, Math.min(1, initial3DPitch - (deltaY * 0.005))); 
             
-            // 3. Y-Ekseni (Sağa/Sola çekince kendi etrafında 3D dönme / YAW)
             let deltaX = pos.x - initialMouseX;
             stroke.yaw = initial3DYaw + (deltaX * 0.02);
         }
