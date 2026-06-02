@@ -6551,57 +6551,44 @@ drawKure: function(ctx, w, h, stroke) {
         let yaw = stroke.yaw || 0;
         let pitch = stroke.pitch !== undefined ? stroke.pitch : 1;
         
-        // 1. Dış Hat ve 3D Dinamik Işık Hacmi
         let lightX = r * 0.4 * Math.sin(yaw);
         let lightY = -r * 0.4 * pitch;
-        let grad = ctx.createRadialGradient(lightX, lightY, r*0.1, 0, 0, r);
+        let grad = ctx.createRadialGradient(lightX, lightY, r * 0.1, 0, 0, r);
         grad.addColorStop(0, 'rgba(255,255,255,0.8)');
         grad.addColorStop(0.5, `rgba(${rgb}, 0.3)`);
         grad.addColorStop(1, `rgba(${rgb}, 0.02)`);
         
-        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); 
-        ctx.fillStyle = grad; ctx.fill(); ctx.stroke(); 
+        ctx.beginPath(); 
+        ctx.arc(0, 0, r, 0, Math.PI * 2); 
+        ctx.fillStyle = grad; 
+        ctx.fill(); 
+        ctx.stroke(); 
         
-        // 2. DAHA SIK MERİDYEN VE PARALELLER (Tam Dünya Küresi Kafesi)
         ctx.save();
-        ctx.strokeStyle = `rgba(${rgb}, 0.7)`; // Çizgiler biraz daha belirgin
+        ctx.strokeStyle = `rgba(${rgb}, 0.7)`; 
         ctx.lineWidth = 1.5;
         
-        // 6 Adet Dikey Meridyen (Her 30 derecede bir)
-        for (let i = 0; i < 6; i++) {
-            let angle = yaw + (i * Math.PI / 6);
+        // 6 Adet Dikey Meridyen
+        for (let m = 0; m < 6; m++) {
+            let angle = yaw + (m * Math.PI / 6);
             let merW = r * Math.cos(angle);
             ctx.beginPath(); 
-            ctx.ellipse(0, 0, Math.max(0.1, Math.abs(merW)), r, 0, 0, Math.PI*2); 
+            ctx.ellipse(0, 0, Math.max(0.1, Math.abs(merW)), r, 0, 0, Math.PI * 2); 
             ctx.stroke();
         }
         
-        // 5 Adet Yatay Paralel (Ekvator ve alt/üst enlemler)
-        for (let i = -2; i <= 2; i++) {
-            let h0 = (r / 3) * i; 
-            let rp = Math.sqrt(Math.max(0, r*r - h0*h0)); // O paralelin kendi yarıçapı
+        // 5 Adet Yatay Paralel
+        for (let p = -2; p <= 2; p++) {
+            let h0 = (r / 3) * p; 
+            let rp = Math.sqrt(Math.max(0, r * r - h0 * h0)); 
             let yOffset = h0 * pitch;
             let parH = rp * Math.abs(pitch);
             ctx.beginPath(); 
-            ctx.ellipse(0, yOffset, rp, Math.max(0.1, parH), 0, 0, Math.PI*2); 
+            ctx.ellipse(0, yOffset, rp, Math.max(0.1, parH), 0, 0, Math.PI * 2); 
             ctx.stroke();
         }
         ctx.restore();
     },
-        
-        // 3 Adet Yatay Paralel (Öne-Arkaya Pitch ile yatar)
-        for (let i = -1; i <= 1; i++) {
-            let h0 = (r / 2) * i; // Ekvator(0) ve Alt/Üst paraleller
-            let rp = Math.sqrt(r*r - h0*h0); // O paralelin kendi yarıçapı
-            let yOffset = h0 * pitch;
-            let parH = rp * Math.abs(pitch);
-            ctx.beginPath(); 
-            ctx.ellipse(0, yOffset, rp, Math.max(0.1, parH), 0, 0, Math.PI*2); 
-            ctx.stroke();
-        }
-        ctx.restore();
-    },
-
 
     drawPolygon: function(ctx, cx, cy, rx, ry, sides, rot) { ctx.beginPath(); for (let i = 0; i < sides; i++) { const a = rot + (i / sides) * Math.PI * 2; const x = cx + rx * Math.cos(a); const y = cy + ry * Math.sin(a); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); } ctx.closePath(); ctx.fill(); ctx.stroke(); },
     getFormulas: function(stroke) { if (!stroke) return ""; const w = (stroke.width / 30).toFixed(1); const h = (stroke.height / 30).toFixed(1); let name = stroke.shapeType.replace('3d_', '').replace(/_/g, ' ').toUpperCase(); return `${name}\nTaban/Yarıçap = ${w} cm\nYükseklik (h) = ${h} cm\n*(Anlık Kalibrasyon Değerleridir)*`; }
