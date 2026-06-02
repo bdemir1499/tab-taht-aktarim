@@ -6568,7 +6568,7 @@ drawKure: function(ctx, w, h, stroke) {
         ctx.strokeStyle = `rgba(${rgb}, 0.7)`; 
         ctx.lineWidth = 1.5;
         
-        // 6 Adet Dikey Meridyen
+        // Sadece Dikey Meridyenler (Yataylar kaldırıldı)
         for (let m = 0; m < 6; m++) {
             let angle = yaw + (m * Math.PI / 6);
             let merW = r * Math.cos(angle);
@@ -6577,19 +6577,8 @@ drawKure: function(ctx, w, h, stroke) {
             ctx.stroke();
         }
         
-        // 5 Adet Yatay Paralel
-        for (let p = -2; p <= 2; p++) {
-            let h0 = (r / 3) * p; 
-            let rp = Math.sqrt(Math.max(0, r * r - h0 * h0)); 
-            let yOffset = h0 * pitch;
-            let parH = rp * Math.abs(pitch);
-            ctx.beginPath(); 
-            ctx.ellipse(0, yOffset, rp, Math.max(0.1, parH), 0, 0, Math.PI * 2); 
-            ctx.stroke();
-        }
         ctx.restore();
     },
-
     drawPolygon: function(ctx, cx, cy, rx, ry, sides, rot) { ctx.beginPath(); for (let i = 0; i < sides; i++) { const a = rot + (i / sides) * Math.PI * 2; const x = cx + rx * Math.cos(a); const y = cy + ry * Math.sin(a); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); } ctx.closePath(); ctx.fill(); ctx.stroke(); },
     getFormulas: function(stroke) { if (!stroke) return ""; const w = (stroke.width / 30).toFixed(1); const h = (stroke.height / 30).toFixed(1); let name = stroke.shapeType.replace('3d_', '').replace(/_/g, ' ').toUpperCase(); return `${name}\nTaban/Yarıçap = ${w} cm\nYükseklik (h) = ${h} cm\n*(Anlık Kalibrasyon Değerleridir)*`; }
 };
