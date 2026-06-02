@@ -6453,13 +6453,9 @@ drwCanvas.addEventListener('pointerup', (e) => {
             window.drawnStrokes.push(finalStroke);
             if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) window.sendNetworkData({ type: 'yeni_cizim', stroke: finalStroke });
             
-            // 🚨 SİHİR BURADA: Parmağı kaldırınca OTOMATİK TAŞI moduna geçer!
-            window.active3DShapeTool = null; // 3D çizim modundan çık
-            const mainBtn = document.getElementById('btn-3d-menu');
-            if(mainBtn) mainBtn.classList.remove('active');
-            
-            if (typeof setActiveTool === 'function') setActiveTool('move'); else window.currentTool = 'move';
-            window.selectedItem = finalStroke;
+            // 🚨 OTOMATİK TAŞI İPTAL EDİLDİ 🚨
+            // Artık çizim bitince araç değişmeyecek, şekil otomatik seçilmeyecek!
+            window.selectedItem = null; 
             
             if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'onizleme_bitir' });
             if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
