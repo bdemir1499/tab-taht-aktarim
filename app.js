@@ -6565,33 +6565,27 @@ drawKure: function(ctx, w, h, stroke) {
         ctx.stroke(); 
         
         ctx.save();
+        // 🚨 SİHİRLİ MASKE (Clip): Çizgiler taşmasın diye küreyi mühürler!
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.clip(); 
+        
         ctx.strokeStyle = `rgba(${rgb}, 0.7)`; 
         ctx.lineWidth = 1.5;
         
-        // 🚨 V3 GERÇEK 3D KAMERA MOTORU (Kusursuz Küresel İzdüşüm)
-        // Pitch değerini (-1 ile 1 arası) 3D kamera açısına dönüştür
-        let pAngle = Math.acos(pitch); 
+        // Pitch (öne eğilme) değerine göre kutup noktasını aşağı kaydırır
+        ctx.translate(0, -r * (1 - pitch));
+        ctx.scale(1, 2 - Math.abs(pitch)); // Çizgileri esnetir, maske taşanları keser!
         
         for (let m = 0; m < 6; m++) {
-            let lon = yaw + (m * Math.PI / 6);
-            
-            // 1. Meridyen Düzleminin 3D Uzaydaki Normal Vektörleri
-            let nx = Math.cos(lon);
-            let ny = Math.sin(lon) * Math.sin(pAngle);
-            let nz = -Math.sin(lon) * Math.cos(pAngle);
-            
-            // 2. 2D Ekrana Kusursuz İzdüşüm (Elips Açısı ve Basıklığı)
-            let rotEllipse = Math.atan2(nx, -ny);
-            let minor = r * Math.abs(nz);
-            
+            let angle = yaw + (m * Math.PI / 6);
+            let merW = r * Math.cos(angle);
             ctx.beginPath(); 
-            // ctx.ellipse(x, y, radiusX (Dış Çap), radiusY (İç Çap), rotation, ...)
-            ctx.ellipse(0, 0, r, Math.max(0.1, minor), rotEllipse, 0, Math.PI * 2); 
+            ctx.ellipse(0, 0, Math.max(0.1, Math.abs(merW)), r, 0, 0, Math.PI * 2); 
             ctx.stroke();
         }
-        
         ctx.restore();
     },
+
+
 
     drawPolygon: function(ctx, cx, cy, rx, ry, sides, rot) { ctx.beginPath(); for (let i = 0; i < sides; i++) { const a = rot + (i / sides) * Math.PI * 2; const x = cx + rx * Math.cos(a); const y = cy + ry * Math.sin(a); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); } ctx.closePath(); ctx.fill(); ctx.stroke(); },
     getFormulas: function(stroke) { if (!stroke) return ""; const w = (stroke.width / 30).toFixed(1); const h = (stroke.height / 30).toFixed(1); let name = stroke.shapeType.replace('3d_', '').replace(/_/g, ' ').toUpperCase(); return `${name}\nTaban/Yarıçap = ${w} cm\nYükseklik (h) = ${h} cm\n*(Anlık Kalibrasyon Değerleridir)*`; }
@@ -6659,11 +6653,11 @@ canvasFor3DPhysics.addEventListener('pointerdown', (e) => {
                 initialMouseY = pos.y; initialMouseX = pos.x; 
                 initial3DPitch = hit.item.pitch !== undefined ? hit.item.pitch : 1;
                 initial3DYaw = hit.item.yaw !== undefined ? hit.item.yaw : 0;
-            } else if (hit.action === 'resize') {
-                initial3DSize = { w: hit.item.width, h: hit.item.height }; initial3DPos = { x: pos.x, y: pos.y };
-            } else if (hit.action === 'move') {
-                initial3DPos = { x: pos.x, y: pos.y }; hit.item._startX = hit.item.x; hit.item._startY = hit.item.y;
+                
+                hit.item._dragAxis = null; // 🚨 SİHİR: Yeni tıklandığında eksen kilidini sıfırla!
             }
+
+
             if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
         } else {
             // Boşluğa tıklanırsa seçimi temizle
@@ -6690,18 +6684,22 @@ window.addEventListener('pointermove', (e) => {
         const rect = canvasFor3DPhysics.getBoundingClientRect(); const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
         const cX = stroke.x + stroke.width / 2; const cY = stroke.y + stroke.height / 2;
 
-        if (active3DManipulator === 'rotate') {
-            const currentMouseAngle = Math.atan2(pos.y - cY, pos.x - cX) * 180 / Math.PI;
-            let rawRot = initial3DAngle + (currentMouseAngle - initialMouseAngle);
-            
-            // 🚨 NEGATİF AÇI KORUMASI (Eksiye düşüp seçimin iptal olmasını engeller)
-            stroke.rotation = (((rawRot % 360) + 360) % 360) + 36000; 
-            
-            let deltaY = pos.y - initialMouseY;
-            stroke.pitch = Math.max(-1, Math.min(1, initial3DPitch - (deltaY * 0.005))); 
-            
+       if (active3DManipulator === 'rotate') {
             let deltaX = pos.x - initialMouseX;
-            stroke.yaw = initial3DYaw + (deltaX * 0.02);
+            let deltaY = pos.y - initialMouseY;
+            
+            // 🚨 EKSEN KİLİDİ (Axis Lock): İlk 5 piksellik harekete bakıp yönü kilitler
+            if (!stroke._dragAxis) {
+                if (Math.abs(deltaX) > 5 && Math.abs(deltaX) > Math.abs(deltaY)) stroke._dragAxis = 'X';
+                else if (Math.abs(deltaY) > 5 && Math.abs(deltaY) > Math.abs(deltaX)) stroke._dragAxis = 'Y';
+            }
+            
+            // Sadece kilitlenen eksene göre çevir! (İstem dışı titremeleri ve savrulmayı %100 önler)
+            if (stroke._dragAxis === 'X') {
+                stroke.yaw = initial3DYaw + (deltaX * 0.02); // Sadece sağa-sola kendi etrafında döner
+            } else if (stroke._dragAxis === 'Y') {
+                stroke.pitch = Math.max(-1, Math.min(1, initial3DPitch - (deltaY * 0.005))); // Sadece öne-arkaya yatar
+            }
         }
 
 
