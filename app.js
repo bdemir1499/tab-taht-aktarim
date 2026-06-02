@@ -6686,3 +6686,94 @@ window.addEventListener('load', () => {
     };
     requestAnimationFrame(uiMotor);
 });
+
+
+// ==========================================
+// --- 3D ŞEKİL DÖNDÜRME VE BOYUTLANDIRMA FİZİK MOTORU ---
+// ==========================================
+let active3DManipulator = null; 
+let initial3DAngle = 0;
+let initialMouseAngle = 0;
+let initial3DSize = {w: 0, h: 0};
+let initial3DPos = {x: 0, y: 0};
+
+const canvasFor3DPhysics = document.getElementById('drawing-canvas');
+
+canvasFor3DPhysics.addEventListener('pointerdown', (e) => {
+    if (window.currentTool === 'move' && window.selectedItem && window.selectedItem.type === '3d_shape') {
+        const rect = canvasFor3DPhysics.getBoundingClientRect();
+        const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        
+        const stroke = window.selectedItem;
+        const cX = stroke.x + stroke.width / 2;
+        const cY = stroke.y + stroke.height / 2;
+        const angleRad = (stroke.rotation || 0) * (Math.PI / 180);
+
+        // Yeşil Döndürme Butonu Koordinatı
+        const rotX = cX + Math.sin(angleRad) * (stroke.height / 2 + 40);
+        const rotY = cY - Math.cos(angleRad) * (stroke.height / 2 + 40);
+        
+        // Pembe Boyutlandırma Butonu Koordinatı
+        const resX = cX + (stroke.width / 2 * Math.cos(angleRad) - stroke.height / 2 * Math.sin(angleRad)) + 20 * Math.cos(angleRad);
+        const resY = cY + (stroke.width / 2 * Math.sin(angleRad) + stroke.height / 2 * Math.cos(angleRad)) + 20 * Math.sin(angleRad);
+
+        // Hangi butona basıldığını anla
+        if (Math.hypot(pos.x - rotX, pos.y - rotY) < 30) {
+            active3DManipulator = 'rotate';
+            initialMouseAngle = Math.atan2(pos.y - cY, pos.x - cX) * 180 / Math.PI;
+            initial3DAngle = stroke.rotation || 0;
+        } else if (Math.hypot(pos.x - resX, pos.y - resY) < 35) {
+            active3DManipulator = 'resize';
+            initial3DSize = { w: stroke.width, h: stroke.height };
+            initial3DPos = { x: pos.x, y: pos.y };
+        }
+    }
+});
+
+window.addEventListener('pointermove', (e) => {
+    if (active3DManipulator && window.selectedItem && window.selectedItem.type === '3d_shape') {
+        const rect = canvasFor3DPhysics.getBoundingClientRect();
+        const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        const stroke = window.selectedItem;
+        
+        const cX = stroke.x + stroke.width / 2;
+        const cY = stroke.y + stroke.height / 2;
+
+        if (active3DManipulator === 'rotate') {
+            // Fare açısına göre şekli döndür
+            const currentMouseAngle = Math.atan2(pos.y - cY, pos.x - cX) * 180 / Math.PI;
+            stroke.rotation = initial3DAngle + (currentMouseAngle - initialMouseAngle);
+        } else if (active3DManipulator === 'resize') {
+            // Merkezden uzaklaşma oranına (scale) göre 3D şekli büyüt/küçült
+            const initialDist = Math.hypot(initial3DPos.x - cX, initial3DPos.y - cY);
+            const currentDist = Math.hypot(pos.x - cX, pos.y - cY);
+            const scale = currentDist / initialDist;
+            
+            const newW = Math.max(30, initial3DSize.w * scale);
+            const newH = Math.max(30, initial3DSize.h * scale);
+            
+            // Şeklin merkez noktasını sabit tutarak boyutları güncelle
+            stroke.x = cX - newW / 2;
+            stroke.y = cY - newH / 2;
+            stroke.width = newW;
+            stroke.height = newH;
+        }
+        
+        // Ekrana canlı olarak yansıt
+        if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
+        
+        // Tahtaya veya diğer cihazlara anlık yolla (Sıfır gecikme)
+        if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+            window.sendNetworkData({ type: 'sekil_guncelle', stroke: stroke });
+        }
+    }
+});
+
+window.addEventListener('pointerup', () => {
+    if (active3DManipulator) {
+        active3DManipulator = null; // İşlemi bitir
+        if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+            window.sendNetworkData({ type: 'sekil_guncelle', stroke: window.selectedItem });
+        }
+    }
+});
