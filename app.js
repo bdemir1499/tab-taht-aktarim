@@ -6568,18 +6568,30 @@ drawKure: function(ctx, w, h, stroke) {
         ctx.strokeStyle = `rgba(${rgb}, 0.7)`; 
         ctx.lineWidth = 1.5;
         
-        // Sadece Dikey Meridyenler (Yataylar kaldırıldı)
+        // 🚨 V3 GERÇEK 3D KAMERA MOTORU (Kusursuz Küresel İzdüşüm)
+        // Pitch değerini (-1 ile 1 arası) 3D kamera açısına dönüştür
+        let pAngle = Math.acos(pitch); 
+        
         for (let m = 0; m < 6; m++) {
-            let angle = yaw + (m * Math.PI / 6);
-            let merW = r * Math.cos(angle);
+            let lon = yaw + (m * Math.PI / 6);
+            
+            // 1. Meridyen Düzleminin 3D Uzaydaki Normal Vektörleri
+            let nx = Math.cos(lon);
+            let ny = Math.sin(lon) * Math.sin(pAngle);
+            let nz = -Math.sin(lon) * Math.cos(pAngle);
+            
+            // 2. 2D Ekrana Kusursuz İzdüşüm (Elips Açısı ve Basıklığı)
+            let rotEllipse = Math.atan2(nx, -ny);
+            let minor = r * Math.abs(nz);
+            
             ctx.beginPath(); 
-            ctx.ellipse(0, 0, Math.max(0.1, Math.abs(merW)), r, 0, 0, Math.PI * 2); 
+            // ctx.ellipse(x, y, radiusX (Dış Çap), radiusY (İç Çap), rotation, ...)
+            ctx.ellipse(0, 0, r, Math.max(0.1, minor), rotEllipse, 0, Math.PI * 2); 
             ctx.stroke();
         }
         
         ctx.restore();
     },
-
 
     drawPolygon: function(ctx, cx, cy, rx, ry, sides, rot) { ctx.beginPath(); for (let i = 0; i < sides; i++) { const a = rot + (i / sides) * Math.PI * 2; const x = cx + rx * Math.cos(a); const y = cy + ry * Math.sin(a); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); } ctx.closePath(); ctx.fill(); ctx.stroke(); },
     getFormulas: function(stroke) { if (!stroke) return ""; const w = (stroke.width / 30).toFixed(1); const h = (stroke.height / 30).toFixed(1); let name = stroke.shapeType.replace('3d_', '').replace(/_/g, ' ').toUpperCase(); return `${name}\nTaban/Yarıçap = ${w} cm\nYükseklik (h) = ${h} cm\n*(Anlık Kalibrasyon Değerleridir)*`; }
