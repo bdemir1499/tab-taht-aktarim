@@ -1853,29 +1853,31 @@ if (stroke.type === 'image') {
             }
         }        
 
-// --- 3D ŞEKİL BUTON SENSÖRÜ ---
-        if (stroke.type === '3d_shape' && window.currentTool === 'move' && window.selectedItem === stroke) {
+// --- 3D ŞEKİL BUTON VE GÖVDE SENSÖRÜ (KUSURSUZ) ---
+        if (stroke.type === '3d_shape') {
             const cX = stroke.x + stroke.width / 2;
             const cY = stroke.y + stroke.height / 2;
             const angleRad = (stroke.rotation || 0) * (Math.PI / 180);
 
-            // Yeşil Döndürme Butonu Yakalama
-            const rotX = cX + Math.sin(angleRad) * (stroke.height / 2 + 40);
-            const rotY = cY - Math.cos(angleRad) * (stroke.height / 2 + 40);
-            if (distance(pos, {x: rotX, y: rotY}) < 30) return { item: stroke, pointKey: 'image_rotate' };
+            // Sadece Taşı modunda ve şekil SEÇİLİYKEN butonları yakala
+            if (window.currentTool === 'move' && window.selectedItem === stroke) {
+                const rotX = cX + Math.sin(angleRad) * (stroke.height / 2 + 40);
+                const rotY = cY - Math.cos(angleRad) * (stroke.height / 2 + 40);
+                if (distance(pos, {x: rotX, y: rotY}) < 30) return { item: stroke, pointKey: 'image_rotate' };
 
-            // Pembe Boyutlandırma Butonu Yakalama
-            const resX = cX + (stroke.width / 2 * Math.cos(angleRad) - stroke.height / 2 * Math.sin(angleRad)) + 20 * Math.cos(angleRad);
-            const resY = cY + (stroke.width / 2 * Math.sin(angleRad) + stroke.height / 2 * Math.cos(angleRad)) + 20 * Math.sin(angleRad);
-            if (distance(pos, {x: resX, y: resY}) < 35) return { item: stroke, pointKey: 'image_resize' };
+                const resX = cX + (stroke.width / 2 * Math.cos(angleRad) - stroke.height / 2 * Math.sin(angleRad)) + 20 * Math.cos(angleRad);
+                const resY = cY + (stroke.width / 2 * Math.sin(angleRad) + stroke.height / 2 * Math.cos(angleRad)) + 20 * Math.sin(angleRad);
+                if (distance(pos, {x: resX, y: resY}) < 35) return { item: stroke, pointKey: 'image_resize' };
+            }
 
-            // Şeklin Gövdesinden Tutma
+            // Şeklin Gövdesinden Tutma (Her zaman, seçili olmasa bile çalışmalı!)
             const dx = pos.x - cX; const dy = pos.y - cY;
             const localX = dx * Math.cos(-angleRad) - dy * Math.sin(-angleRad);
             const localY = dx * Math.sin(-angleRad) + dy * Math.cos(-angleRad);
-            if (Math.abs(localX) < stroke.width / 2 && Math.abs(localY) < stroke.height / 2) return { item: stroke, pointKey: 'self' };
+            if (Math.abs(localX) < stroke.width / 2 && Math.abs(localY) < stroke.height / 2) {
+                return { item: stroke, pointKey: 'self' };
+            }
         }
-
 
 if (currentTool === 'move' && selectedItem === stroke) {
             if (stroke.type === 'polygon') {
@@ -6654,11 +6656,15 @@ window.addEventListener('load', () => {
             window.active3DSliderStroke = s;
             
             if (slider) {
-                slider.style.display = 'flex';
-                let leftPosition = s.x + s.width + 20;
-                if (leftPosition + 220 > window.innerWidth) leftPosition = s.x - 240; 
-                slider.style.left = leftPosition + 'px';
-                slider.style.top = (s.y + s.height - 20) + 'px';
+                if (s.shapeType === '3d_kure') {
+                    slider.style.display = 'none'; // Kürenin açınımı yoktur, gizle!
+                } else {
+                    slider.style.display = 'flex';
+                    let leftPosition = s.x + s.width + 20;
+                    if (leftPosition + 220 > window.innerWidth) leftPosition = s.x - 240; 
+                    slider.style.left = leftPosition + 'px';
+                    slider.style.top = (s.y + s.height - 20) + 'px';
+                }
             }
             if (info) {
                 info.style.display = 'block';
