@@ -6453,12 +6453,14 @@ drwCanvas.addEventListener('pointerup', (e) => {
             window.drawnStrokes.push(finalStroke);
             if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) window.sendNetworkData({ type: 'yeni_cizim', stroke: finalStroke });
             
-            // 🚨 OTOMATİK TAŞI İPTAL EDİLDİ 🚨
-            // Artık çizim bitince araç değişmeyecek, şekil otomatik seçilmeyecek!
-            window.selectedItem = null; 
-            
+           // 🚨 OTOMATİK SEÇİM ENGELLEYİCİ (PC HIZ KORUMASI) 🚨
             if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'onizleme_bitir' });
-            if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
+            
+            // Ana sistemin otomatik seçim yapmasını 50 milisaniye bekleyip zorla iptal ediyoruz!
+            setTimeout(() => {
+                window.selectedItem = null;
+                if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
+            }, 50);
         }
     }
 });
@@ -6685,91 +6687,119 @@ window.addEventListener('load', () => {
 
 
 // ==========================================
-// --- 3D ŞEKİL DÖNDÜRME VE BOYUTLANDIRMA FİZİK MOTORU ---
+// --- 3D DOKUNULMAZ FİZİK VE TABLET MOTORU (FİNAL) ---
 // ==========================================
 let active3DManipulator = null; 
 let initial3DAngle = 0;
 let initialMouseAngle = 0;
 let initial3DSize = {w: 0, h: 0};
 let initial3DPos = {x: 0, y: 0};
-
 const canvasFor3DPhysics = document.getElementById('drawing-canvas');
 
+// Tıklanan yerin 3D şekil olup olmadığını tespit eden Özel Radar
+function check3DHit(pos) {
+    if (!window.drawnStrokes) return null;
+    for (let i = window.drawnStrokes.length - 1; i >= 0; i--) {
+        let stroke = window.drawnStrokes[i];
+        if (stroke.type === '3d_shape') {
+            const cX = stroke.x + stroke.width / 2; const cY = stroke.y + stroke.height / 2;
+            const angleRad = (stroke.rotation || 0) * (Math.PI / 180);
+
+            if (window.selectedItem === stroke) {
+                // Yeşil Buton (Tablet için yakalama alanı 40px'e çıkarıldı)
+                const rotX = cX + Math.sin(angleRad) * (stroke.height / 2 + 40);
+                const rotY = cY - Math.cos(angleRad) * (stroke.height / 2 + 40);
+                if (Math.hypot(pos.x - rotX, pos.y - rotY) < 40) return { item: stroke, action: 'rotate' };
+
+                // Pembe Buton (Tablet için yakalama alanı 40px'e çıkarıldı)
+                const resX = cX + (stroke.width / 2 * Math.cos(angleRad) - stroke.height / 2 * Math.sin(angleRad)) + 20 * Math.cos(angleRad);
+                const resY = cY + (stroke.width / 2 * Math.sin(angleRad) + stroke.height / 2 * Math.cos(angleRad)) + 20 * Math.sin(angleRad);
+                if (Math.hypot(pos.x - resX, pos.y - resY) < 40) return { item: stroke, action: 'resize' };
+            }
+            // Gövde (Tablet için +30px genişletildi)
+            const dx = pos.x - cX; const dy = pos.y - cY;
+            const localX = dx * Math.cos(-angleRad) - dy * Math.sin(-angleRad);
+            const localY = dx * Math.sin(-angleRad) + dy * Math.cos(-angleRad);
+            if (Math.abs(localX) < (stroke.width / 2 + 30) && Math.abs(localY) < (stroke.height / 2 + 30)) {
+                return { item: stroke, action: 'move' };
+            }
+        }
+    }
+    return null;
+}
+
+// capture: true sayesinde tıklamayı ana koddan ÖNCE biz yakalıyoruz!
 canvasFor3DPhysics.addEventListener('pointerdown', (e) => {
-    if (window.currentTool === 'move' && window.selectedItem && window.selectedItem.type === '3d_shape') {
+    let tool = window.currentTool || (typeof currentTool !== 'undefined' ? currentTool : '');
+    if (tool === 'move' || tool === 'select') {
         const rect = canvasFor3DPhysics.getBoundingClientRect();
         const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
         
-        const stroke = window.selectedItem;
-        const cX = stroke.x + stroke.width / 2;
-        const cY = stroke.y + stroke.height / 2;
-        const angleRad = (stroke.rotation || 0) * (Math.PI / 180);
-
-        // Yeşil Döndürme Butonu Koordinatı
-        const rotX = cX + Math.sin(angleRad) * (stroke.height / 2 + 40);
-        const rotY = cY - Math.cos(angleRad) * (stroke.height / 2 + 40);
-        
-        // Pembe Boyutlandırma Butonu Koordinatı
-        const resX = cX + (stroke.width / 2 * Math.cos(angleRad) - stroke.height / 2 * Math.sin(angleRad)) + 20 * Math.cos(angleRad);
-        const resY = cY + (stroke.width / 2 * Math.sin(angleRad) + stroke.height / 2 * Math.cos(angleRad)) + 20 * Math.sin(angleRad);
-
-        // Hangi butona basıldığını anla
-        if (Math.hypot(pos.x - rotX, pos.y - rotY) < 30) {
-            active3DManipulator = 'rotate';
-            initialMouseAngle = Math.atan2(pos.y - cY, pos.x - cX) * 180 / Math.PI;
-            initial3DAngle = stroke.rotation || 0;
-        } else if (Math.hypot(pos.x - resX, pos.y - resY) < 35) {
-            active3DManipulator = 'resize';
-            initial3DSize = { w: stroke.width, h: stroke.height };
-            initial3DPos = { x: pos.x, y: pos.y };
+        const hit = check3DHit(pos);
+        if (hit) {
+            e.stopImmediatePropagation(); // 🚨 SİHİR: Ana uygulamanın müdahalesini TAMAMEN engeller!
+            
+            window.selectedItem = hit.item;
+            active3DManipulator = hit.action;
+            const cX = hit.item.x + hit.item.width / 2; const cY = hit.item.y + hit.item.height / 2;
+            
+            if (hit.action === 'rotate') {
+                initialMouseAngle = Math.atan2(pos.y - cY, pos.x - cX) * 180 / Math.PI;
+                initial3DAngle = hit.item.rotation || 0;
+            } else if (hit.action === 'resize') {
+                initial3DSize = { w: hit.item.width, h: hit.item.height };
+                initial3DPos = { x: pos.x, y: pos.y };
+            } else if (hit.action === 'move') {
+                initial3DPos = { x: pos.x, y: pos.y };
+                hit.item._startX = hit.item.x; hit.item._startY = hit.item.y;
+            }
+            if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
+        } else if (window.selectedItem && window.selectedItem.type === '3d_shape') {
+            window.selectedItem = null;
+            if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
         }
     }
-});
+}, { capture: true });
 
 window.addEventListener('pointermove', (e) => {
     if (active3DManipulator && window.selectedItem && window.selectedItem.type === '3d_shape') {
+        e.stopImmediatePropagation();
+        e.preventDefault();
         const rect = canvasFor3DPhysics.getBoundingClientRect();
         const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
         const stroke = window.selectedItem;
-        
-        const cX = stroke.x + stroke.width / 2;
-        const cY = stroke.y + stroke.height / 2;
+        const cX = stroke.x + stroke.width / 2; const cY = stroke.y + stroke.height / 2;
 
         if (active3DManipulator === 'rotate') {
-            // Fare açısına göre şekli döndür
             const currentMouseAngle = Math.atan2(pos.y - cY, pos.x - cX) * 180 / Math.PI;
             stroke.rotation = initial3DAngle + (currentMouseAngle - initialMouseAngle);
         } else if (active3DManipulator === 'resize') {
-            // Merkezden uzaklaşma oranına (scale) göre 3D şekli büyüt/küçült
             const initialDist = Math.hypot(initial3DPos.x - cX, initial3DPos.y - cY);
             const currentDist = Math.hypot(pos.x - cX, pos.y - cY);
             const scale = currentDist / initialDist;
             
             const newW = Math.max(30, initial3DSize.w * scale);
             const newH = Math.max(30, initial3DSize.h * scale);
-            
-            // Şeklin merkez noktasını sabit tutarak boyutları güncelle
-            stroke.x = cX - newW / 2;
-            stroke.y = cY - newH / 2;
-            stroke.width = newW;
-            stroke.height = newH;
+            stroke.x = cX - newW / 2; stroke.y = cY - newH / 2;
+            stroke.width = newW; stroke.height = newH;
+        } else if (active3DManipulator === 'move') {
+            stroke.x = stroke._startX + (pos.x - initial3DPos.x);
+            stroke.y = stroke._startY + (pos.y - initial3DPos.y);
         }
         
-        // Ekrana canlı olarak yansıt
         if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
-        
-        // Tahtaya veya diğer cihazlara anlık yolla (Sıfır gecikme)
         if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
             window.sendNetworkData({ type: 'sekil_guncelle', stroke: stroke });
         }
     }
-});
+}, { capture: true, passive: false });
 
-window.addEventListener('pointerup', () => {
+window.addEventListener('pointerup', (e) => {
     if (active3DManipulator) {
-        active3DManipulator = null; // İşlemi bitir
+        e.stopImmediatePropagation();
+        active3DManipulator = null; 
         if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
             window.sendNetworkData({ type: 'sekil_guncelle', stroke: window.selectedItem });
         }
     }
-});
+}, { capture: true });
