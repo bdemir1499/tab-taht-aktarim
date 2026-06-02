@@ -6413,12 +6413,20 @@ drwCanvas.addEventListener('pointermove', (e) => {
     if (isDrawing3DShape && window.active3DShapeTool) {
         const rect = drwCanvas.getBoundingClientRect();
         const curX = e.clientX - rect.left; const curY = e.clientY - rect.top;
-        const w = Math.abs(curX - start3DPos.x); const h = Math.abs(curY - start3DPos.y);
+        const shapeType = window.active3DShapeTool.replace('draw_', '');
+        
+        let fX, fY, fW, fH;
+        if (shapeType === '3d_kure') {
+            let r = Math.hypot(curX - start3DPos.x, curY - start3DPos.y); // Merkezden yarıçap
+            fW = r*2; fH = r*2; fX = start3DPos.x - r; fY = start3DPos.y - r;
+        } else {
+            fW = Math.abs(curX - start3DPos.x); fH = Math.abs(curY - start3DPos.y);
+            fX = Math.min(curX, start3DPos.x); fY = Math.min(curY, start3DPos.y);
+        }
         
         const previewStroke = {
-            type: '3d_shape', shapeType: window.active3DShapeTool.replace('draw_', ''),
-            x: Math.min(curX, start3DPos.x), y: Math.min(curY, start3DPos.y), width: w, height: h,
-            rotation: 0, openRatio: 0, isPreview: true, color: window.isToolThemeBlack ? '#000000' : (window.currentLineColor || '#00ffcc')
+            type: '3d_shape', shapeType: shapeType, x: fX, y: fY, width: fW, height: fH,
+            rotation: 0, yaw: 0, pitch: 1, openRatio: 0, isPreview: true, color: window.isToolThemeBlack ? '#000000' : (window.currentLineColor || '#00ffcc')
         };
         if (typeof window.broadcastPreview === 'function') window.broadcastPreview('cizim_onizleme', previewStroke);
         if (typeof redrawAllStrokes === 'function') { redrawAllStrokes(); if(window.ThreeDTool) window.ThreeDTool.drawShape(drwCanvas.getContext('2d'), previewStroke); }
@@ -6430,20 +6438,27 @@ drwCanvas.addEventListener('pointerup', (e) => {
         isDrawing3DShape = false;
         const rect = drwCanvas.getBoundingClientRect();
         const curX = e.clientX - rect.left; const curY = e.clientY - rect.top;
-        const w = Math.abs(curX - start3DPos.x); const h = Math.abs(curY - start3DPos.y);
+        const shapeType = window.active3DShapeTool.replace('draw_', '');
         
-        if (w > 15 && h > 15) {
+        let fX, fY, fW, fH;
+        if (shapeType === '3d_kure') {
+            let r = Math.hypot(curX - start3DPos.x, curY - start3DPos.y);
+            fW = r*2; fH = r*2; fX = start3DPos.x - r; fY = start3DPos.y - r;
+        } else {
+            fW = Math.abs(curX - start3DPos.x); fH = Math.abs(curY - start3DPos.y);
+            fX = Math.min(curX, start3DPos.x); fY = Math.min(curY, start3DPos.y);
+        }
+        
+        if (fW > 15 && fH > 15) {
             const finalStroke = {
                 type: '3d_shape', id: Date.now() + Math.random().toString(),
-                shapeType: window.active3DShapeTool.replace('draw_', ''),
-                x: Math.min(curX, start3DPos.x), y: Math.min(curY, start3DPos.y), width: w, height: h,
-                rotation: 0, openRatio: 0, isPreview: false,
+                shapeType: shapeType, x: fX, y: fY, width: fW, height: fH,
+                rotation: 0, yaw: 0, pitch: 1, openRatio: 0, isPreview: false,
                 color: window.isToolThemeBlack ? '#000000' : (window.currentLineColor || '#00ffcc')
             };
             window.drawnStrokes.push(finalStroke);
             if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) window.sendNetworkData({ type: 'yeni_cizim', stroke: finalStroke });
             
-            // Çizim bitince otomatik seçme! (Sarı kutu gizli kalsın diye)
             window.active3DShapeTool = null; 
             const mainBtn = document.getElementById('btn-3d-menu'); if(mainBtn) mainBtn.classList.remove('active');
             if (typeof setActiveTool === 'function') setActiveTool('move'); else window.currentTool = 'move';
@@ -6454,14 +6469,12 @@ drwCanvas.addEventListener('pointerup', (e) => {
     }
 });
 
-// 2. 3D ÇİZİM MOTORU (HAYALET SEÇİM TANIYICI)
 window.ThreeDTool = {
     drawShape: function(ctx, stroke) {
         const cx = stroke.x + stroke.width / 2; const cy = stroke.y + stroke.height / 2;
         const w = stroke.width; const h = stroke.height;
         const ratio = stroke.openRatio || 0; const type = stroke.shapeType;
         
-        // 🚨 SİHİR 1: Ağ engelini aşmak için Hayalet Seçim kontrolü (36000 derece)
         let isSelected = stroke.rotation >= 36000;
         let actualRot = isSelected ? stroke.rotation - 36000 : (stroke.rotation || 0);
 
@@ -6470,7 +6483,7 @@ window.ThreeDTool = {
         ctx.save();
         let pitch = stroke.pitch !== undefined ? stroke.pitch : 1;
         if (Math.abs(pitch) < 0.05) pitch = pitch < 0 ? -0.05 : 0.05; 
-        ctx.scale(1, pitch); // 3D Öne/Arkaya Eğilme
+        ctx.scale(1, pitch); // Eğilme X-Ekseni
         
         if (stroke.isPreview) { ctx.setLineDash([8, 8]); ctx.shadowBlur = 0; ctx.globalAlpha = 0.6; } 
         else { ctx.setLineDash([]); ctx.shadowBlur = 15; ctx.globalAlpha = 1.0; }
@@ -6483,7 +6496,6 @@ window.ThreeDTool = {
         else if (type.includes('piramit') || type === '3d_koni') this.drawPiramit(ctx, w, h, ratio, type);
         ctx.restore(); 
 
-        // PC'de de ağ üzerinden butonları gösterir!
         if (isSelected && !stroke.isPreview) {
             ctx.fillStyle = '#0F0'; ctx.shadowBlur = 0; ctx.beginPath(); ctx.arc(0, -h/2 - 40, 12, 0, 7); ctx.fill();
             ctx.fillStyle = '#F0F'; ctx.beginPath(); ctx.arc(w/2 + 20, h/2 + 20, 12, 0, 7); ctx.fill();
@@ -6492,6 +6504,8 @@ window.ThreeDTool = {
     },
     drawPrizma: function(ctx, w, h, ratio, type) {
         const bW = w/2; const bH = w/5; const topY = (-h/2) * (1-ratio) + (-h) * ratio; const botY = (h/2) * (1-ratio) + (h) * ratio;
+        let yaw = stroke.yaw || 0; // Gerçek 3D Dönüş Açısı
+        
         if (type === '3d_silindir') {
             ctx.beginPath(); ctx.ellipse(0, topY, bW, bH, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
             ctx.beginPath(); ctx.ellipse(0, botY, bW, bH, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
@@ -6499,37 +6513,67 @@ window.ThreeDTool = {
             if (ratio < 1) { ctx.globalAlpha = 1-ratio; ctx.beginPath(); ctx.moveTo(-bW, -h/2); ctx.lineTo(-bW, h/2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(bW, -h/2); ctx.lineTo(bW, h/2); ctx.stroke(); }
         } else {
             let sides = type.includes('ucgen') ? 3 : type.includes('kare') || type === '3d_kup' || type.includes('dortgen') ? 4 : type.includes('besgen') ? 5 : 6;
-            this.drawPolygon(ctx, 0, topY, bW, botY*0.3, sides, 0); this.drawPolygon(ctx, 0, botY, bW, botY*0.3, sides, 0);
-            const faceW = w / sides;
+            this.drawPolygon(ctx, 0, topY, bW, botY*0.3, sides, yaw); this.drawPolygon(ctx, 0, botY, bW, botY*0.3, sides, yaw);
+            
+            // 🚨 SİHİR: Yüzeyleri 3D Uzayda Birleştirerek Gerçek Dönüş Hissi Verir
             for(let i=0; i<sides; i++) {
-                const offsetX = (i - sides/2 + 0.5) * faceW * ratio * 2.5; const curW = (bW*2 / sides) * (1-ratio) + faceW * ratio;
-                ctx.globalAlpha = 1 - (ratio * 0.3); ctx.beginPath(); ctx.rect(offsetX - curW/2, -h/2, curW, h); ctx.fill(); ctx.stroke();
+                let a1 = yaw + (i / sides) * Math.PI * 2; let a2 = yaw + ((i + 1) / sides) * Math.PI * 2;
+                let x1_3d = bW * Math.cos(a1); let y1_3d = (botY*0.3) * Math.sin(a1);
+                let x2_3d = bW * Math.cos(a2); let y2_3d = (botY*0.3) * Math.sin(a2);
+                
+                const faceW = w / sides;
+                let offsetX1 = (i - sides/2 + 0.5) * faceW * 2.5; let offsetX2 = (i + 1 - sides/2 + 0.5) * faceW * 2.5;
+                let x1 = x1_3d * (1-ratio) + (offsetX1 - faceW/2) * ratio; let x2 = x2_3d * (1-ratio) + (offsetX2 - faceW/2) * ratio;
+                let y1_top = topY + y1_3d * (1-ratio); let y2_top = topY + y2_3d * (1-ratio);
+                let y1_bot = botY + y1_3d * (1-ratio); let y2_bot = botY + y2_3d * (1-ratio);
+                
+                ctx.beginPath(); ctx.moveTo(x1, y1_top); ctx.lineTo(x2, y2_top); ctx.lineTo(x2, y2_bot); ctx.lineTo(x1, y1_bot); ctx.closePath();
+                ctx.fill(); ctx.stroke();
             }
         }
     },
     drawPiramit: function(ctx, w, h, ratio, type) {
-        const bW = w/2; const botY = h/2; const apexY = -h/2;
+        const bW = w/2; const botY = h/2; const apexY = -h/2; let yaw = stroke.yaw || 0;
         if (type === '3d_koni') {
             const baseDropY = botY + (botY * 0.8 * ratio); ctx.beginPath(); ctx.ellipse(0, baseDropY, bW, w/5, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
             if(ratio < 1) { ctx.globalAlpha = 1 - ratio; ctx.beginPath(); ctx.moveTo(-bW, botY); ctx.lineTo(0, apexY); ctx.lineTo(bW, botY); ctx.stroke(); }
             if(ratio > 0) { ctx.save(); ctx.globalAlpha = ratio; const fanAngle = Math.PI * ratio; ctx.beginPath(); ctx.arc(0, apexY + h, Math.hypot(bW, h), -Math.PI/2 - fanAngle/2, -Math.PI/2 + fanAngle/2); ctx.lineTo(0, apexY + (h*ratio)); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore(); }
         } else {
             let sides = type.includes('ucgen') ? 3 : type.includes('kare') ? 4 : type.includes('besgen') ? 5 : 6;
-            this.drawPolygon(ctx, 0, botY, bW, botY*0.3, sides, 0);
+            this.drawPolygon(ctx, 0, botY, bW, botY*0.3, sides, yaw);
+            
+            // 🚨 SİHİR: Piramit Yüzeylerini 3D Uzayda Birleştir
             for(let i=0; i<sides; i++) {
-                const angle = (i / sides) * Math.PI * 2; const spreadX = Math.cos(angle) * w * ratio; const spreadY = Math.sin(angle) * h * ratio;
-                ctx.beginPath(); ctx.moveTo(spreadX, botY + spreadY); const p1x = Math.cos(angle - Math.PI/sides) * bW; const p2x = Math.cos(angle + Math.PI/sides) * bW;
-                ctx.lineTo(p1x, botY); ctx.lineTo(p2x, botY); ctx.closePath(); ctx.fill(); ctx.stroke();
+                let a1 = yaw + (i / sides) * Math.PI * 2; let a2 = yaw + ((i + 1) / sides) * Math.PI * 2;
+                let bx1 = bW * Math.cos(a1); let by1 = botY + (botY*0.3) * Math.sin(a1);
+                let bx2 = bW * Math.cos(a2); let by2 = botY + (botY*0.3) * Math.sin(a2);
+                
+                let midA = yaw + ((i + 0.5) / sides) * Math.PI * 2;
+                let spreadX = Math.cos(midA) * w * ratio; let spreadY = Math.sin(midA) * h * ratio;
+                let finalApexX = 0 * (1-ratio) + spreadX * ratio; let finalApexY = apexY * (1-ratio) + (botY + spreadY) * ratio;
+                
+                ctx.beginPath(); ctx.moveTo(finalApexX, finalApexY); ctx.lineTo(bx1, by1); ctx.lineTo(bx2, by2); ctx.closePath();
+                ctx.fill(); ctx.stroke();
             }
         }
     },
-    drawKure: function(ctx, w, h) { ctx.beginPath(); ctx.arc(0, 0, w/2, 0, Math.PI*2); ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.ellipse(0, 0, w/2, h/6, 0, 0, Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.ellipse(0, 0, w/6, h/2, 0, 0, Math.PI*2); ctx.stroke(); },
+    drawKure: function(ctx, w, h) { 
+        let r = Math.min(w, h) / 2;
+        let rgb = ctx.strokeStyle === '#00ffcc' ? '0, 255, 204' : '255, 0, 255';
+        let grad = ctx.createRadialGradient(-r/4, -r/4, r/10, 0, 0, r);
+        grad.addColorStop(0, 'rgba(255,255,255,0.8)');
+        grad.addColorStop(0.4, `rgba(${rgb}, 0.6)`);
+        grad.addColorStop(1, `rgba(${rgb}, 0.05)`);
+        
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); 
+        ctx.fillStyle = grad; ctx.fill(); ctx.stroke(); 
+    },
     drawPolygon: function(ctx, cx, cy, rx, ry, sides, rot) { ctx.beginPath(); for (let i = 0; i < sides; i++) { const a = rot + (i / sides) * Math.PI * 2; const x = cx + rx * Math.cos(a); const y = cy + ry * Math.sin(a); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); } ctx.closePath(); ctx.fill(); ctx.stroke(); },
     getFormulas: function(stroke) { if (!stroke) return ""; const w = (stroke.width / 30).toFixed(1); const h = (stroke.height / 30).toFixed(1); let name = stroke.shapeType.replace('3d_', '').replace(/_/g, ' ').toUpperCase(); return `${name}\nTaban/Yarıçap = ${w} cm\nYükseklik (h) = ${h} cm\n*(Anlık Kalibrasyon Değerleridir)*`; }
 };
 
 // 3. FİZİK VE DOKUNMATİK MOTORU
-let active3DManipulator = null; let initial3DAngle = 0; let initialMouseAngle = 0; let initial3DPitch = 1; let initialMouseY = 0; let initial3DSize = {w: 0, h: 0}; let initial3DPos = {x: 0, y: 0};
+let active3DManipulator = null; let initial3DAngle = 0; let initialMouseAngle = 0; let initial3DPitch = 1; let initial3DYaw = 0; let initialMouseY = 0; let initialMouseX = 0; let initial3DSize = {w: 0, h: 0}; let initial3DPos = {x: 0, y: 0};
 
 function check3DHit(pos) {
     if (!window.drawnStrokes) return null;
@@ -6579,14 +6623,12 @@ canvasFor3DPhysics.addEventListener('pointerdown', (e) => {
             active3DManipulator = hit.action;
             const cX = hit.item.x + hit.item.width / 2; const cY = hit.item.y + hit.item.height / 2;
             
-            if (hit.action === 'rotate') {
+           if (hit.action === 'rotate') {
                 initialMouseAngle = Math.atan2(pos.y - cY, pos.x - cX) * 180 / Math.PI;
-                initial3DAngle = hit.item.rotation - 36000; // Asıl açı
-                initialMouseY = pos.y; initial3DPitch = hit.item.pitch !== undefined ? hit.item.pitch : 1;
-            } else if (hit.action === 'resize') {
-                initial3DSize = { w: hit.item.width, h: hit.item.height }; initial3DPos = { x: pos.x, y: pos.y };
-            } else if (hit.action === 'move') {
-                initial3DPos = { x: pos.x, y: pos.y }; hit.item._startX = hit.item.x; hit.item._startY = hit.item.y;
+                initial3DAngle = hit.item.rotation - 36000; 
+                initialMouseY = pos.y; initialMouseX = pos.x; 
+                initial3DPitch = hit.item.pitch !== undefined ? hit.item.pitch : 1;
+                initial3DYaw = hit.item.yaw !== undefined ? hit.item.yaw : 0;
             }
             if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
         } else {
@@ -6613,14 +6655,22 @@ window.addEventListener('pointermove', (e) => {
         const cX = stroke.x + stroke.width / 2; const cY = stroke.y + stroke.height / 2;
 
         if (active3DManipulator === 'rotate') {
+            // 1. Z-Ekseni (Direksiyon gibi dönüş / Roll)
             const currentMouseAngle = Math.atan2(pos.y - cY, pos.x - cX) * 180 / Math.PI;
             let rawRot = initial3DAngle + (currentMouseAngle - initialMouseAngle);
-            stroke.rotation = (rawRot % 360) + 36000; // 36000 ile hep seçili tut!
+            stroke.rotation = (rawRot % 360) + 36000; 
             
+            // 2. X-Ekseni (Yukarı/Aşağı çekince öne arkaya yatma / Pitch)
             let deltaY = pos.y - initialMouseY;
-            let newPitch = initial3DPitch - (deltaY * 0.005); 
-            stroke.pitch = Math.max(-1, Math.min(1, newPitch)); 
-        } else if (active3DManipulator === 'resize') {
+            stroke.pitch = Math.max(-1, Math.min(1, initial3DPitch - (deltaY * 0.005))); 
+            
+            // 3. Y-Ekseni (Sağa/Sola çekince kendi etrafında 3D dönme / YAW)
+            let deltaX = pos.x - initialMouseX;
+            stroke.yaw = initial3DYaw + (deltaX * 0.02);
+        }
+
+
+ else if (active3DManipulator === 'resize') {
             const initialDist = Math.hypot(initial3DPos.x - cX, initial3DPos.y - cY);
             const currentDist = Math.hypot(pos.x - cX, pos.y - cY);
             const scale = currentDist / initialDist;
