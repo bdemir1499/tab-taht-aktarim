@@ -6464,7 +6464,9 @@ drwCanvas.addEventListener('pointerup', (e) => {
     }
 });
 
-// 2. MATEMATİKSEL AÇINIM (DEFTER VE ÇARŞAF GİBİ SERİLME) MOTORU
+// ==========================================
+// --- 3D ÇİZİM VE AÇINIM MOTORU (YENİ YAPAY ZEKA VERSİYONU) ---
+// ==========================================
 window.ThreeDTool = {
     drawShape: function(ctx, stroke) {
         const cx = stroke.x + stroke.width / 2; const cy = stroke.y + stroke.height / 2;
@@ -6476,15 +6478,10 @@ window.ThreeDTool = {
         ctx.translate(cx, cy);
         ctx.rotate((stroke.rotation || 0) * Math.PI / 180);
         
-        // Önizleme modundayken (Çizilirken) kesikli ve gölgesiz yap
         if (stroke.isPreview) {
-            ctx.setLineDash([8, 8]);
-            ctx.shadowBlur = 0;
-            ctx.globalAlpha = 0.6;
+            ctx.setLineDash([8, 8]); ctx.shadowBlur = 0; ctx.globalAlpha = 0.6;
         } else {
-            ctx.setLineDash([]);
-            ctx.shadowBlur = 15; // Neon Parlama
-            ctx.globalAlpha = 1.0;
+            ctx.setLineDash([]); ctx.shadowBlur = 15; ctx.globalAlpha = 1.0;
         }
 
         ctx.shadowColor = stroke.color; ctx.strokeStyle = stroke.color;
@@ -6494,12 +6491,11 @@ window.ThreeDTool = {
         let rgb = stroke.color === '#00ffcc' ? '0, 255, 204' : '255, 0, 255';
         ctx.fillStyle = `rgba(${rgb}, 0.15)`;
 
-        // Alt Cisimleri Yönlendir
+        // 🚨 İŞTE BURASI: TÜM ŞEKİLLERİ TANIYAN AKILLI YÖNLENDİRİCİ 🚨
         if (type === '3d_kure') this.drawKure(ctx, w, h);
         else if (type.includes('prizma') || type === '3d_kup' || type === '3d_silindir') this.drawPrizma(ctx, w, h, ratio, type);
         else if (type.includes('piramit') || type === '3d_koni') this.drawPiramit(ctx, w, h, ratio, type);
         
-        // Seçiliyken Yeşil ve Pembe Butonları Çiz
         if (window.currentTool === 'move' && window.selectedItem === stroke && !stroke.isPreview) {
             ctx.fillStyle = '#0F0'; ctx.shadowBlur = 0; ctx.beginPath(); ctx.arc(0, -h/2 - 40, 12, 0, 7); ctx.fill();
             ctx.fillStyle = '#F0F'; ctx.beginPath(); ctx.arc(w/2 + 20, h/2 + 20, 12, 0, 7); ctx.fill();
@@ -6507,93 +6503,65 @@ window.ThreeDTool = {
         ctx.restore();
     },
 
-    // AÇINIM 1: PRİZMALAR VE SİLİNDİR (Alt/Üst açılır, yan yüzler defter gibi serilir)
+    // 1. TÜM PRİZMALARI (KÜP DAHİL) OTOMATİK ÇİZEN VE AÇAN MOTOR
     drawPrizma: function(ctx, w, h, ratio, type) {
         const bW = w/2; const bH = w/5; 
-        
-        // Tabanlar yukarı aşağı ayrılır
         const topY = (-h/2) * (1-ratio) + (-h) * ratio;
         const botY = (h/2) * (1-ratio) + (h) * ratio;
         
         if (type === '3d_silindir') {
             ctx.beginPath(); ctx.ellipse(0, topY, bW, bH, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
             ctx.beginPath(); ctx.ellipse(0, botY, bW, bH, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-            
-            // Yan yüzey yavaşça düzleşerek bir dikdörtgene (çarşafa) dönüşür
             if (ratio > 0) {
                 const rectW = (2 * Math.PI * bW) * ratio;
                 ctx.save(); ctx.globalAlpha = ratio; 
                 ctx.beginPath(); ctx.rect(-rectW/2, -h/2, rectW, h); ctx.fill(); ctx.stroke(); ctx.restore();
             }
-            if (ratio < 1) { // Kapalıyken dikey çizgiler
+            if (ratio < 1) { 
                 ctx.globalAlpha = 1-ratio;
                 ctx.beginPath(); ctx.moveTo(-bW, -h/2); ctx.lineTo(-bW, h/2); ctx.stroke();
                 ctx.beginPath(); ctx.moveTo(bW, -h/2); ctx.lineTo(bW, h/2); ctx.stroke();
             }
         } else {
-            // Çokgen Prizmalar için Defter Görünümü
+            // Kaç köşesi olduğunu isminden anlar (Yapay Zeka Mantığı)
             let sides = type.includes('ucgen') ? 3 : type.includes('kare') || type === '3d_kup' || type.includes('dortgen') ? 4 : type.includes('besgen') ? 5 : 6;
-            
-            // Üst ve Alt taban çokgenleri
             this.drawPolygon(ctx, 0, topY, bW, botY*0.3, sides, 0);
             this.drawPolygon(ctx, 0, botY, bW, botY*0.3, sides, 0);
-
-            // Yan yüzler sağa sola doğru serilir
             const faceW = w / sides;
             for(let i=0; i<sides; i++) {
                 const offsetX = (i - sides/2 + 0.5) * faceW * ratio * 2.5; 
                 const curW = (bW*2 / sides) * (1-ratio) + faceW * ratio;
-                
-                ctx.globalAlpha = 1 - (ratio * 0.3); // Açıldıkça hafif şeffaflaşır
-                ctx.beginPath();
-                ctx.rect(offsetX - curW/2, -h/2, curW, h);
-                ctx.fill(); ctx.stroke();
+                ctx.globalAlpha = 1 - (ratio * 0.3); 
+                ctx.beginPath(); ctx.rect(offsetX - curW/2, -h/2, curW, h); ctx.fill(); ctx.stroke();
             }
         }
     },
 
-    // AÇINIM 2: PİRAMİTLER VE KONİ (Taban kalır, yan yüzler tepe noktasından yere serilir)
+    // 2. TÜM PİRAMİTLERİ OTOMATİK ÇİZEN VE AÇAN MOTOR
     drawPiramit: function(ctx, w, h, ratio, type) {
         const bW = w/2; const botY = h/2; const apexY = -h/2;
-        
         if (type === '3d_koni') {
-            // Koni tabanı öne doğru iner, yan yüzey arkadan sağa sola açılır
             const baseDropY = botY + (botY * 0.8 * ratio);
             ctx.beginPath(); ctx.ellipse(0, baseDropY, bW, w/5, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-            
-            if(ratio < 1) { // Kapalı kısım
+            if(ratio < 1) { 
                 ctx.globalAlpha = 1 - ratio;
                 ctx.beginPath(); ctx.moveTo(-bW, botY); ctx.lineTo(0, apexY); ctx.lineTo(bW, botY); ctx.stroke();
             }
-            if(ratio > 0) { // Açılan yelpaze
-                ctx.save(); ctx.globalAlpha = ratio;
-                const fanAngle = Math.PI * ratio; 
-                ctx.beginPath();
-                ctx.arc(0, apexY + h, Math.hypot(bW, h), -Math.PI/2 - fanAngle/2, -Math.PI/2 + fanAngle/2);
-                ctx.lineTo(0, apexY + (h*ratio)); ctx.closePath(); ctx.fill(); ctx.stroke();
-                ctx.restore();
+            if(ratio > 0) { 
+                ctx.save(); ctx.globalAlpha = ratio; const fanAngle = Math.PI * ratio; 
+                ctx.beginPath(); ctx.arc(0, apexY + h, Math.hypot(bW, h), -Math.PI/2 - fanAngle/2, -Math.PI/2 + fanAngle/2);
+                ctx.lineTo(0, apexY + (h*ratio)); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
             }
         } else {
-            // Çokgen Piramitler
+            // Kaç köşesi olduğunu isminden anlar
             let sides = type.includes('ucgen') ? 3 : type.includes('kare') ? 4 : type.includes('besgen') ? 5 : 6;
-            
-            // Merkez taban sabit
             this.drawPolygon(ctx, 0, botY, bW, botY*0.3, sides, 0);
-            
-            // Yan yüzeyler bir muz kabuğu gibi dışarı serilir
             for(let i=0; i<sides; i++) {
                 const angle = (i / sides) * Math.PI * 2;
-                const spreadX = Math.cos(angle) * w * ratio;
-                const spreadY = Math.sin(angle) * h * ratio;
-                
-                ctx.beginPath();
-                // Tepe noktası merkeze inerken dışa açılır
-                ctx.moveTo(spreadX, botY + spreadY);
-                // Taban köşelerine bağlanır
-                const p1x = Math.cos(angle - Math.PI/sides) * bW;
-                const p2x = Math.cos(angle + Math.PI/sides) * bW;
-                ctx.lineTo(p1x, botY); ctx.lineTo(p2x, botY);
-                ctx.closePath(); ctx.fill(); ctx.stroke();
+                const spreadX = Math.cos(angle) * w * ratio; const spreadY = Math.sin(angle) * h * ratio;
+                ctx.beginPath(); ctx.moveTo(spreadX, botY + spreadY);
+                const p1x = Math.cos(angle - Math.PI/sides) * bW; const p2x = Math.cos(angle + Math.PI/sides) * bW;
+                ctx.lineTo(p1x, botY); ctx.lineTo(p2x, botY); ctx.closePath(); ctx.fill(); ctx.stroke();
             }
         }
     },

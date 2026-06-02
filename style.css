@@ -1098,3 +1098,37 @@ canvas {
     box-shadow: 0 0 15px rgba(255, 255, 0, 0.3);
     white-space: pre-line; /* Alt satıra inmeyi tanır */
 }
+
+/* =========================================
+   3D ALT MENÜLERİNİN EKRANA SIĞMASI VE KAYDIRILMASI
+   ========================================= */
+#options-prizmalar {
+    top: -80px !important; /* Menüyü yukarı doğru taşır */
+    max-height: 60vh !important; /* Ekran yüksekliğinin %60'ından büyük olamaz */
+    overflow-y: auto !important; /* Sığmazsa kaydırma çubuğu çıkarır */
+}
+
+#options-piramitler {
+    top: -50px !important; /* Menüyü yukarı doğru taşır */
+    max-height: 60vh !important;
+    overflow-y: auto !important;
+}
+
+/* --- YENİ TEMA İLE UYUMLU ŞIK KAYDIRMA ÇUBUĞU (SCROLLBAR) --- */
+#options-prizmalar::-webkit-scrollbar, 
+#options-piramitler::-webkit-scrollbar {
+    width: 6px !important;
+    display: block !important; 
+}
+
+#options-prizmalar::-webkit-scrollbar-track, 
+#options-piramitler::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2) !important;
+    border-radius: 10px !important;
+}
+
+#options-prizmalar::-webkit-scrollbar-thumb, 
+#options-piramitler::-webkit-scrollbar-thumb {
+    background: #89b4fa !important; /* Yeni temanın pastel mavisi */
+    border-radius: 10px !important;
+}
