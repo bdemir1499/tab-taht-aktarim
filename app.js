@@ -6562,19 +6562,32 @@ drawKure: function(ctx, w, h, stroke) {
         ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); 
         ctx.fillStyle = grad; ctx.fill(); ctx.stroke(); 
         
-        // 2. V3 Gerçek 3D Dönüş Kafesi (Dinamik Meridyen ve Paraleller)
+        // 2. DAHA SIK MERİDYEN VE PARALELLER (Tam Dünya Küresi Kafesi)
         ctx.save();
-        ctx.strokeStyle = `rgba(${rgb}, 0.6)`; // Cam hissi veren çizgiler
+        ctx.strokeStyle = `rgba(${rgb}, 0.7)`; // Çizgiler biraz daha belirgin
         ctx.lineWidth = 1.5;
         
-        // 3 Adet Dikey Meridyen (Sağa-Sola Yaw ile döner)
-        for (let i = 0; i < 3; i++) {
-            let angle = yaw + (i * Math.PI / 3);
+        // 6 Adet Dikey Meridyen (Her 30 derecede bir)
+        for (let i = 0; i < 6; i++) {
+            let angle = yaw + (i * Math.PI / 6);
             let merW = r * Math.cos(angle);
             ctx.beginPath(); 
             ctx.ellipse(0, 0, Math.max(0.1, Math.abs(merW)), r, 0, 0, Math.PI*2); 
             ctx.stroke();
         }
+        
+        // 5 Adet Yatay Paralel (Ekvator ve alt/üst enlemler)
+        for (let i = -2; i <= 2; i++) {
+            let h0 = (r / 3) * i; 
+            let rp = Math.sqrt(Math.max(0, r*r - h0*h0)); // O paralelin kendi yarıçapı
+            let yOffset = h0 * pitch;
+            let parH = rp * Math.abs(pitch);
+            ctx.beginPath(); 
+            ctx.ellipse(0, yOffset, rp, Math.max(0.1, parH), 0, 0, Math.PI*2); 
+            ctx.stroke();
+        }
+        ctx.restore();
+    },
         
         // 3 Adet Yatay Paralel (Öne-Arkaya Pitch ile yatar)
         for (let i = -1; i <= 1; i++) {
