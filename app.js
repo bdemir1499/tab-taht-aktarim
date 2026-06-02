@@ -6417,17 +6417,15 @@ drwCanvas.addEventListener('pointermove', (e) => {
         
         let fX, fY, fW, fH;
         if (shapeType === '3d_kure') {
-            let r = Math.hypot(curX - start3DPos.x, curY - start3DPos.y); // Merkezden yarıçap
+            // SİHİR: Küre merkezden yarıçapa doğru kusursuz büyür
+            let r = Math.hypot(curX - start3DPos.x, curY - start3DPos.y);
             fW = r*2; fH = r*2; fX = start3DPos.x - r; fY = start3DPos.y - r;
         } else {
             fW = Math.abs(curX - start3DPos.x); fH = Math.abs(curY - start3DPos.y);
             fX = Math.min(curX, start3DPos.x); fY = Math.min(curY, start3DPos.y);
         }
         
-        const previewStroke = {
-            type: '3d_shape', shapeType: shapeType, x: fX, y: fY, width: fW, height: fH,
-            rotation: 0, yaw: 0, pitch: 1, openRatio: 0, isPreview: true, color: window.isToolThemeBlack ? '#000000' : (window.currentLineColor || '#00ffcc')
-        };
+        const previewStroke = { type: '3d_shape', shapeType: shapeType, x: fX, y: fY, width: fW, height: fH, rotation: 0, yaw: 0, pitch: 1, openRatio: 0, isPreview: true, color: window.isToolThemeBlack ? '#000000' : (window.currentLineColor || '#00ffcc') };
         if (typeof window.broadcastPreview === 'function') window.broadcastPreview('cizim_onizleme', previewStroke);
         if (typeof redrawAllStrokes === 'function') { redrawAllStrokes(); if(window.ThreeDTool) window.ThreeDTool.drawShape(drwCanvas.getContext('2d'), previewStroke); }
     }
@@ -6450,19 +6448,12 @@ drwCanvas.addEventListener('pointerup', (e) => {
         }
         
         if (fW > 15 && fH > 15) {
-            const finalStroke = {
-                type: '3d_shape', id: Date.now() + Math.random().toString(),
-                shapeType: shapeType, x: fX, y: fY, width: fW, height: fH,
-                rotation: 0, yaw: 0, pitch: 1, openRatio: 0, isPreview: false,
-                color: window.isToolThemeBlack ? '#000000' : (window.currentLineColor || '#00ffcc')
-            };
+            const finalStroke = { type: '3d_shape', id: Date.now() + Math.random().toString(), shapeType: shapeType, x: fX, y: fY, width: fW, height: fH, rotation: 0, yaw: 0, pitch: 1, openRatio: 0, isPreview: false, color: window.isToolThemeBlack ? '#000000' : (window.currentLineColor || '#00ffcc') };
             window.drawnStrokes.push(finalStroke);
             if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) window.sendNetworkData({ type: 'yeni_cizim', stroke: finalStroke });
             
-            window.active3DShapeTool = null; 
-            const mainBtn = document.getElementById('btn-3d-menu'); if(mainBtn) mainBtn.classList.remove('active');
+            window.active3DShapeTool = null; const mainBtn = document.getElementById('btn-3d-menu'); if(mainBtn) mainBtn.classList.remove('active');
             if (typeof setActiveTool === 'function') setActiveTool('move'); else window.currentTool = 'move';
-            
             setTimeout(() => { window.selectedItem = null; if (typeof redrawAllStrokes === 'function') redrawAllStrokes(); }, 50);
             if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'onizleme_bitir' });
         }
@@ -6483,7 +6474,11 @@ window.ThreeDTool = {
         ctx.save();
         let pitch = stroke.pitch !== undefined ? stroke.pitch : 1;
         if (Math.abs(pitch) < 0.05) pitch = pitch < 0 ? -0.05 : 0.05; 
-        ctx.scale(1, pitch); // Eğilme X-Ekseni
+        
+        // 🚨 SİHİR 1: Küre Yassılaşmaz! Sadece Prizmalar açınım için X-ekseninde yatar
+        if (type !== '3d_kure') {
+            ctx.scale(1, pitch); 
+        }
         
         if (stroke.isPreview) { ctx.setLineDash([8, 8]); ctx.shadowBlur = 0; ctx.globalAlpha = 0.6; } 
         else { ctx.setLineDash([]); ctx.shadowBlur = 15; ctx.globalAlpha = 1.0; }
@@ -6491,9 +6486,9 @@ window.ThreeDTool = {
         ctx.shadowColor = stroke.color; ctx.strokeStyle = stroke.color; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
         let rgb = stroke.color === '#00ffcc' ? '0, 255, 204' : '255, 0, 255'; ctx.fillStyle = `rgba(${rgb}, 0.15)`;
 
-        if (type === '3d_kure') this.drawKure(ctx, w, h);
-        else if (type.includes('prizma') || type === '3d_kup' || type === '3d_silindir') this.drawPrizma(ctx, w, h, ratio, type);
-        else if (type.includes('piramit') || type === '3d_koni') this.drawPiramit(ctx, w, h, ratio, type);
+        if (type === '3d_kure') this.drawKure(ctx, w, h, stroke);
+        else if (type.includes('prizma') || type === '3d_kup' || type === '3d_silindir') this.drawPrizma(ctx, w, h, ratio, type, stroke);
+        else if (type.includes('piramit') || type === '3d_koni') this.drawPiramit(ctx, w, h, ratio, type, stroke);
         ctx.restore(); 
 
         if (isSelected && !stroke.isPreview) {
@@ -6502,9 +6497,9 @@ window.ThreeDTool = {
         }
         ctx.restore();
     },
-    drawPrizma: function(ctx, w, h, ratio, type) {
+    drawPrizma: function(ctx, w, h, ratio, type, stroke) {
         const bW = w/2; const bH = w/5; const topY = (-h/2) * (1-ratio) + (-h) * ratio; const botY = (h/2) * (1-ratio) + (h) * ratio;
-        let yaw = stroke.yaw || 0; // Gerçek 3D Dönüş Açısı
+        let yaw = stroke.yaw || 0; 
         
         if (type === '3d_silindir') {
             ctx.beginPath(); ctx.ellipse(0, topY, bW, bH, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
@@ -6514,25 +6509,21 @@ window.ThreeDTool = {
         } else {
             let sides = type.includes('ucgen') ? 3 : type.includes('kare') || type === '3d_kup' || type.includes('dortgen') ? 4 : type.includes('besgen') ? 5 : 6;
             this.drawPolygon(ctx, 0, topY, bW, botY*0.3, sides, yaw); this.drawPolygon(ctx, 0, botY, bW, botY*0.3, sides, yaw);
-            
-            // 🚨 SİHİR: Yüzeyleri 3D Uzayda Birleştirerek Gerçek Dönüş Hissi Verir
             for(let i=0; i<sides; i++) {
                 let a1 = yaw + (i / sides) * Math.PI * 2; let a2 = yaw + ((i + 1) / sides) * Math.PI * 2;
                 let x1_3d = bW * Math.cos(a1); let y1_3d = (botY*0.3) * Math.sin(a1);
                 let x2_3d = bW * Math.cos(a2); let y2_3d = (botY*0.3) * Math.sin(a2);
-                
                 const faceW = w / sides;
                 let offsetX1 = (i - sides/2 + 0.5) * faceW * 2.5; let offsetX2 = (i + 1 - sides/2 + 0.5) * faceW * 2.5;
                 let x1 = x1_3d * (1-ratio) + (offsetX1 - faceW/2) * ratio; let x2 = x2_3d * (1-ratio) + (offsetX2 - faceW/2) * ratio;
                 let y1_top = topY + y1_3d * (1-ratio); let y2_top = topY + y2_3d * (1-ratio);
                 let y1_bot = botY + y1_3d * (1-ratio); let y2_bot = botY + y2_3d * (1-ratio);
-                
                 ctx.beginPath(); ctx.moveTo(x1, y1_top); ctx.lineTo(x2, y2_top); ctx.lineTo(x2, y2_bot); ctx.lineTo(x1, y1_bot); ctx.closePath();
                 ctx.fill(); ctx.stroke();
             }
         }
     },
-    drawPiramit: function(ctx, w, h, ratio, type) {
+    drawPiramit: function(ctx, w, h, ratio, type, stroke) {
         const bW = w/2; const botY = h/2; const apexY = -h/2; let yaw = stroke.yaw || 0;
         if (type === '3d_koni') {
             const baseDropY = botY + (botY * 0.8 * ratio); ctx.beginPath(); ctx.ellipse(0, baseDropY, bW, w/5, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
@@ -6541,32 +6532,41 @@ window.ThreeDTool = {
         } else {
             let sides = type.includes('ucgen') ? 3 : type.includes('kare') ? 4 : type.includes('besgen') ? 5 : 6;
             this.drawPolygon(ctx, 0, botY, bW, botY*0.3, sides, yaw);
-            
-            // 🚨 SİHİR: Piramit Yüzeylerini 3D Uzayda Birleştir
             for(let i=0; i<sides; i++) {
                 let a1 = yaw + (i / sides) * Math.PI * 2; let a2 = yaw + ((i + 1) / sides) * Math.PI * 2;
                 let bx1 = bW * Math.cos(a1); let by1 = botY + (botY*0.3) * Math.sin(a1);
                 let bx2 = bW * Math.cos(a2); let by2 = botY + (botY*0.3) * Math.sin(a2);
-                
                 let midA = yaw + ((i + 0.5) / sides) * Math.PI * 2;
                 let spreadX = Math.cos(midA) * w * ratio; let spreadY = Math.sin(midA) * h * ratio;
                 let finalApexX = 0 * (1-ratio) + spreadX * ratio; let finalApexY = apexY * (1-ratio) + (botY + spreadY) * ratio;
-                
                 ctx.beginPath(); ctx.moveTo(finalApexX, finalApexY); ctx.lineTo(bx1, by1); ctx.lineTo(bx2, by2); ctx.closePath();
                 ctx.fill(); ctx.stroke();
             }
         }
     },
-    drawKure: function(ctx, w, h) { 
+    drawKure: function(ctx, w, h, stroke) { 
+        // 🚨 SİHİR 2: Gerçek 3D Işık ve Kamera Motoru (Küre yassılaşmaz, ışık etrafında döner!)
         let r = Math.min(w, h) / 2;
         let rgb = ctx.strokeStyle === '#00ffcc' ? '0, 255, 204' : '255, 0, 255';
-        let grad = ctx.createRadialGradient(-r/4, -r/4, r/10, 0, 0, r);
-        grad.addColorStop(0, 'rgba(255,255,255,0.8)');
-        grad.addColorStop(0.4, `rgba(${rgb}, 0.6)`);
+        
+        let yaw = stroke.yaw || 0;
+        let pitch = stroke.pitch !== undefined ? stroke.pitch : 1;
+        
+        // Işığın 3D küre üzerindeki yerini hesapla
+        let lightX = (r / 1.5) * Math.sin(yaw);
+        let lightY = -(r / 1.5) * pitch;
+
+        let grad = ctx.createRadialGradient(lightX, lightY, r/10, 0, 0, r);
+        grad.addColorStop(0, 'rgba(255,255,255,0.9)');
+        grad.addColorStop(0.4, `rgba(${rgb}, 0.7)`);
         grad.addColorStop(1, `rgba(${rgb}, 0.05)`);
         
         ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); 
         ctx.fillStyle = grad; ctx.fill(); ctx.stroke(); 
+        
+        // 3D Parlama (Specular Highlight) efekti
+        ctx.beginPath(); ctx.arc(lightX, lightY, r/4, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fill();
     },
     drawPolygon: function(ctx, cx, cy, rx, ry, sides, rot) { ctx.beginPath(); for (let i = 0; i < sides; i++) { const a = rot + (i / sides) * Math.PI * 2; const x = cx + rx * Math.cos(a); const y = cy + ry * Math.sin(a); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); } ctx.closePath(); ctx.fill(); ctx.stroke(); },
     getFormulas: function(stroke) { if (!stroke) return ""; const w = (stroke.width / 30).toFixed(1); const h = (stroke.height / 30).toFixed(1); let name = stroke.shapeType.replace('3d_', '').replace(/_/g, ' ').toUpperCase(); return `${name}\nTaban/Yarıçap = ${w} cm\nYükseklik (h) = ${h} cm\n*(Anlık Kalibrasyon Değerleridir)*`; }
