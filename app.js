@@ -6466,6 +6466,9 @@ drwCanvas.addEventListener('pointerup', (e) => {
 });
 
 // 2. YENİ YAPAY ZEKA ÇİZİM VE AÇINIM MOTORU
+// ==========================================
+// --- 3D ÇİZİM VE AÇINIM MOTORU (YENİ YAPAY ZEKA VERSİYONU) ---
+// ==========================================
 window.ThreeDTool = {
     drawShape: function(ctx, stroke) {
         const cx = stroke.x + stroke.width / 2; const cy = stroke.y + stroke.height / 2;
@@ -6476,6 +6479,12 @@ window.ThreeDTool = {
         ctx.save();
         ctx.translate(cx, cy);
         ctx.rotate((stroke.rotation || 0) * Math.PI / 180);
+        
+        // 🚨 SİHİR 1: 3D Öne/Arkaya Eğilme (Pitch) Simülasyonu
+        ctx.save();
+        let pitch = stroke.pitch !== undefined ? stroke.pitch : 1;
+        if (Math.abs(pitch) < 0.05) pitch = pitch < 0 ? -0.05 : 0.05; // Tam kaybolmasını engeller
+        ctx.scale(1, pitch); // Şekli Z-ekseninde öne arkaya yatırır
         
         if (stroke.isPreview) {
             ctx.setLineDash([8, 8]); ctx.shadowBlur = 0; ctx.globalAlpha = 0.6;
@@ -6492,12 +6501,18 @@ window.ThreeDTool = {
         else if (type.includes('prizma') || type === '3d_kup' || type === '3d_silindir') this.drawPrizma(ctx, w, h, ratio, type);
         else if (type.includes('piramit') || type === '3d_koni') this.drawPiramit(ctx, w, h, ratio, type);
         
-        if ((window.currentTool === 'move' || typeof selectedItem !== 'undefined') && window.selectedItem === stroke && !stroke.isPreview) {
+        ctx.restore(); // Eğilme (Scale) etkisinden çık ki butonlar yassılaşmasın!
+
+        // 🚨 SİHİR 2: Butonların Hem Tablette Hem PC'de (Tahtada) Çıkması
+        let isSelected = (window.selectedItem && window.selectedItem.id === stroke.id) || stroke.showControls;
+        
+        if (isSelected && !stroke.isPreview) {
             ctx.fillStyle = '#0F0'; ctx.shadowBlur = 0; ctx.beginPath(); ctx.arc(0, -h/2 - 40, 12, 0, 7); ctx.fill();
             ctx.fillStyle = '#F0F'; ctx.beginPath(); ctx.arc(w/2 + 20, h/2 + 20, 12, 0, 7); ctx.fill();
         }
         ctx.restore();
     },
+
     drawPrizma: function(ctx, w, h, ratio, type) {
         const bW = w/2; const bH = w/5; 
         const topY = (-h/2) * (1-ratio) + (-h) * ratio;
@@ -6528,6 +6543,7 @@ window.ThreeDTool = {
             }
         }
     },
+
     drawPiramit: function(ctx, w, h, ratio, type) {
         const bW = w/2; const botY = h/2; const apexY = -h/2;
         if (type === '3d_koni') {
@@ -6554,11 +6570,13 @@ window.ThreeDTool = {
             }
         }
     },
+
     drawKure: function(ctx, w, h) {
         ctx.beginPath(); ctx.arc(0, 0, w/2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
         ctx.beginPath(); ctx.ellipse(0, 0, w/2, h/6, 0, 0, Math.PI*2); ctx.stroke();
         ctx.beginPath(); ctx.ellipse(0, 0, w/6, h/2, 0, 0, Math.PI*2); ctx.stroke();
     },
+
     drawPolygon: function(ctx, cx, cy, rx, ry, sides, rot) {
         ctx.beginPath();
         for (let i = 0; i < sides; i++) {
@@ -6568,6 +6586,7 @@ window.ThreeDTool = {
         }
         ctx.closePath(); ctx.fill(); ctx.stroke();
     },
+
     getFormulas: function(stroke) {
         if (!stroke) return "";
         const w = (stroke.width / 30).toFixed(1); const h = (stroke.height / 30).toFixed(1);
@@ -6687,16 +6706,17 @@ window.addEventListener('load', () => {
 
 
 // ==========================================
-// --- 3D DOKUNULMAZ FİZİK VE TABLET MOTORU (FİNAL) ---
+// --- 3D DOKUNULMAZ FİZİK VE TABLET MOTORU (V5 - 3D EĞİLME EKLENDİ) ---
 // ==========================================
 let active3DManipulator = null; 
 let initial3DAngle = 0;
 let initialMouseAngle = 0;
+let initial3DPitch = 1;
+let initialMouseY = 0;
 let initial3DSize = {w: 0, h: 0};
 let initial3DPos = {x: 0, y: 0};
 const canvasFor3DPhysics = document.getElementById('drawing-canvas');
 
-// Tıklanan yerin 3D şekil olup olmadığını tespit eden Özel Radar
 function check3DHit(pos) {
     if (!window.drawnStrokes) return null;
     for (let i = window.drawnStrokes.length - 1; i >= 0; i--) {
@@ -6706,17 +6726,14 @@ function check3DHit(pos) {
             const angleRad = (stroke.rotation || 0) * (Math.PI / 180);
 
             if (window.selectedItem === stroke) {
-                // Yeşil Buton (Tablet için yakalama alanı 40px'e çıkarıldı)
                 const rotX = cX + Math.sin(angleRad) * (stroke.height / 2 + 40);
                 const rotY = cY - Math.cos(angleRad) * (stroke.height / 2 + 40);
                 if (Math.hypot(pos.x - rotX, pos.y - rotY) < 40) return { item: stroke, action: 'rotate' };
 
-                // Pembe Buton (Tablet için yakalama alanı 40px'e çıkarıldı)
                 const resX = cX + (stroke.width / 2 * Math.cos(angleRad) - stroke.height / 2 * Math.sin(angleRad)) + 20 * Math.cos(angleRad);
                 const resY = cY + (stroke.width / 2 * Math.sin(angleRad) + stroke.height / 2 * Math.cos(angleRad)) + 20 * Math.sin(angleRad);
                 if (Math.hypot(pos.x - resX, pos.y - resY) < 40) return { item: stroke, action: 'resize' };
             }
-            // Gövde (Tablet için +30px genişletildi)
             const dx = pos.x - cX; const dy = pos.y - cY;
             const localX = dx * Math.cos(-angleRad) - dy * Math.sin(-angleRad);
             const localY = dx * Math.sin(-angleRad) + dy * Math.cos(-angleRad);
@@ -6728,7 +6745,6 @@ function check3DHit(pos) {
     return null;
 }
 
-// capture: true sayesinde tıklamayı ana koddan ÖNCE biz yakalıyoruz!
 canvasFor3DPhysics.addEventListener('pointerdown', (e) => {
     let tool = window.currentTool || (typeof currentTool !== 'undefined' ? currentTool : '');
     if (tool === 'move' || tool === 'select') {
@@ -6737,15 +6753,26 @@ canvasFor3DPhysics.addEventListener('pointerdown', (e) => {
         
         const hit = check3DHit(pos);
         if (hit) {
-            e.stopImmediatePropagation(); // 🚨 SİHİR: Ana uygulamanın müdahalesini TAMAMEN engeller!
+            e.stopImmediatePropagation();
             
+            // Eğer daha önceden başka şekil seçiliyse, onun butonlarını PC'den gizle
+            if (window.selectedItem && window.selectedItem !== hit.item && window.selectedItem.type === '3d_shape') {
+                window.selectedItem.showControls = false;
+                if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: window.selectedItem });
+            }
+
             window.selectedItem = hit.item;
+            hit.item.showControls = true; // SİHİR: Seçilen şeklin butonlarını PC'de de aktif et!
             active3DManipulator = hit.action;
+            
             const cX = hit.item.x + hit.item.width / 2; const cY = hit.item.y + hit.item.height / 2;
             
             if (hit.action === 'rotate') {
                 initialMouseAngle = Math.atan2(pos.y - cY, pos.x - cX) * 180 / Math.PI;
                 initial3DAngle = hit.item.rotation || 0;
+                // 3D Öne/Arkaya eğilme verilerini yakala
+                initialMouseY = pos.y;
+                initial3DPitch = hit.item.pitch !== undefined ? hit.item.pitch : 1;
             } else if (hit.action === 'resize') {
                 initial3DSize = { w: hit.item.width, h: hit.item.height };
                 initial3DPos = { x: pos.x, y: pos.y };
@@ -6754,7 +6781,12 @@ canvasFor3DPhysics.addEventListener('pointerdown', (e) => {
                 hit.item._startX = hit.item.x; hit.item._startY = hit.item.y;
             }
             if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
+            if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: hit.item });
+            
         } else if (window.selectedItem && window.selectedItem.type === '3d_shape') {
+            // Boşluğa tıklanırsa butonları PC'den de kapat
+            window.selectedItem.showControls = false;
+            if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: window.selectedItem });
             window.selectedItem = null;
             if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
         }
@@ -6771,8 +6803,15 @@ window.addEventListener('pointermove', (e) => {
         const cX = stroke.x + stroke.width / 2; const cY = stroke.y + stroke.height / 2;
 
         if (active3DManipulator === 'rotate') {
+            // 1. Z-Ekseninde Dönüş (Direksiyon gibi)
             const currentMouseAngle = Math.atan2(pos.y - cY, pos.x - cX) * 180 / Math.PI;
             stroke.rotation = initial3DAngle + (currentMouseAngle - initialMouseAngle);
+            
+            // 2. X-Ekseninde 3D Eğilme (Yukarı-Aşağı sürükleyince öne/arkaya yatar)
+            let deltaY = pos.y - initialMouseY;
+            let newPitch = initial3DPitch - (deltaY * 0.005); 
+            stroke.pitch = Math.max(-1, Math.min(1, newPitch)); // -1'e giderse şekil takla atar
+            
         } else if (active3DManipulator === 'resize') {
             const initialDist = Math.hypot(initial3DPos.x - cX, initial3DPos.y - cY);
             const currentDist = Math.hypot(pos.x - cX, pos.y - cY);
