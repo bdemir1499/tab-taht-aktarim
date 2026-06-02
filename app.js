@@ -6377,64 +6377,7 @@ if (smartCanvas) {
 // --- 3D ÇİZİM SENSÖRLERİ VE EFSANEVİ AÇINIM MOTORU (ADIM 2) ---
 // ==========================================
 
-// 1. KESİKLİ ÖNİZLEME VE OTOMATİK OLUŞTURMA SENSÖRLERİ
-let isDrawing3DShape = false;
-let start3DPos = {x: 0, y: 0};
-const drwCanvas = document.getElementById('drawing-canvas');
 
-drwCanvas.addEventListener('pointerdown', (e) => {
-    if (window.currentTool && window.currentTool.startsWith('draw_3d_')) {
-        isDrawing3DShape = true;
-        const rect = drwCanvas.getBoundingClientRect();
-        start3DPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    }
-});
-
-drwCanvas.addEventListener('pointermove', (e) => {
-    if (isDrawing3DShape && window.currentTool.startsWith('draw_3d_')) {
-        const rect = drwCanvas.getBoundingClientRect();
-        const curX = e.clientX - rect.left; const curY = e.clientY - rect.top;
-        const w = Math.abs(curX - start3DPos.x); const h = Math.abs(curY - start3DPos.y);
-        
-        const previewStroke = {
-            type: '3d_shape',
-            shapeType: window.currentTool.replace('draw_', ''),
-            x: Math.min(curX, start3DPos.x), y: Math.min(curY, start3DPos.y), width: w, height: h,
-            rotation: 0, openRatio: 0, isPreview: true, // Kesikli önizleme modu
-            color: window.isToolThemeBlack ? '#000000' : (window.currentLineColor || '#00ffcc')
-        };
-        if (typeof window.broadcastPreview === 'function') window.broadcastPreview('cizim_onizleme', previewStroke);
-    }
-});
-
-drwCanvas.addEventListener('pointerup', (e) => {
-    if (isDrawing3DShape && window.currentTool.startsWith('draw_3d_')) {
-        isDrawing3DShape = false;
-        const rect = drwCanvas.getBoundingClientRect();
-        const curX = e.clientX - rect.left; const curY = e.clientY - rect.top;
-        const w = Math.abs(curX - start3DPos.x); const h = Math.abs(curY - start3DPos.y);
-        
-        if (w > 15 && h > 15) {
-            const finalStroke = {
-                type: '3d_shape', id: Date.now() + Math.random().toString(),
-                shapeType: window.currentTool.replace('draw_', ''),
-                x: Math.min(curX, start3DPos.x), y: Math.min(curY, start3DPos.y), width: w, height: h,
-                rotation: 0, openRatio: 0, isPreview: false,
-                color: window.isToolThemeBlack ? '#000000' : (window.currentLineColor || '#00ffcc')
-            };
-            
-            window.drawnStrokes.push(finalStroke);
-            if (typeof window.sendNetworkData === 'function' && isConnected) window.sendNetworkData({ type: 'yeni_cizim', stroke: finalStroke });
-            
-            // 🚨 SİHİR BURADA: Parmağı kaldırınca OTOMATİK TAŞI moduna geçer ve şekli seçer!
-            if (typeof setActiveTool === 'function') setActiveTool('move'); else window.currentTool = 'move';
-            window.selectedItem = finalStroke;
-            
-            if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'onizleme_bitir' });
-            if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
-        }
-    }
-});
 
 // ==========================================
 // --- 3D ÇİZİM, AÇINIM VE MENÜ MOTORU (KUSURSUZ FİNAL V4) ---
