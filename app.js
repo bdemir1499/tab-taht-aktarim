@@ -6547,12 +6547,15 @@ window.ThreeDTool = {
     
 drawKure: function(ctx, w, h, stroke) { 
         let r = Math.min(w, h) / 2;
+        if (isNaN(r) || r <= 0) return; // 🚨 Şeklin çökmesini ve Canvas'ı bozmasını önler
+        
         let rgb = ctx.strokeStyle === '#00ffcc' ? '0, 255, 204' : '255, 0, 255';
-        let yaw = stroke.yaw || 0;
-        let pitch = stroke.pitch !== undefined ? stroke.pitch : 1;
+        let yaw = Number(stroke.yaw) || 0;
+        let pitch = stroke.pitch !== undefined && !isNaN(stroke.pitch) ? Number(stroke.pitch) : 1;
         
         let lightX = r * 0.4 * Math.sin(yaw);
         let lightY = -r * 0.4 * pitch;
+        
         let grad = ctx.createRadialGradient(lightX, lightY, r * 0.1, 0, 0, r);
         grad.addColorStop(0, 'rgba(255,255,255,0.8)');
         grad.addColorStop(0.5, `rgba(${rgb}, 0.3)`);
@@ -6565,15 +6568,14 @@ drawKure: function(ctx, w, h, stroke) {
         ctx.stroke(); 
         
         ctx.save();
-        // 🚨 SİHİRLİ MASKE (Clip): Çizgiler taşmasın diye küreyi mühürler!
-        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.clip(); 
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.clip(); // Maske
         
         ctx.strokeStyle = `rgba(${rgb}, 0.7)`; 
         ctx.lineWidth = 1.5;
         
-        // Pitch (öne eğilme) değerine göre kutup noktasını aşağı kaydırır
         ctx.translate(0, -r * (1 - pitch));
-        ctx.scale(1, 2 - Math.abs(pitch)); // Çizgileri esnetir, maske taşanları keser!
+        let scaleY = 2 - Math.abs(pitch);
+        if (scaleY > 0) ctx.scale(1, scaleY);
         
         for (let m = 0; m < 6; m++) {
             let angle = yaw + (m * Math.PI / 6);
@@ -6625,20 +6627,18 @@ canvasFor3DPhysics.addEventListener('pointerdown', (e) => {
         const hit = check3DHit(pos);
         if (hit) {
             e.stopImmediatePropagation();
-            window.selectedItem = hit.item; // 🚨 Zıplamayı önler, ana uygulamaya seçimi bildirir!
+            window.selectedItem = hit.item; 
             
             if (window.drawnStrokes) {
                 window.drawnStrokes.forEach(s => {
-                    let cRot = s.rotation || 0;
+                    let cRot = Number(s.rotation) || 0;
                     if (s.type === '3d_shape' && s.id !== hit.item.id && cRot >= 36000) {
                         s.rotation = cRot - 36000;
                         if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: s });
                     }
                 });
             }
-            
-            // 🚨 SİHİR: Tanımsız (NaN) Hatasını Önleyen Güvenli Seçim
-            let myRot = hit.item.rotation || 0;
+            let myRot = Number(hit.item.rotation) || 0;
             if (myRot < 36000) {
                 hit.item.rotation = myRot + 36000;
                 if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: hit.item });
@@ -6649,21 +6649,21 @@ canvasFor3DPhysics.addEventListener('pointerdown', (e) => {
             
             if (hit.action === 'rotate') {
                 initialMouseAngle = Math.atan2(pos.y - cY, pos.x - cX) * 180 / Math.PI;
-                initial3DAngle = (hit.item.rotation || 36000) - 36000; 
+                initial3DAngle = (Number(hit.item.rotation) || 36000) - 36000; 
                 initialMouseY = pos.y; initialMouseX = pos.x; 
-                initial3DPitch = hit.item.pitch !== undefined ? hit.item.pitch : 1;
-                initial3DYaw = hit.item.yaw !== undefined ? hit.item.yaw : 0;
-                
-                hit.item._dragAxis = null; // 🚨 SİHİR: Yeni tıklandığında eksen kilidini sıfırla!
+                initial3DPitch = hit.item.pitch !== undefined && !isNaN(hit.item.pitch) ? Number(hit.item.pitch) : 1;
+                initial3DYaw = hit.item.yaw !== undefined && !isNaN(hit.item.yaw) ? Number(hit.item.yaw) : 0;
+                hit.item._dragAxis = null; 
+            } else if (hit.action === 'resize') {
+                initial3DSize = { w: hit.item.width, h: hit.item.height }; initial3DPos = { x: pos.x, y: pos.y };
+            } else if (hit.action === 'move') {
+                initial3DPos = { x: pos.x, y: pos.y }; hit.item._startX = hit.item.x; hit.item._startY = hit.item.y;
             }
-
-
             if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
         } else {
-            // Boşluğa tıklanırsa seçimi temizle
             if (window.drawnStrokes) {
                 window.drawnStrokes.forEach(s => {
-                    let cRot = s.rotation || 0;
+                    let cRot = Number(s.rotation) || 0;
                     if (s.type === '3d_shape' && cRot >= 36000) {
                         s.rotation = cRot - 36000;
                         if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: s });
@@ -6684,26 +6684,21 @@ window.addEventListener('pointermove', (e) => {
         const rect = canvasFor3DPhysics.getBoundingClientRect(); const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
         const cX = stroke.x + stroke.width / 2; const cY = stroke.y + stroke.height / 2;
 
-       if (active3DManipulator === 'rotate') {
+        if (active3DManipulator === 'rotate') {
             let deltaX = pos.x - initialMouseX;
             let deltaY = pos.y - initialMouseY;
             
-            // 🚨 EKSEN KİLİDİ (Axis Lock): İlk 5 piksellik harekete bakıp yönü kilitler
             if (!stroke._dragAxis) {
                 if (Math.abs(deltaX) > 5 && Math.abs(deltaX) > Math.abs(deltaY)) stroke._dragAxis = 'X';
                 else if (Math.abs(deltaY) > 5 && Math.abs(deltaY) > Math.abs(deltaX)) stroke._dragAxis = 'Y';
             }
             
-            // Sadece kilitlenen eksene göre çevir! (İstem dışı titremeleri ve savrulmayı %100 önler)
             if (stroke._dragAxis === 'X') {
-                stroke.yaw = initial3DYaw + (deltaX * 0.02); // Sadece sağa-sola kendi etrafında döner
+                stroke.yaw = initial3DYaw + (deltaX * 0.02); 
             } else if (stroke._dragAxis === 'Y') {
-                stroke.pitch = Math.max(-1, Math.min(1, initial3DPitch - (deltaY * 0.005))); // Sadece öne-arkaya yatar
+                stroke.pitch = Math.max(-1, Math.min(1, initial3DPitch - (deltaY * 0.005))); 
             }
-        }
-
-
- else if (active3DManipulator === 'resize') {
+        } else if (active3DManipulator === 'resize') {
             const initialDist = Math.hypot(initial3DPos.x - cX, initial3DPos.y - cY);
             const currentDist = Math.hypot(pos.x - cX, pos.y - cY);
             const scale = currentDist / initialDist;
@@ -6724,7 +6719,6 @@ window.addEventListener('pointerup', (e) => {
         if (stroke && typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) window.sendNetworkData({ type: 'sekil_guncelle', stroke: stroke });
     }
 }, { capture: true });
-
 // 4. ARAYÜZ VE MENÜ MOTORU
 window.addEventListener('load', () => {
     const polyBtn = document.getElementById('btn-cokgenler');
