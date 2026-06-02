@@ -6662,19 +6662,38 @@ window.addEventListener('load', () => {
         });
     }
 
+   // 2. Sürgü ve Formül Kutusunu Yöneten Dinamik Motor (PC ve TABLET SENKRONİZASYONU)
     const uiMotor = () => {
         const slider = document.getElementById('slider-container');
         const info = document.getElementById('info-tooltip');
         
-        let moveToolActive = (typeof currentTool !== 'undefined' && currentTool === 'move') || (window.currentTool === 'move') || (document.getElementById('btn-move') && document.getElementById('btn-move').classList.contains('active'));
+        let activeShape = null;
 
-        if (moveToolActive && window.selectedItem && window.selectedItem.type === '3d_shape') {
-            const s = window.selectedItem;
+        // 1. Tablette öğretmen kendi dokunduysa şekli aktif et ve ağa "Seçildi" (showControls) sinyali yolla
+        if (window.selectedItem && window.selectedItem.type === '3d_shape') {
+            activeShape = window.selectedItem;
+            if (!activeShape.showControls) {
+                activeShape.showControls = true;
+                if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: activeShape });
+            }
+        } 
+        // 2. PC (Tahta) tarafı için: Ağdan "Seçildi" sinyali gelen şekli bul!
+        else if (window.drawnStrokes) {
+            activeShape = window.drawnStrokes.find(s => s.type === '3d_shape' && s.showControls === true);
+        }
+
+        // Eğer aktif bir şekil bulunduysa (Tabletten veya Ağdan)
+        if (activeShape) {
+            // SİHİR BURADA: PC'de de şekli ZORLA seçili hale getir ki yeşil/pembe butonlar çizilsin!
+            window.selectedItem = activeShape; 
+            
+            const s = activeShape;
             window.active3DSliderStroke = s;
             
+            // Sürgü Gösterimi (Kürede Gizle)
             if (slider) {
                 if (s.shapeType === '3d_kure') {
-                    slider.style.display = 'none'; // Kürenin açınımı yoktur, gizle!
+                    slider.style.display = 'none'; 
                 } else {
                     slider.style.display = 'flex';
                     let leftPosition = s.x + s.width + 20;
@@ -6683,6 +6702,8 @@ window.addEventListener('load', () => {
                     slider.style.top = (s.y + s.height - 20) + 'px';
                 }
             }
+            
+            // Sarı Formül Kutusu Gösterimi
             if (info) {
                 info.style.display = 'block';
                 info.innerText = window.ThreeDTool ? window.ThreeDTool.getFormulas(s) : "";
@@ -6692,15 +6713,28 @@ window.addEventListener('load', () => {
                 info.style.left = (s.x + s.width + 20) + 'px';
                 info.style.top = (s.y + 20) + 'px';
             }
+            
             const sInput = document.getElementById('shape-slider');
-            if (sInput && document.activeElement !== sInput) sInput.value = (s.openRatio || 0) * 100;
+            if (sInput && document.activeElement !== sInput) {
+                sInput.value = (s.openRatio || 0) * 100;
+            }
+            
         } else {
+            // Şekil seçili değilse her şeyi iki tarafta da gizle
             if (slider) slider.style.display = 'none';
             if (info) info.style.display = 'none';
             window.active3DSliderStroke = null;
+            
+            // PC'de de seçimi zorla temizle (Normal dörtgenler bozulmasın diye sadece 3D şekilse temizler)
+            if (window.selectedItem && window.selectedItem.type === '3d_shape') {
+                window.selectedItem = null;
+            }
         }
+        
         requestAnimationFrame(uiMotor);
     };
+    
+    // Motoru Başlat
     requestAnimationFrame(uiMotor);
 });
 
