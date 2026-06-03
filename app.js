@@ -2690,6 +2690,28 @@ if (currentTool === 'lasso') {
     const snapPos = snapTarget || pos;
     currentMousePos = pos; // Mobil için konum bilgisini güncelle
 
+// --- 🚨 KÖPRÜ 1: 3D MOTORUNA DEVRET ---
+    if (window.Scene3D && window.Scene3D.isInit) {
+        if (window.currentTool === 'move' || window.currentTool === 'select') {
+            const is3DHit = window.Scene3D.onDown(pos.x, pos.y);
+            if (is3DHit) return; 
+        }
+        else if (window.active3DShapeTool || window.currentTool === 'sphere' || (window.currentTool && (window.currentTool.startsWith('prism') || window.currentTool.startsWith('pyramid')))) {
+            let toolName = window.currentTool || 'sphere';
+            if (window.active3DShapeTool) {
+                if (window.active3DShapeTool.includes('kure')) toolName = 'sphere';
+                else if (window.active3DShapeTool.includes('kup')) toolName = 'prism_cube';
+                else if (window.active3DShapeTool.includes('silindir')) toolName = 'prism_cylinder';
+                else if (window.active3DShapeTool.includes('koni')) toolName = 'pyramid_cone';
+                else toolName = 'prism_rect'; 
+            }
+            window.Scene3D.setTool(toolName);
+            window.Scene3D.onDown(pos.x, pos.y);
+            return;
+        }
+    }
+
+
     // --- AVUÇ İÇİ REDDİ (PALM REJECTION) KONTROLÜ ---
     const currentPointer = getPointerInfo(e);
     
@@ -2705,6 +2727,26 @@ if (currentTool === 'lasso') {
     }
     // -----------------------------------------------
 
+    // --- 🚨 KÖPRÜ 1: 3D MOTORUNA DEVRET ---
+    if (window.Scene3D && window.Scene3D.isInit) {
+        if (window.currentTool === 'move' || window.currentTool === 'select') {
+            const is3DHit = window.Scene3D.onDown(pos.x, pos.y);
+            if (is3DHit) { return; } 
+        }
+        else if (window.active3DShapeTool || window.currentTool === 'sphere' || (window.currentTool && (window.currentTool.startsWith('prism') || window.currentTool.startsWith('pyramid')))) {
+            let toolName = window.currentTool || 'sphere';
+            if (window.active3DShapeTool) {
+                if (window.active3DShapeTool.includes('kure')) toolName = 'sphere';
+                else if (window.active3DShapeTool.includes('kup')) toolName = 'prism_cube';
+                else if (window.active3DShapeTool.includes('silindir')) toolName = 'prism_cylinder';
+                else if (window.active3DShapeTool.includes('koni')) toolName = 'pyramid_cone';
+                else toolName = 'prism_rect'; 
+            }
+            window.Scene3D.setTool(toolName);
+            window.Scene3D.onDown(pos.x, pos.y);
+            return;
+        }
+    }
 
     // --- 1. FİZİKSEL ARAÇ KONTROLÜ ---
     const isToolElementClicked = e.target.closest('.ruler-container, .gonye-container, .aciolcer-container, #compass-container');
@@ -2996,6 +3038,25 @@ canvas.addEventListener('pointermove', (e) => {
 
     const pos = getPointerPos(e); 
     currentMousePos = pos;
+
+    // --- 🚨 KÖPRÜ 2: 3D HAREKETİ (SÜRÜKLEME/DÖNDÜRME) ---
+    if (window.Scene3D && window.Scene3D.isInit) {
+        if (window.Scene3D.isDragging || window.Scene3D.isDrawing || window.Scene3D.isRotatingShape) {
+            window.Scene3D.onMove(pos.x, pos.y);
+            return;
+        }
+    }
+
+    // --- KESİLEN PARÇA İÇİN DÖNDÜRME VE BOYUTLANDIRMA ---
+
+// --- 🚨 KÖPRÜ 2: 3D HAREKETİ (SÜRÜKLEME/DÖNDÜRME) ---
+    if (window.Scene3D && window.Scene3D.isInit) {
+        if (window.Scene3D.isDragging || window.Scene3D.isDrawing || window.Scene3D.isRotatingShape) {
+            window.Scene3D.onMove(pos.x, pos.y);
+            return;
+        }
+    }
+
 
     // --- KESİLEN PARÇA İÇİN DÖNDÜRME VE BOYUTLANDIRMA ---
     if (window.isImageRotating && selectedItem) {
@@ -3483,6 +3544,49 @@ canvas.addEventListener('pointerup', (e) => {
 
     // KRİTİK: Son kararlı konumu al
     const finalPos = snapTarget || currentMousePos;
+
+    // --- 🚨 KÖPRÜ 3: 3D İŞLEMİNİ BİTİR VE SAHNEYE KOY ---
+    if (window.Scene3D && window.Scene3D.isInit) {
+        if (window.Scene3D.isDragging || window.Scene3D.isDrawing || window.Scene3D.isRotatingShape) {
+            const wasDrawing = window.Scene3D.isDrawing; 
+            window.Scene3D.onUp(); 
+            
+            if (wasDrawing) {
+                window.active3DShapeTool = null; 
+                const mainBtn = document.getElementById('btn-3d-menu'); 
+                if (mainBtn) mainBtn.classList.remove('active');
+                
+                if (typeof setActiveTool === 'function') setActiveTool('move'); 
+                else window.currentTool = 'move';
+                
+                if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'onizleme_bitir' });
+            }
+            return; 
+        }
+    }
+
+    // --- A) FİZİKSEL ARAÇLAR (CETVEL, GÖNYE, PERGEL vb.) ---
+
+// --- 🚨 KÖPRÜ 3: 3D İŞLEMİNİ BİTİR VE SAHNEYE KOY ---
+    if (window.Scene3D && window.Scene3D.isInit) {
+        if (window.Scene3D.isDragging || window.Scene3D.isDrawing || window.Scene3D.isRotatingShape) {
+            const wasDrawing = window.Scene3D.isDrawing; 
+            window.Scene3D.onUp(); 
+            
+            if (wasDrawing) {
+                window.active3DShapeTool = null; 
+                const mainBtn = document.getElementById('btn-3d-menu'); 
+                if (mainBtn) mainBtn.classList.remove('active');
+                
+                if (typeof setActiveTool === 'function') setActiveTool('move'); 
+                else window.currentTool = 'move';
+                
+                if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'onizleme_bitir' });
+            }
+            return; 
+        }
+    }
+
 
     // --- A) FİZİKSEL ARAÇLAR (CETVEL, GÖNYE, PERGEL vb.) ---
     const isPhysicalTool = ['ruler', 'gonye', 'aciolcer', 'pergel'].includes(currentTool);
@@ -6376,117 +6480,6 @@ if (smartCanvas) {
 }
 
 // ==========================================
-// --- 3D ÇİZİM SENSÖRLERİ VE EFSANEVİ AÇINIM MOTORU (ADIM 2) ---
-// ==========================================
-
-
-
-// ==========================================
-// --- 3D KUSURSUZ AĞ VE FİZİK MOTORU (V6 - HAYALET SENKRONİZASYON) ---
-// ==========================================
-
-// 0. SENSÖR VE ARAÇ TAKİBİ
-window.active3DShapeTool = null;
-document.addEventListener('click', (e) => {
-    const btn = e.target.closest('.tool-button, .tool-button-sub');
-    if (btn && !btn.hasAttribute('data-3d') && !btn.id.includes('3d-menu') && !btn.id.includes('prizmalar') && !btn.id.includes('piramitler')) {
-        window.active3DShapeTool = null;
-        const mainBtn = document.getElementById('btn-3d-menu');
-        if(mainBtn) mainBtn.classList.remove('active');
-    }
-}, true);
-
-// 1. KESİKLİ ÖNİZLEME VE SÜRÜKLEYEREK ÇİZME
-let isDrawing3DShape = false;
-let start3DPos = {x: 0, y: 0};
-const drwCanvas = document.getElementById('drawing-canvas');
-
-// ==========================================
-// --- 2D VE 3D KÖPRÜSÜ (POINTER OLAYLARI) ---
-// ==========================================
-
-drwCanvas.addEventListener('pointerdown', (e) => {
-    const rect = drwCanvas.getBoundingClientRect();
-    const startX = e.clientX - rect.left;
-    const startY = e.clientY - rect.top;
-    
-    // 🚨 KÖPRÜ 1: Eğer 3D Motor Aktifse ve 3D Şekle/Araca Dokunulduysa
-    if (window.Scene3D && window.Scene3D.isInit) {
-        
-        // 1. Durum: Taşıma (move) aracı seçiliyse ve 3D bir cisme tıklandıysa
-        if (window.currentTool === 'move' || window.currentTool === 'select') {
-            const is3DHit = window.Scene3D.onDown(startX, startY);
-            if (is3DHit) { 
-                e.preventDefault(); 
-                return; // 3D cisme tıklandı, işlemi 3D motoruna bırak!
-            }
-        }
-        // 2. Durum: Menüden 3D Çizim aracı (Küre, Prizma vb.) seçilmişse
-        else if (window.active3DShapeTool || window.currentTool === 'sphere' || (window.currentTool && (window.currentTool.startsWith('prism') || window.currentTool.startsWith('pyramid')))) {
-            
-            // TERCÜMAN: Eski Türkçe menü komutlarını yeni V3 komutlarına çevirir
-            let toolName = window.currentTool || 'sphere';
-            if (window.active3DShapeTool) {
-                if (window.active3DShapeTool.includes('kure')) toolName = 'sphere';
-                else if (window.active3DShapeTool.includes('kup')) toolName = 'prism_cube';
-                else if (window.active3DShapeTool.includes('silindir')) toolName = 'prism_cylinder';
-                else if (window.active3DShapeTool.includes('koni')) toolName = 'pyramid_cone';
-                else toolName = 'prism_rect'; 
-            }
-
-            window.Scene3D.setTool(toolName);
-            window.Scene3D.onDown(startX, startY);
-            return; // 3D Çizimi V3 başlattı, 2D'yi durdur.
-        }
-    }
-
-    // --- ESKİ 2D KODUNUZ ---
-    if (window.active3DShapeTool) {
-        isDrawing3DShape = true;
-        start3DPos = { x: startX, y: startY };
-    }
-});
-
-drwCanvas.addEventListener('pointermove', (e) => {
-    const rect = drwCanvas.getBoundingClientRect();
-    const curX = e.clientX - rect.left; 
-    const curY = e.clientY - rect.top;
-
-    // 🚨 KÖPRÜ 2: Gerçek 3D Hareketi Aktar (Sürükleme, Çizim Önizlemesi, Döndürme)
-    if (window.Scene3D && window.Scene3D.isInit) {
-        if (window.Scene3D.isDragging || window.Scene3D.isDrawing || window.Scene3D.isRotatingShape) {
-            window.Scene3D.onMove(curX, curY);
-            return; // İşlemi 3D motoru yapıyor, 2D'nin karışmasını engelle!
-        }
-    }
-});
-
-drwCanvas.addEventListener('pointerup', (e) => {
-    // 🚨 KÖPRÜ 3: Gerçek 3D İşlemini Bitir (Çizimi tamamla, dönüşü/taşımayı bırak)
-    if (window.Scene3D && window.Scene3D.isInit) {
-        if (window.Scene3D.isDragging || window.Scene3D.isDrawing || window.Scene3D.isRotatingShape) {
-            
-            const wasDrawing = window.Scene3D.isDrawing; 
-            
-            window.Scene3D.onUp(); // V3 Motoru şekli katılaştırsın
-            
-            // Eğer yeni bir 3D şekil çizdiysek aracı "Taşı"ya al
-            if (wasDrawing) {
-                window.active3DShapeTool = null; 
-                const mainBtn = document.getElementById('btn-3d-menu'); 
-                if (mainBtn) mainBtn.classList.remove('active');
-                
-                if (typeof setActiveTool === 'function') setActiveTool('move'); 
-                else window.currentTool = 'move';
-                
-                if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'onizleme_bitir' });
-            }
-            return; 
-        }
-    }
-});
-
-// ==========================================
 // --- GERÇEK 3D UZAY MOTORU (THREE.JS - V3 MİMARİSİ) ---
 // ==========================================
 
@@ -6496,21 +6489,17 @@ window.Scene3D = {
     version: "3.2 - GERÇEK 3D MOTOR",
 
     currentMesh: null, previewMesh: null, previewLine: null, helperGroup: null,
-    
-    // 🚨 TÜM THREE.JS OBJELERİ BAŞLANGIÇTA NULL
     raycaster: null, mouse: null, plane: null,
-    
     rotateHandleBtn: null, resizeHandleBtn: null,
     isRotatingHandle: false, isResizingHandle: false,
     handles: { center: {x:0, y:0} }, lastMousePos: { x: 0, y: 0 },
-    
     dragPlane: null, dragOffset: null,
     isDragging: false, isClickCandidate: false, clickStartPos: { x: 0, y: 0 }, isRotatingShape: false,
 
     init: function() {
         if (this.isInit) return;
         
-        // 🚨 AKILLI BEKLETME: THREE kütüphanesi henüz inmediyse, çökme! 0.5 saniye bekle ve tekrar dene.
+        // 🚨 AKILLI BEKLETME
         if (typeof THREE === 'undefined') {
             console.warn("Three.js kütüphanesi bekleniyor...");
             setTimeout(() => { window.Scene3D.init(); }, 500);
@@ -6519,7 +6508,6 @@ window.Scene3D = {
 
         console.log("Scene3D Başlatıldı - Versiyon:", this.version);
 
-        // Artık THREE kesin olarak var, güvenle oluşturabiliriz!
         this.raycaster = new THREE.Raycaster();
         this.mouse = new THREE.Vector2();
         this.plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
@@ -6877,6 +6865,28 @@ window.Scene3D = {
             }
             if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
         }
+    },
+
+    // YENİ EKLENEN ÇAĞIRMA FONKSİYONU
+    addShapeToScene: function(type, x, y) {
+        if (!this.isInit) this.init();
+        const size = 2; 
+        const geometry = this.createGeometry(type, size);
+        const isSphere = type === 'sphere';
+        const material = new THREE.MeshPhongMaterial({ 
+            color: 0x00ffcc, shininess: 100, specular: 0x111111, 
+            transparent: !isSphere, opacity: isSphere ? 1.0 : 0.4, 
+            depthWrite: isSphere, side: THREE.DoubleSide 
+        });
+        const solidShape = new THREE.Mesh(geometry, material);
+        solidShape.position.set(0, 0, 0);
+        const edges = new THREE.EdgesGeometry(geometry);
+        const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 });
+        solidShape.add(new THREE.LineSegments(edges, lineMat));
+        solidShape.userData = { type: type, baseSize: size, height: size * 2 };
+        this.scene.add(solidShape);
+        this.currentMesh = solidShape;
+        console.log(type + " sahneye başarıyla çağrıldı!");
     }
 };
 
@@ -6924,6 +6934,15 @@ window.addEventListener('load', () => {
                 if (typeof setActiveTool === 'function') setActiveTool(targetTool); else window.currentTool = targetTool;
                 window.active3DShapeTool = targetTool; btn3D.classList.add('active'); 
                 menu3D.classList.add('hidden'); menu3D.style.display = 'none';
+                
+                // YENİ: BUTONA TIKLANDIĞINDA ŞEKLİ SAHNEYE ÇAĞIRIR
+                let tn = targetTool.replace('draw_', '');
+                if (tn === '3d_kure') tn = 'sphere';
+                else if (tn === '3d_kup') tn = 'prism_cube';
+                else if (tn === '3d_silindir') tn = 'prism_cylinder';
+                else if (tn === '3d_koni') tn = 'pyramid_cone';
+                else tn = 'prism_rect'; 
+                if (window.Scene3D) window.Scene3D.addShapeToScene(tn, 0, 0);
             });
         });
     }
@@ -6965,3 +6984,5 @@ window.addEventListener('load', () => {
     };
     requestAnimationFrame(uiMotor);
 });
+
+
