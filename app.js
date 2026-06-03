@@ -6928,21 +6928,12 @@ window.addEventListener('load', () => {
         document.getElementById('btn-prizmalar').addEventListener('mouseenter', () => { menuPrizmalar.classList.remove('hidden'); menuPrizmalar.style.display = 'flex'; menuPiramitler.classList.add('hidden'); menuPiramitler.style.display = 'none'; });
         document.getElementById('btn-piramitler').addEventListener('mouseenter', () => { menuPiramitler.classList.remove('hidden'); menuPiramitler.style.display = 'flex'; menuPrizmalar.classList.add('hidden'); menuPrizmalar.style.display = 'none'; });
         
-        document.querySelectorAll('#options-3d-main button[data-3d]').forEach(b => {
+       document.querySelectorAll('#options-3d-main button[data-3d]').forEach(b => {
             b.addEventListener('click', (e) => {
                 e.stopPropagation(); const targetTool = 'draw_' + b.getAttribute('data-3d');
                 if (typeof setActiveTool === 'function') setActiveTool(targetTool); else window.currentTool = targetTool;
                 window.active3DShapeTool = targetTool; btn3D.classList.add('active'); 
                 menu3D.classList.add('hidden'); menu3D.style.display = 'none';
-                
-                // YENİ: BUTONA TIKLANDIĞINDA ŞEKLİ SAHNEYE ÇAĞIRIR
-                let tn = targetTool.replace('draw_', '');
-                if (tn === '3d_kure') tn = 'sphere';
-                else if (tn === '3d_kup') tn = 'prism_cube';
-                else if (tn === '3d_silindir') tn = 'prism_cylinder';
-                else if (tn === '3d_koni') tn = 'pyramid_cone';
-                else tn = 'prism_rect'; 
-                if (window.Scene3D) window.Scene3D.addShapeToScene(tn, 0, 0);
             });
         });
     }
@@ -6985,4 +6976,11 @@ window.addEventListener('load', () => {
     requestAnimationFrame(uiMotor);
 });
 
-
+// AÇILIŞTA ÇİZGİ MENÜSÜNÜ ZORLA KAPAT
+window.addEventListener('load', () => {
+    const lineOptions = document.getElementById('line-options') || document.querySelector('.line-options');
+    if (lineOptions) {
+        lineOptions.classList.add('hidden');
+        lineOptions.style.display = 'none';
+    }
+});
