@@ -6468,7 +6468,7 @@ if (smartCanvas) {
 
 window.Scene3D = {
     container: null, scene: null, camera: null, renderer: null, labelElement: null,
-    isInit: false, activeTool: 'none', version: "3.3 - FİNAL KALİBRASYON",
+    isInit: false, activeTool: 'none', version: "3.4 - KUSURSUZ ÇİZİM",
 
     currentMesh: null, previewMesh: null, previewLine: null, helperGroup: null,
     raycaster: null, mouse: null, plane: null,
@@ -6499,7 +6499,13 @@ window.Scene3D = {
         this.renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.domElement.style.pointerEvents = 'none';
-        if(this.container) this.container.appendChild(this.renderer.domElement);
+        
+        if(this.container) {
+            this.container.appendChild(this.renderer.domElement);
+            // 🚨 GÜVENLİK 1: Başlangıçta tahtayı zorla görünür yap!
+            this.container.style.display = 'block';
+            this.container.classList.remove('hidden');
+        }
         
         this.scene.add(new THREE.AmbientLight(0xffffff, 0.6));
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -6509,7 +6515,6 @@ window.Scene3D = {
         this.helperGroup = new THREE.Group();
         this.scene.add(this.helperGroup);
 
-        // 🚨 DÜZELTME 1: Butonların Tasarımı ve Oluşturulması
         const styleBtn = (btn, isRotate) => {
             btn.style.position = 'absolute'; btn.style.width = '45px'; btn.style.height = '45px';
             btn.style.borderRadius = '50%'; btn.style.backgroundColor = isRotate ? '#ff007f' : '#00ffcc';
@@ -6562,7 +6567,6 @@ window.Scene3D = {
         this.animate();
     },
 
-    // 🚨 DÜZELTME 2: Butonların Şekli Takip Etmesi
     updateHandlePositions: function() {
         if (!this.currentMesh || window.currentTool !== 'move') {
             if(this.rotateHandleBtn) this.rotateHandleBtn.style.display = 'none';
@@ -6590,7 +6594,7 @@ window.Scene3D = {
         if (this.scene && this.renderer && this.camera) this.renderer.render(this.scene, this.camera);
     },
 
-    // 🚨 DÜZELTME 3: Çift Çıkarma Hatası İptal Edildi (Taşıma artık kusursuz)
+    // 🚨 GÜVENLİK 2: Konteyner gizli bile olsa ekranı tam ölç, çökmeyi engelle!
     getNormalizedCoords: function(x, y) {
         return {
             x: (x / window.innerWidth) * 2 - 1,
@@ -6627,6 +6631,13 @@ window.Scene3D = {
 
     onDown: function(x, y) {
         if (!this.isInit) return false;
+
+        // 🚨 GÜVENLİK 3: Çizime başlamadan önce görünürlüğü tekrar teyit et!
+        if (this.container) {
+            this.container.style.display = 'block';
+            this.container.classList.remove('hidden');
+        }
+
         if (this.isRotatingHandle || this.isResizingHandle) return true;
         
         this.raycaster.setFromCamera(this.getNormalizedCoords(x, y), this.camera);
@@ -6648,9 +6659,10 @@ window.Scene3D = {
             return true;
         }
 
-        if (this.activeTool && this.activeTool !== 'move') {
+        if (this.activeTool && this.activeTool !== 'none' && this.activeTool !== 'move') {
             this.isDrawing = true;
-            this.startPoint = this.get3DPointOnFloor(x, y);
+            this.startPoint = this.get3DPointOnFloor(x, y) || new THREE.Vector3(0,0,0);
+            
             const previewGeo = this.createGeometry(this.activeTool, 0.1);
             if(this.activeTool.startsWith('prism') || this.activeTool.startsWith('pyramid')) previewGeo.rotateX(Math.PI / 2);
             this.previewMesh = new THREE.Mesh(previewGeo, new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true, transparent: true, opacity: 0.5 }));
@@ -6682,7 +6694,9 @@ window.Scene3D = {
             return;
         }
         if (this.isDrawing && this.startPoint && this.previewMesh) {
-            const distance = this.get3DPointOnFloor(x, y).distanceTo(this.startPoint);
+            const currentPoint = this.get3DPointOnFloor(x, y);
+            if (!currentPoint) return;
+            const distance = currentPoint.distanceTo(this.startPoint);
             const scale = Math.max(0.1, distance * 3.5);
             this.previewMesh.scale.set(scale, scale, scale);
             return;
@@ -6694,7 +6708,6 @@ window.Scene3D = {
                 this.currentMesh.position.addVectors(intersectPoint, this.dragOffset);
                 this.updateHandlePositions();
                 
-                // 🚨 DÜZELTME 4 (A): Taşıma Sırasında PC'ye Canlı Veri Gönder
                 if (this.currentMesh.userData.strokeData && typeof window.sendNetworkData === 'function') {
                     window.sendNetworkData({ type: 'cizim_tasi', strokeId: this.currentMesh.userData.strokeData.id, x: x, y: y });
                 }
@@ -6731,7 +6744,6 @@ window.Scene3D = {
             this.currentMesh = solidShape;
             this.updateHandlePositions();
 
-            // 🚨 Çizim Bittiğinde PC'nin Anlayacağı Formatta Ağa Gönder
             const networkData = {
                 type: '3d_shape', id: Date.now().toString(), shapeType: this.activeTool,
                 x: window.innerWidth/2, y: window.innerHeight/2, width: finalRadius * 30, height: finalRadius * 30,
@@ -6742,12 +6754,17 @@ window.Scene3D = {
             if(window.drawnStrokes) window.drawnStrokes.push(networkData);
             if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'yeni_cizim', stroke: networkData });
         }
-    }, // 🚨 BU VİRGÜL ÇOK ÖNEMLİ!
+    },
 
     setTool: function(toolName) {
         if (!this.isInit) this.init();
         this.activeTool = toolName;
-    }, // 🚨 BU VİRGÜL DE ÖNEMLİ!
+        // 🚨 GÜVENLİK 4: Araç seçildiğinde de konteynerı zorla göster!
+        if (this.container) {
+            this.container.style.display = 'block';
+            this.container.classList.remove('hidden');
+        }
+    },
 
     deleteObjectAt: function(x, y) {
         if (!this.isInit || !this.scene) return false;
@@ -6763,8 +6780,6 @@ window.Scene3D = {
             let targetObj = hit.object;
             while (targetObj.parent && targetObj.parent !== this.scene) { targetObj = targetObj.parent; }
             if (this.scene.children.includes(targetObj)) {
-                
-                // Silinen objeyi PC ağ listesinden de çıkar (Tam Senkronizasyon)
                 if (targetObj.userData && targetObj.userData.strokeData) {
                     if (window.drawnStrokes) {
                         window.drawnStrokes = window.drawnStrokes.filter(s => s.id !== targetObj.userData.strokeData.id);
@@ -6773,7 +6788,6 @@ window.Scene3D = {
                         window.sendNetworkData({ type: 'cizim_sil', strokeId: targetObj.userData.strokeData.id });
                     }
                 }
-
                 if (targetObj.userData.labelElement) targetObj.userData.labelElement.remove();
                 this.scene.remove(targetObj);
                 if (this.currentMesh === targetObj) this.currentMesh = null;
@@ -6788,7 +6802,7 @@ window.Scene3D = {
         if (this.deleteObjectAt(pos.x, pos.y)) {
             if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
         }
-    }, // 🚨 VİRGÜL!
+    }, // 🚨 İŞTE BİZİM EKSİK OLAN HAYATİ VİRGÜL BURADA!
 
     addShapeToScene: function(type, x, y) {
         if (!this.isInit) this.init();
@@ -6806,7 +6820,6 @@ window.Scene3D = {
         const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 });
         solidShape.add(new THREE.LineSegments(edges, lineMat));
         
-        // PC'ye (Ağa) gidecek veriyi de oluştur
         const networkData = {
             type: '3d_shape', id: Date.now().toString(), shapeType: type,
             x: window.innerWidth/2, y: window.innerHeight/2, width: size * 30, height: size * 30,
