@@ -2640,10 +2640,6 @@ if (animateButton) {
 }
 
 
-// --- MOUSE OLAYLARI ---
-
-
-// Mevcut pointerdown dinleyicisinin en başına (yaklaşık 5100. satırlar civarı)
 canvas.addEventListener('pointerdown', (e) => {
 
     // 🚨 SİHİRLİ DOKUNUŞ 1: Ne olursa olsun ÖNCE tarayıcının yerleşik kaydırmasını (titremeyi) kilitliyoruz!
@@ -2672,16 +2668,17 @@ canvas.addEventListener('pointerdown', (e) => {
         lastDist = 0;
     }
 
-if (currentTool === 'lasso') {
-    const pos = getPointerPos(e); 
-    window.isDraggingLassoPoint = true; // Sürükleme ve nişan alma başladı
-    currentMousePos = pos;
-    window.lassoIsClosing = false;
+    if (currentTool === 'lasso') {
+        const pos = getPointerPos(e); 
+        window.isDraggingLassoPoint = true; // Sürükleme ve nişan alma başladı
+        currentMousePos = pos;
+        window.lassoIsClosing = false;
+        
+        redrawAllStrokes();
+        return; 
+    }
     
-    redrawAllStrokes();
-    return; 
-}
- // --- BUNU EKLE: Parmağı ekrana değdiği an kaydet ---
+    // --- BUNU EKLE: Parmağı ekrana değdiği an kaydet ---
     pointers.set(e.pointerId, e); 
     // ------------------------------------------------
 
@@ -2689,27 +2686,6 @@ if (currentTool === 'lasso') {
     const pos = getPointerPos(e); 
     const snapPos = snapTarget || pos;
     currentMousePos = pos; // Mobil için konum bilgisini güncelle
-
-// --- 🚨 KÖPRÜ 1: 3D MOTORUNA DEVRET ---
-    if (window.Scene3D && window.Scene3D.isInit) {
-        if (window.currentTool === 'move' || window.currentTool === 'select') {
-            const is3DHit = window.Scene3D.onDown(pos.x, pos.y);
-            if (is3DHit) return; 
-        }
-        else if (window.active3DShapeTool || window.currentTool === 'sphere' || (window.currentTool && (window.currentTool.startsWith('prism') || window.currentTool.startsWith('pyramid')))) {
-            let toolName = window.currentTool || 'sphere';
-            if (window.active3DShapeTool) {
-                if (window.active3DShapeTool.includes('kure')) toolName = 'sphere';
-                else if (window.active3DShapeTool.includes('kup')) toolName = 'prism_cube';
-                else if (window.active3DShapeTool.includes('silindir')) toolName = 'prism_cylinder';
-                else if (window.active3DShapeTool.includes('koni')) toolName = 'pyramid_cone';
-                else toolName = 'prism_rect'; 
-            }
-            window.Scene3D.setTool(toolName);
-            window.Scene3D.onDown(pos.x, pos.y);
-            return;
-        }
-    }
 
 
     // --- AVUÇ İÇİ REDDİ (PALM REJECTION) KONTROLÜ ---
@@ -2734,12 +2710,23 @@ if (currentTool === 'lasso') {
             if (is3DHit) { return; } 
         }
         else if (window.active3DShapeTool || window.currentTool === 'sphere' || (window.currentTool && (window.currentTool.startsWith('prism') || window.currentTool.startsWith('pyramid')))) {
+            
+            // YENİ TERCÜMAN: Tüm şekilleri eksiksiz çevirir
             let toolName = window.currentTool || 'sphere';
             if (window.active3DShapeTool) {
-                if (window.active3DShapeTool.includes('kure')) toolName = 'sphere';
-                else if (window.active3DShapeTool.includes('kup')) toolName = 'prism_cube';
-                else if (window.active3DShapeTool.includes('silindir')) toolName = 'prism_cylinder';
-                else if (window.active3DShapeTool.includes('koni')) toolName = 'pyramid_cone';
+                const t = window.active3DShapeTool;
+                if (t.includes('kure')) toolName = 'sphere';
+                else if (t.includes('kup')) toolName = 'prism_cube';
+                else if (t.includes('silindir')) toolName = 'prism_cylinder';
+                else if (t.includes('koni')) toolName = 'pyramid_cone';
+                else if (t.includes('ucgen_prizma')) toolName = 'prism_3';
+                else if (t.includes('dortgen_prizma')) toolName = 'prism_4';
+                else if (t.includes('besgen_prizma')) toolName = 'prism_5';
+                else if (t.includes('altigen_prizma')) toolName = 'prism_6';
+                else if (t.includes('ucgen_piramit')) toolName = 'pyramid_3';
+                else if (t.includes('kare_piramit')) toolName = 'pyramid_4';
+                else if (t.includes('besgen_piramit')) toolName = 'pyramid_5';
+                else if (t.includes('altigen_piramit')) toolName = 'pyramid_6';
                 else toolName = 'prism_rect'; 
             }
             window.Scene3D.setTool(toolName);
@@ -2750,10 +2737,10 @@ if (currentTool === 'lasso') {
 
     // --- 1. FİZİKSEL ARAÇ KONTROLÜ ---
     const isToolElementClicked = e.target.closest('.ruler-container, .gonye-container, .aciolcer-container, #compass-container');
-// Herhangi bir araç değiştiğinde (Kalem, Taşı vb.) silgiyi gizle
-if (typeof eraserPreview !== 'undefined' && eraserPreview) {
-    eraserPreview.style.display = 'none';
-}
+    // Herhangi bir araç değiştiğinde (Kalem, Taşı vb.) silgiyi gizle
+    if (typeof eraserPreview !== 'undefined' && eraserPreview) {
+        eraserPreview.style.display = 'none';
+    }
     if (isToolElementClicked) { 
         isDrawingLine = isDrawingInfinityLine = isDrawingSegment = isDrawingRay = false;
         lineStartPoint = null;
@@ -2791,7 +2778,7 @@ if (typeof eraserPreview !== 'undefined' && eraserPreview) {
             selectedPointKey = hit.pointKey; 
             dragStartPos = pos; 
 
-// YAMA: PC'ye Hangi Nesnenin Seçildiğini Bildir (Yan Butonlar Çıksın)
+    // YAMA: PC'ye Hangi Nesnenin Seçildiğini Bildir (Yan Butonlar Çıksın)
     if (typeof isConnected !== 'undefined' && isConnected) {
         window.sendNetworkData({ type: 'secimi_senkronize_et', strokeId: selectedItem.id });
     }
@@ -2840,7 +2827,7 @@ if (typeof eraserPreview !== 'undefined' && eraserPreview) {
             }
             selectedItem = null;
 
-// YAMA: PC'de Seçimi İptal Et (Yan Butonları Kapat)
+    // YAMA: PC'de Seçimi İptal Et (Yan Butonları Kapat)
     if (typeof isConnected !== 'undefined' && isConnected) {
         window.sendNetworkData({ type: 'secimi_kaldir' });
     }
@@ -6479,14 +6466,9 @@ if (smartCanvas) {
     }, { passive: false });
 }
 
-// ==========================================
-// --- GERÇEK 3D UZAY MOTORU (THREE.JS - V3 MİMARİSİ) ---
-// ==========================================
-
 window.Scene3D = {
     container: null, scene: null, camera: null, renderer: null, labelElement: null,
-    isInit: false, activeTool: 'none',
-    version: "3.2 - GERÇEK 3D MOTOR",
+    isInit: false, activeTool: 'none', version: "3.3 - FİNAL KALİBRASYON",
 
     currentMesh: null, previewMesh: null, previewLine: null, helperGroup: null,
     raycaster: null, mouse: null, plane: null,
@@ -6498,15 +6480,7 @@ window.Scene3D = {
 
     init: function() {
         if (this.isInit) return;
-        
-        // 🚨 AKILLI BEKLETME
-        if (typeof THREE === 'undefined') {
-            console.warn("Three.js kütüphanesi bekleniyor...");
-            setTimeout(() => { window.Scene3D.init(); }, 500);
-            return;
-        }
-
-        console.log("Scene3D Başlatıldı - Versiyon:", this.version);
+        if (typeof THREE === 'undefined') { setTimeout(() => { window.Scene3D.init(); }, 500); return; }
 
         this.raycaster = new THREE.Raycaster();
         this.mouse = new THREE.Vector2();
@@ -6515,8 +6489,6 @@ window.Scene3D = {
         this.dragOffset = new THREE.Vector3();
 
         this.container = document.getElementById('three-container');
-        this.labelElement = document.getElementById('label-3d');
-        
         this.scene = new THREE.Scene();
         
         this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -6527,11 +6499,9 @@ window.Scene3D = {
         this.renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.domElement.style.pointerEvents = 'none';
-        
         if(this.container) this.container.appendChild(this.renderer.domElement);
         
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-        this.scene.add(ambientLight);
+        this.scene.add(new THREE.AmbientLight(0xffffff, 0.6));
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
         dirLight.position.set(10, -10, 20);
         this.scene.add(dirLight);
@@ -6539,30 +6509,37 @@ window.Scene3D = {
         this.helperGroup = new THREE.Group();
         this.scene.add(this.helperGroup);
 
-        this.previewLabel = document.createElement('div');
-        this.previewLabel.className = 'preview-3d-label';
-        document.body.appendChild(this.previewLabel);
-
-        window.mainScene = this.scene;
-        window.mainCamera = this.camera;
-        window.mainRenderer = this.renderer;
-        window.activeObject = this.currentMesh;
+        // 🚨 DÜZELTME 1: Butonların Tasarımı ve Oluşturulması
+        const styleBtn = (btn, isRotate) => {
+            btn.style.position = 'absolute'; btn.style.width = '45px'; btn.style.height = '45px';
+            btn.style.borderRadius = '50%'; btn.style.backgroundColor = isRotate ? '#ff007f' : '#00ffcc';
+            btn.style.color = 'white'; btn.style.fontSize = '22px';
+            btn.style.display = 'none'; btn.style.justifyContent = 'center'; btn.style.alignItems = 'center';
+            btn.style.cursor = 'pointer'; btn.style.zIndex = '1000';
+            btn.style.boxShadow = '0 4px 10px rgba(0,0,0,0.5)';
+            btn.innerHTML = isRotate ? '🔄' : '↔';
+        };
 
         this.rotateHandleBtn = document.createElement('div');
-        this.rotateHandleBtn.className = 'handle-3d handle-3d-rotate';
+        styleBtn(this.rotateHandleBtn, true);
         document.body.appendChild(this.rotateHandleBtn);
 
         this.resizeHandleBtn = document.createElement('div');
-        this.resizeHandleBtn.className = 'handle-3d handle-3d-resize';
+        styleBtn(this.resizeHandleBtn, false);
         document.body.appendChild(this.resizeHandleBtn);
 
         const startInteract = (action, e) => {
             if (e && e.cancelable) e.preventDefault();
             if (e) e.stopPropagation();
             this[action] = true;
-            if(e.touches) this.lastMousePos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-            else this.lastMousePos = { x: e.clientX, y: e.clientY };
-            document.body.style.userSelect = 'none';
+            const px = e.touches ? e.touches[0].clientX : e.clientX;
+            const py = e.touches ? e.touches[0].clientY : e.clientY;
+            this.lastMousePos = { x: px, y: py };
+            
+            if (action === 'isResizingHandle' && this.currentMesh) {
+                this.startScale = this.currentMesh.scale.x;
+                this.startResizeDist = Math.hypot(px - this.handles.center.x, py - this.handles.center.y) || 1;
+            }
         };
 
         ['mousedown', 'touchstart'].forEach(evt => {
@@ -6573,62 +6550,64 @@ window.Scene3D = {
         window.addEventListener('touchmove', (e) => {
             if (this.isRotatingHandle || this.isResizingHandle) {
                 e.preventDefault();
-                const evt = e.touches[0];
-                this.onMove(evt.clientX, evt.clientY);
+                const px = e.touches ? e.touches[0].clientX : e.clientX;
+                const py = e.touches ? e.touches[0].clientY : e.clientY;
+                this.onMove(px, py);
             }
         }, { passive: false });
 
-        window.addEventListener('touchend', (e) => {
-            if (this.isRotatingHandle || this.isResizingHandle) this.onUp();
-        });
+        window.addEventListener('touchend', () => { if (this.isRotatingHandle || this.isResizingHandle) this.onUp(); });
 
         this.isInit = true;
         this.animate();
     },
 
-    animate: function() {
-        requestAnimationFrame(() => window.Scene3D.animate());
-        const self = window.Scene3D;
-        if (self.scene && self.renderer && self.camera) {
-            self.renderer.render(self.scene, self.camera);
-            if(self.currentMesh) {
-                if(self.currentMesh.userData.labelElement && typeof self.updateLabelPosition === 'function') {
-                    self.updateLabelPosition(self.currentMesh);
-                }
-                if (typeof self.updateHandlePositions === 'function') { self.updateHandlePositions(); }
-                if (self.currentMesh.userData.type === 'prism_rect' && self.currentMesh.userData.isInfoVisible && typeof self.updateRectPrismLabels === 'function') {
-                    self.updateRectPrismLabels(self.currentMesh);
-                }
-            }
-            if (self.isDrawing && self.previewMesh && self.activeTool === 'prism_rect' && typeof self.updateRectPrismLabels === 'function') {
-                self.updateRectPrismLabels(self.previewMesh);
-            }
+    // 🚨 DÜZELTME 2: Butonların Şekli Takip Etmesi
+    updateHandlePositions: function() {
+        if (!this.currentMesh || window.currentTool !== 'move') {
+            if(this.rotateHandleBtn) this.rotateHandleBtn.style.display = 'none';
+            if(this.resizeHandleBtn) this.resizeHandleBtn.style.display = 'none';
+            return;
         }
+        const vec = this.currentMesh.position.clone();
+        vec.project(this.camera);
+        const w = window.innerWidth / 2, h = window.innerHeight / 2;
+        const px = (vec.x * w) + w, py = -(vec.y * h) + h;
+        
+        this.handles.center = { x: px, y: py };
+        
+        this.rotateHandleBtn.style.display = 'flex';
+        this.rotateHandleBtn.style.left = (px + 30) + 'px';
+        this.rotateHandleBtn.style.top = (py - 60) + 'px';
+        
+        this.resizeHandleBtn.style.display = 'flex';
+        this.resizeHandleBtn.style.left = (px - 70) + 'px';
+        this.resizeHandleBtn.style.top = (py + 30) + 'px';
     },
 
-    getNormalizedCoords: function(clientX, clientY) {
-        if (!this.renderer || !this.renderer.domElement) return { x: 0, y: 0 };
-        const rect = this.renderer.domElement.getBoundingClientRect();
+    animate: function() {
+        requestAnimationFrame(() => window.Scene3D.animate());
+        if (this.scene && this.renderer && this.camera) this.renderer.render(this.scene, this.camera);
+    },
+
+    // 🚨 DÜZELTME 3: Çift Çıkarma Hatası İptal Edildi (Taşıma artık kusursuz)
+    getNormalizedCoords: function(x, y) {
         return {
-            x: ((clientX - rect.left) / rect.width) * 2 - 1,
-            y: -((clientY - rect.top) / rect.height) * 2 + 1
+            x: (x / window.innerWidth) * 2 - 1,
+            y: -(y / window.innerHeight) * 2 + 1
         };
     },
 
-    get3DPointOnFloor: function(clientX, clientY) {
+    get3DPointOnFloor: function(x, y) {
         if (!this.raycaster || !this.camera) return new THREE.Vector3(0,0,0);
-        const coords = this.getNormalizedCoords(clientX, clientY);
-        this.raycaster.setFromCamera(coords, this.camera);
+        this.raycaster.setFromCamera(this.getNormalizedCoords(x, y), this.camera);
         const intersection = new THREE.Vector3();
-        const result = this.raycaster.ray.intersectPlane(this.plane, intersection);
-        return result ? intersection : null;
+        return this.raycaster.ray.intersectPlane(this.plane, intersection) ? intersection : null;
     },
 
     createGeometry: function(type, size) {
         const height = size * 2; 
-        if (typeof THREE === 'undefined') return null;
         switch (type) {
-            case 'pyramid_cone': return new THREE.ConeGeometry(size, height, 32);
             case 'sphere': return new THREE.SphereGeometry(size, 32, 32);
             case 'prism_cube': return new THREE.BoxGeometry(size * 2, size * 2, size * 2);
             case 'prism_cylinder': return new THREE.CylinderGeometry(size, size, height, 32);
@@ -6637,10 +6616,9 @@ window.Scene3D = {
             case 'prism_rect': return new THREE.BoxGeometry(size * 1.5, size, height); 
             case 'prism_5': return new THREE.CylinderGeometry(size, size, height, 5); 
             case 'prism_6': return new THREE.CylinderGeometry(size, size, height, 6); 
+            case 'pyramid_cone': return new THREE.ConeGeometry(size, height, 32);
             case 'pyramid_3': return new THREE.ConeGeometry(size, height, 3);
             case 'pyramid_4': return new THREE.ConeGeometry(size, height, 4); 
-            case 'pyramid_4_duz': return new THREE.ConeGeometry(size, size * Math.sqrt(2), 3); 
-            case 'pyramid_rect': return new THREE.ConeGeometry(size, height, 4); 
             case 'pyramid_5': return new THREE.ConeGeometry(size, height, 5);
             case 'pyramid_6': return new THREE.ConeGeometry(size, height, 6);
             default: return new THREE.SphereGeometry(size, 32, 32);
@@ -6650,187 +6628,130 @@ window.Scene3D = {
     onDown: function(x, y) {
         if (!this.isInit) return false;
         if (this.isRotatingHandle || this.isResizingHandle) return true;
-        const coords = this.getNormalizedCoords(x, y);
-        this.raycaster.setFromCamera(coords, this.camera);
+        
+        this.raycaster.setFromCamera(this.getNormalizedCoords(x, y), this.camera);
         const intersects = this.raycaster.intersectObjects(this.scene.children, true);
-        let foundMesh = null;
-        for (let i = 0; i < intersects.length; i++) {
-            const obj = intersects[i].object;
-            if (obj.type === 'Mesh' && obj !== this.helperGroup) { foundMesh = obj; break; }
-            if ((obj.type === 'Line' || obj.type === 'LineSegments') && obj.parent && obj.parent.type === 'Mesh') { foundMesh = obj.parent; break; }
-        }
+        let foundMesh = intersects.find(h => h.object.type === 'Mesh' && h.object !== this.helperGroup);
+        
         if (foundMesh) {
-            this.currentMesh = foundMesh;
+            this.currentMesh = foundMesh.object;
             this.clickStartPos = { x, y };
             if (window.currentTool === 'move') {
-                this.isRotatingShape = false; this.isDragging = true; this.isClickCandidate = true;
+                this.isRotatingShape = false; this.isDragging = true;
                 this.dragPlane.setFromNormalAndCoplanarPoint(this.camera.getWorldDirection(new THREE.Vector3()), this.currentMesh.position);
                 const intersectPoint = new THREE.Vector3();
                 if(this.raycaster.ray.intersectPlane(this.dragPlane, intersectPoint)) { this.dragOffset.subVectors(this.currentMesh.position, intersectPoint); }
             } else {
-                this.isDragging = false; this.isClickCandidate = false; this.isRotatingShape = true; this.lastMousePos = { x, y };
+                this.isDragging = false; this.isRotatingShape = true; this.lastMousePos = { x, y };
             }
-            if (typeof this.updateHandlePositions === 'function') this.updateHandlePositions();
+            this.updateHandlePositions();
             return true;
         }
-        if (this.activeTool && this.activeTool !== 'none' && this.activeTool !== 'move') {
+
+        if (this.activeTool && this.activeTool !== 'move') {
             this.isDrawing = true;
             this.startPoint = this.get3DPointOnFloor(x, y);
-            const geometry = new THREE.BufferGeometry().setFromPoints([this.startPoint, this.startPoint]);
-            const material = new THREE.LineBasicMaterial({ color: 0x00ffcc });
-            this.previewLine = new THREE.Line(geometry, material);
-            this.scene.add(this.previewLine);
             const previewGeo = this.createGeometry(this.activeTool, 0.1);
-            if(this.activeTool.startsWith('prism') || this.activeTool.startsWith('pyramid')) { previewGeo.rotateX(Math.PI / 2); }
-            const previewMat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true, transparent: true, opacity: 0.5 });
-            this.previewMesh = new THREE.Mesh(previewGeo, previewMat);
+            if(this.activeTool.startsWith('prism') || this.activeTool.startsWith('pyramid')) previewGeo.rotateX(Math.PI / 2);
+            this.previewMesh = new THREE.Mesh(previewGeo, new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true, transparent: true, opacity: 0.5 }));
             this.previewMesh.position.copy(this.startPoint);
             this.scene.add(this.previewMesh);
-            if (this.activeTool === 'prism_rect') { if(this.previewLabel) this.previewLabel.style.display = 'none'; } 
-            else { if(this.previewLabel) { this.previewLabel.style.display = 'block'; this.previewLabel.innerText = "0,0 cm"; this.previewLabel.style.left = x + 15 + 'px'; this.previewLabel.style.top = y - 25 + 'px'; } }
             return true;
         }
+        
         if (window.currentTool === 'move') {
             this.currentMesh = null;
-            this.helperGroup.clear();
-            if (this.labelElement) this.labelElement.style.display = 'none';
-            if(this.hideEdgeLabels) this.hideEdgeLabels();
-            if (typeof this.updateHandlePositions === 'function') this.updateHandlePositions();
+            this.updateHandlePositions();
         }
         return false;
     },
 
     onMove: function(x, y) {
         if (this.isRotatingHandle && this.currentMesh) {
-            const deltaX = x - this.lastMousePos.x;
-            const deltaY = y - this.lastMousePos.y;
-            const speed = 0.01;
-            this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), deltaY * speed);
-            this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), deltaX * speed);
+            this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), (y - this.lastMousePos.y) * 0.01);
+            this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), (x - this.lastMousePos.x) * 0.01);
             this.lastMousePos = { x, y };
-            if (typeof this.updateHandlePositions === 'function') this.updateHandlePositions();
-            if (this.currentMesh.userData.type === 'prism_rect' && typeof this.updateRectPrismLabels === 'function') this.updateRectPrismLabels(this.currentMesh);
+            this.updateHandlePositions();
             return;
         }
         if (this.isResizingHandle && this.currentMesh) {
-            const center = this.handles.center;
-            const currentDist = Math.hypot(x - center.x, y - center.y);
-            const scaleFactor = currentDist / this.startResizeDist;
-            const newScale = Math.max(0.1, this.startScale * scaleFactor);
+            const currentDist = Math.hypot(x - this.handles.center.x, y - this.handles.center.y);
+            const newScale = Math.max(0.1, this.startScale * (currentDist / this.startResizeDist));
             this.currentMesh.scale.set(newScale, newScale, newScale);
-            if (typeof this.updateHandlePositions === 'function') this.updateHandlePositions();
-            if (typeof this.showMeasurements === 'function') this.showMeasurements(this.currentMesh);
-            if (this.currentMesh.userData.type === 'prism_rect' && typeof this.updateRectPrismLabels === 'function') this.updateRectPrismLabels(this.currentMesh);
+            this.updateHandlePositions();
             return;
         }
         if (this.isDrawing && this.startPoint && this.previewMesh) {
-            const currentPoint = this.get3DPointOnFloor(x, y);
-            const distance = currentPoint.distanceTo(this.startPoint);
+            const distance = this.get3DPointOnFloor(x, y).distanceTo(this.startPoint);
             const scale = Math.max(0.1, distance * 3.5);
             this.previewMesh.scale.set(scale, scale, scale);
-            this.previewMesh.updateMatrixWorld();
-            const positions = this.previewLine.geometry.attributes.position.array;
-            positions[3] = currentPoint.x; positions[4] = currentPoint.y; positions[5] = currentPoint.z;
-            this.previewLine.geometry.attributes.position.needsUpdate = true;
-            if (this.activeTool === 'prism_rect' && typeof this.updateRectPrismLabels === 'function') { this.updateRectPrismLabels(this.previewMesh); } 
-            else if (this.previewLabel) {
-                const vec = this.startPoint.clone(); vec.project(this.camera);
-                const widthHalf = window.innerWidth / 2; const heightHalf = window.innerHeight / 2;
-                const startX = (vec.x * widthHalf) + widthHalf; const startY = -(vec.y * heightHalf) + heightHalf;
-                const pixelDist = Math.hypot(x - startX, y - startY); const cmVal = pixelDist / 30; 
-                let labelText = "";
-                if (this.activeTool === 'prism_cube') { const a = cmVal * 2; labelText = `a: ${a.toFixed(1).replace('.', ',')} cm`; } 
-                else if (this.activeTool === 'sphere') { labelText = `r: ${cmVal.toFixed(1).replace('.', ',')} cm`; } 
-                else { const h = cmVal * 2; const prefix = this.activeTool.includes('cylinder') ? 'r' : 'a'; labelText = `${prefix}: ${cmVal.toFixed(1).replace('.', ',')} cm\nh: ${h.toFixed(1).replace('.', ',')} cm`; }
-                this.previewLabel.innerText = labelText;
-                this.previewLabel.style.left = (x + 15) + 'px';
-                this.previewLabel.style.top = (y - 40) + 'px';
-            }
             return;
         }
         if (this.isDragging && this.currentMesh) {
-            const dist = Math.abs(x - this.clickStartPos.x) + Math.abs(y - this.clickStartPos.y);
-            if (dist > 5) { this.isClickCandidate = false; }
-            const coords = this.getNormalizedCoords(x, y);
-            this.raycaster.setFromCamera(coords, this.camera);
+            this.raycaster.setFromCamera(this.getNormalizedCoords(x, y), this.camera);
             const intersectPoint = new THREE.Vector3();
             if (this.raycaster.ray.intersectPlane(this.dragPlane, intersectPoint)) {
                 this.currentMesh.position.addVectors(intersectPoint, this.dragOffset);
-            }
-            if (typeof this.updateHandlePositions === 'function') this.updateHandlePositions();
-            if (this.currentMesh.userData.type === 'prism_rect' && this.currentMesh.userData.isInfoVisible && typeof this.updateRectPrismLabels === 'function') {
-                this.updateRectPrismLabels(this.currentMesh);
+                this.updateHandlePositions();
+                
+                // 🚨 DÜZELTME 4 (A): Taşıma Sırasında PC'ye Canlı Veri Gönder
+                if (this.currentMesh.userData.strokeData && typeof window.sendNetworkData === 'function') {
+                    window.sendNetworkData({ type: 'cizim_tasi', strokeId: this.currentMesh.userData.strokeData.id, x: x, y: y });
+                }
             }
             return; 
         } 
-        else if (this.isRotatingShape && this.currentMesh) {
-            if (window.currentTool === 'move') return;
-            const deltaX = x - this.lastMousePos.x;
-            const deltaY = y - this.lastMousePos.y;
-            const speed = 0.01;
-            this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), deltaY * speed);
-            this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), deltaX * speed);
+        if (this.isRotatingShape && this.currentMesh && window.currentTool !== 'move') {
+            this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), (y - this.lastMousePos.y) * 0.01);
+            this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), (x - this.lastMousePos.x) * 0.01);
             this.lastMousePos = { x, y };
-            if (typeof this.updateHandlePositions === 'function') this.updateHandlePositions();
-            if (this.currentMesh.userData.type === 'prism_rect' && this.currentMesh.userData.isInfoVisible && typeof this.updateRectPrismLabels === 'function') {
-                this.updateRectPrismLabels(this.currentMesh);
-            }
+            this.updateHandlePositions();
         }
     },
 
     onUp: function() {
-        const wasDragging = this.isDragging;
-        const wasClickCandidate = this.isClickCandidate;
-        const wasPreviewing = !!this.previewMesh;
-        this.isRotatingHandle = false; this.isResizingHandle = false; this.isDragging = false; this.isClickCandidate = false; this.isRotatingShape = false; this.isDrawing = false;
-        if (this.currentMesh) {
-            try {
-                const type = this.currentMesh.userData.type;
-                const isSphere = type === 'sphere';
-                if (isSphere) { this.currentMesh.material.opacity = 1.0; this.currentMesh.material.transparent = false; this.currentMesh.material.depthWrite = true; } 
-                else { this.currentMesh.material.opacity = 0.4; this.currentMesh.material.transparent = true; this.currentMesh.material.depthWrite = false; }
-                if (wasDragging && wasClickCandidate && typeof this.showMeasurements === 'function') { this.showMeasurements(this.currentMesh); }
-            } catch (err) {}
+        this.isRotatingHandle = this.isResizingHandle = this.isDragging = this.isRotatingShape = false; 
+        const wasDrawing = this.isDrawing;
+        this.isDrawing = false;
+
+        if (wasDrawing && this.previewMesh) {
+            const finalScale = this.previewMesh.scale.x || 1;
+            const finalRadius = 0.1 * finalScale;
+            this.scene.remove(this.previewMesh); this.previewMesh.geometry.dispose(); this.previewMesh = null;
+            
+            const geometry = this.createGeometry(this.activeTool, finalRadius);
+            if(this.activeTool.startsWith('prism') || this.activeTool.startsWith('pyramid')) geometry.rotateX(Math.PI / 2);
+            
+            const isSphere = this.activeTool === 'sphere';
+            const solidShape = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({ color: 0x00ffcc, shininess: 100, specular: 0x111111, transparent: !isSphere, opacity: isSphere ? 1.0 : 0.4, depthWrite: isSphere, side: THREE.DoubleSide }));
+            solidShape.position.copy(this.startPoint || new THREE.Vector3(0,0,0));
+            solidShape.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 })));
+            
+            this.scene.add(solidShape);
+            this.currentMesh = solidShape;
+            this.updateHandlePositions();
+
+            // 🚨 Çizim Bittiğinde PC'nin Anlayacağı Formatta Ağa Gönder
+            const networkData = {
+                type: '3d_shape', id: Date.now().toString(), shapeType: this.activeTool,
+                x: window.innerWidth/2, y: window.innerHeight/2, width: finalRadius * 30, height: finalRadius * 30,
+                rotation: 0, yaw: 0, pitch: 1, openRatio: 0, isPreview: false, color: '#00ffcc'
+            };
+            solidShape.userData = { type: this.activeTool, baseSize: finalRadius, height: finalRadius * 2, strokeData: networkData };
+            
+            if(window.drawnStrokes) window.drawnStrokes.push(networkData);
+            if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'yeni_cizim', stroke: networkData });
         }
-        if (wasPreviewing && this.previewMesh) {
-            try {
-                const finalScale = this.previewMesh.scale.x || 1;
-                const finalRadius = 0.1 * finalScale;
-                const toolType = this.activeTool;
-                this.scene.remove(this.previewMesh); this.scene.remove(this.previewLine);
-                this.previewMesh.geometry.dispose(); this.previewMesh = null; this.previewLine = null;
-                const geometry = this.createGeometry(toolType, finalRadius);
-                if(toolType.startsWith('prism') || toolType.startsWith('pyramid')) { geometry.rotateX(Math.PI / 2); }
-                const isSphere = toolType === 'sphere';
-                const material = new THREE.MeshPhongMaterial({ color: 0x00ffcc, shininess: 100, specular: 0x111111, flatShading: false, transparent: !isSphere, opacity: isSphere ? 1.0 : 0.4, depthWrite: isSphere, side: THREE.DoubleSide });
-                const solidShape = new THREE.Mesh(geometry, material);
-                solidShape.position.copy(this.startPoint || new THREE.Vector3(0,0,0));
-                let shapeHeight = finalRadius * 2;
-                if (toolType === 'pyramid_4_duz') { shapeHeight = finalRadius * Math.sqrt(2); }
-                solidShape.userData = { type: toolType, baseSize: finalRadius, height: shapeHeight };
-                const edges = new THREE.EdgesGeometry(geometry);
-                const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 });
-                solidShape.add(new THREE.LineSegments(edges, lineMat));
-                this.scene.add(solidShape);
-                this.currentMesh = solidShape;
-                if(window.drawnStrokes) window.drawnStrokes.push({ type: '3D_object', mesh: solidShape });
-                if (this.previewLabel) this.previewLabel.style.display = 'none';
-                if (typeof this.hideEdgeLabels === 'function') this.hideEdgeLabels();
-                if (toolType === 'prism_rect' && typeof this.updateRectPrismLabels === 'function') { solidShape.userData.isInfoVisible = true; this.updateRectPrismLabels(solidShape); try { if (typeof this.showMeasurements === 'function') this.showMeasurements(solidShape); } catch(e) {} }
-            } catch (err) {}
-        }
-    },
+    }, // 🚨 BU VİRGÜL ÇOK ÖNEMLİ!
 
     setTool: function(toolName) {
         if (!this.isInit) this.init();
         this.activeTool = toolName;
-        if (toolName !== 'none' && this.container) { this.container.classList.remove('hidden'); }
-    },
+    }, // 🚨 BU VİRGÜL DE ÖNEMLİ!
 
     deleteObjectAt: function(x, y) {
         if (!this.isInit || !this.scene) return false;
-        const coords = this.getNormalizedCoords(x, y);
-        this.raycaster.setFromCamera(coords, this.camera);
+        this.raycaster.setFromCamera(this.getNormalizedCoords(x, y), this.camera);
         const intersects = this.raycaster.intersectObjects(this.scene.children, true);
         const hit = intersects.find(h => {
             const obj = h.object;
@@ -6842,32 +6763,33 @@ window.Scene3D = {
             let targetObj = hit.object;
             while (targetObj.parent && targetObj.parent !== this.scene) { targetObj = targetObj.parent; }
             if (this.scene.children.includes(targetObj)) {
-                if (typeof this.hideEdgeLabels === 'function') this.hideEdgeLabels();
+                
+                // Silinen objeyi PC ağ listesinden de çıkar (Tam Senkronizasyon)
+                if (targetObj.userData && targetObj.userData.strokeData) {
+                    if (window.drawnStrokes) {
+                        window.drawnStrokes = window.drawnStrokes.filter(s => s.id !== targetObj.userData.strokeData.id);
+                    }
+                    if (typeof window.sendNetworkData === 'function') {
+                        window.sendNetworkData({ type: 'cizim_sil', strokeId: targetObj.userData.strokeData.id });
+                    }
+                }
+
                 if (targetObj.userData.labelElement) targetObj.userData.labelElement.remove();
                 this.scene.remove(targetObj);
                 if (this.currentMesh === targetObj) this.currentMesh = null;
+                this.updateHandlePositions();
                 return true;
             }
         }
         return false;
-    },
+    }, // 🚨 VİRGÜL!
 
     handleEraser: function(pos) {
-        if (this.deleteObjectAt && this.deleteObjectAt(pos.x, pos.y)) {
-            if (window.drawnStrokes) {
-                window.drawnStrokes = window.drawnStrokes.filter(s => {
-                    if (s.type === '3D_object') {
-                        const stillExists = this.scene.getObjectById(s.mesh.id);
-                        return !!stillExists; 
-                    }
-                    return true;
-                });
-            }
+        if (this.deleteObjectAt(pos.x, pos.y)) {
             if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
         }
-    },
+    }, // 🚨 VİRGÜL!
 
-    // YENİ EKLENEN ÇAĞIRMA FONKSİYONU
     addShapeToScene: function(type, x, y) {
         if (!this.isInit) this.init();
         const size = 2; 
@@ -6883,16 +6805,25 @@ window.Scene3D = {
         const edges = new THREE.EdgesGeometry(geometry);
         const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 });
         solidShape.add(new THREE.LineSegments(edges, lineMat));
-        solidShape.userData = { type: type, baseSize: size, height: size * 2 };
+        
+        // PC'ye (Ağa) gidecek veriyi de oluştur
+        const networkData = {
+            type: '3d_shape', id: Date.now().toString(), shapeType: type,
+            x: window.innerWidth/2, y: window.innerHeight/2, width: size * 30, height: size * 30,
+            rotation: 0, yaw: 0, pitch: 1, openRatio: 0, isPreview: false, color: '#00ffcc'
+        };
+        solidShape.userData = { type: type, baseSize: size, height: size * 2, strokeData: networkData };
+        
         this.scene.add(solidShape);
         this.currentMesh = solidShape;
+        this.updateHandlePositions();
+        
+        if(window.drawnStrokes) window.drawnStrokes.push(networkData);
+        if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'yeni_cizim', stroke: networkData });
+        
         console.log(type + " sahneye başarıyla çağrıldı!");
     }
-};
-
-window.addEventListener('load', () => {
-    window.Scene3D.init();
-});
+}; // --- GERÇEK 3D UZAY MOTORU (Scene3D) BURADA BİTİYOR ---
 
 // ==========================================
 // 4. ARAYÜZ VE MENÜ MOTORU (Özellik Kaybı Yok)
