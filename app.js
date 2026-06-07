@@ -1357,11 +1357,64 @@ function redrawAllStrokes() {
             }
         }
 
-// --- 3D HOLOGRRAM MOTORU YÖNLENDİRMESİ ---
+// --- 3D HOLOGRRAM MOTORU YÖNLENDİRMESİ VE 2D SENKRONU ---
         else if (stroke.type === '3d_shape') {
-            if (window.ThreeDTool) window.ThreeDTool.drawShape(ctx, stroke);
-        }
+            if (window.ThreeDTool && typeof window.ThreeDTool.drawShape === 'function') window.ThreeDTool.drawShape(ctx, stroke);
+            
+            // 1. ÜÇ BOYUTLU NESNEYİ 2D EKRAN MERKEZİNE VE BOYUTUNA ZORLA UYDUR (SENKRONİZASYON)
+            if (window.Scene3D && window.Scene3D.scene) {
+                const sceneMesh = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === stroke.id);
+                if (sceneMesh) {
+                    const yeniScale = (stroke.width / 30) / sceneMesh.userData.baseSize;
+                    sceneMesh.scale.set(yeniScale, yeniScale, yeniScale);
+                    sceneMesh.rotation.z = -(stroke.rotation || 0) * Math.PI / 180;
+                    
+                    const canvasElm = document.getElementById('drawing-canvas');
+                    if (canvasElm) {
+                        const cx = stroke.x + (stroke.width / 2);
+                        const cy = stroke.y + (stroke.height / 2);
+                        const nx = (cx / canvasElm.width) * 2 - 1;
+                        const ny = -(cy / canvasElm.height) * 2 + 1;
+                        
+                        const vec = new THREE.Vector3(nx, ny, 0.5);
+                        vec.unproject(window.Scene3D.camera);
+                        const dir = vec.sub(window.Scene3D.camera.position).normalize();
+                        const distance = -window.Scene3D.camera.position.z / dir.z;
+                        const targetPos = window.Scene3D.camera.position.clone().add(dir.multiplyScalar(distance));
+                        sceneMesh.position.copy(targetPos);
+                    }
+                }
+            }
 
+            // 2. SEÇİLİYKEN YEŞİL VE PEMBE KULPLARI ÇİZ (ESKİ ÖZELLİĞİN GERİ GELMESİ)
+            if (typeof currentTool !== 'undefined' && currentTool === 'move' && selectedItem === stroke) {
+                ctx.save();
+                const cX = stroke.x + stroke.width / 2;
+                const cY = stroke.y + stroke.height / 2;
+                const angleRad = (stroke.rotation || 0) * (Math.PI / 180);
+                
+                ctx.translate(cX, cY);
+                ctx.rotate(angleRad);
+                
+                // Seçim Çerçevesi
+                ctx.strokeStyle = '#00FFCC'; ctx.lineWidth = 2; ctx.setLineDash([5, 5]);
+                ctx.strokeRect(-stroke.width / 2, -stroke.height / 2, stroke.width, stroke.height);
+                ctx.setLineDash([]);
+
+                // Döndürme (Yeşil) Butonu
+                const rotY = -stroke.height / 2 - 40;
+                ctx.fillStyle = '#0F0'; ctx.beginPath(); ctx.arc(0, rotY, 15, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
+                ctx.font = "bold 16px Arial"; ctx.fillStyle = "#FFF"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("↻", 0, rotY - 1);
+
+                // Boyutlandırma (Pembe) Butonu
+                const resX = stroke.width / 2 + 20; const resY = stroke.height / 2 + 20;
+                ctx.fillStyle = '#F0F'; ctx.beginPath(); ctx.arc(resX, resY, 15, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
+                ctx.fillText("⤢", resX, resY);
+                ctx.restore();
+            }
+        }
 else if (stroke.type === 'rectangle') {
             ctx.save();
             const centerX = stroke.x + stroke.width / 2;
@@ -1899,16 +1952,15 @@ if (stroke.type === 'image') {
 
 if (currentTool === 'move' && selectedItem === stroke) {
             if (stroke.type === 'polygon') {
-                const rotateHandlePos = 
-window.PolygonTool.getRotateHandlePosition(stroke);
-                if (distance(pos, rotateHandlePos) < 12) return { item: stroke, pointKey: 'rotate' }; 
+                const rotateHandlePos = window.PolygonTool.getRotateHandlePosition(stroke);
+                // 🚨 TABLET HASSASİYETİ: Kulpları tutma alanı büyütüldü
+                if (distance(pos, rotateHandlePos) < 35) return { item: stroke, pointKey: 'rotate' }; 
                 if (stroke.vertices && stroke.vertices.length > 0) {
                     const resizeHandlePos = stroke.vertices[0];
-                    if (distance(pos, resizeHandlePos) < 10) return { item: stroke, pointKey: 'resize' }; 
+                    if (distance(pos, resizeHandlePos) < 35) return { item: stroke, pointKey: 'resize' }; 
                 }
             }
         }
-
 // --- DİKDÖRTGEN YAKALAMA (TABLET UYUMLU) ---
         if (stroke.type === 'rectangle') {
             const centerX = stroke.x + stroke.width / 2;
@@ -2004,7 +2056,8 @@ if (stroke.type === 'rectangle') {
         if (stroke.p1 && distance(pos, stroke.p1) < SNAP_THRESHOLD) return { item: stroke, pointKey: 'p1' };
         if (stroke.p2 && distance(pos, stroke.p2) < SNAP_THRESHOLD) return { item: stroke, pointKey: 'p2' };
         if (stroke.type === 'arc' && stroke.cx && distance(pos, {x: stroke.cx, y: stroke.cy}) < SNAP_THRESHOLD) return { item: stroke, pointKey: 'center' };
-        if (stroke.type === 'polygon' && stroke.center && distance(pos, stroke.center) < SNAP_THRESHOLD) return { item: stroke, pointKey: 'center' };
+        // 🚨 ÇOKGEN MERKEZİNDEN TUTMA HASSASİYETİNİ ARTIR (TABLET İÇİN)
+        if (stroke.type === 'polygon' && stroke.center && distance(pos, stroke.center) < 50) return { item: stroke, pointKey: 'center' };
     }
     return null; 
 }
@@ -2170,6 +2223,10 @@ function setActiveTool(tool) {
         pergelButton.classList.add('active');
         if (window.PergelTool) {
             window.PergelTool.show(); 
+            // 🚨 TABLET ZIRHI: CSS sınıflarını kesin olarak ez ve zorla göster
+            const el = document.getElementById('compass-container');
+            if(el) { el.classList.remove('hidden'); el.style.display = 'block'; el.style.zIndex = "9999"; }
+            
             // 🚨 PERGELİ DİK VE AÇIK HALE GETİR
             if (window.PergelTool.state) {
                 window.PergelTool.state.rotation = 0;
@@ -2178,7 +2235,7 @@ function setActiveTool(tool) {
                 if (typeof window.PergelTool.updateTransform === 'function') window.PergelTool.updateTransform();
             }
             if (window.bringToolToFront) {
-                window.bringToolToFront(window.PergelTool.pergelElement);
+                window.bringToolToFront(el || window.PergelTool.pergelElement);
             }
         }
     }
@@ -2712,11 +2769,9 @@ canvas.addEventListener('pointerdown', (e) => {
 
     // --- 🚨 KÖPRÜ 1: 3D MOTORUNA DEVRET ---
     if (window.Scene3D && window.Scene3D.isInit) {
-        if (window.currentTool === 'move' || window.currentTool === 'select') {
-            const is3DHit = window.Scene3D.onDown(rawX, rawY);
-            if (is3DHit) return; 
-        }
-        else if (window.active3DShapeTool || window.currentTool === 'sphere' || (window.currentTool && (window.currentTool.startsWith('prism') || window.currentTool.startsWith('pyramid')))) {
+        // 🚨 SİHİRLİ ÇÖZÜM: 'move' çalıcısı kaldırıldı! Artık 3D şekilleri 2D mantığı (findHit) yönetecek!
+        // Böylece yeşil ve pembe butonlar çıkacak, tablet ekranından rahatça sürüklenecek!
+        if (window.active3DShapeTool || window.currentTool === 'sphere' || (window.currentTool && (window.currentTool.startsWith('prism') || window.currentTool.startsWith('pyramid')))) {
             let toolName = window.currentTool || 'sphere';
             if (window.active3DShapeTool) {
                 const t = window.active3DShapeTool;
