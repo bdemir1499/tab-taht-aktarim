@@ -2155,10 +2155,7 @@ function setActiveTool(tool) {
             if(el) { el.classList.remove('hidden'); el.style.display = 'block'; el.style.zIndex = "9999"; }
             if (window.bringToolToFront) window.bringToolToFront(el);
         }
-    }
-
-
-} else if (tool.startsWith('draw_polygon_')) { 
+    } else if (tool.startsWith('draw_polygon_')) { 
         polygonButton.classList.add('active');
     } else if (tool === 'move') {
         moveButton.classList.add('active');
