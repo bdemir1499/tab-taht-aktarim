@@ -5111,6 +5111,9 @@ function setupConnectionEvents() {
             }
         }
 
+// --- BURAYA EKLENECEK TEK SATIR ---
+        window.isConnected = true;
+
         if (data.type === 'sekil_guncelle') {
             if (!data.stroke) return;
             
@@ -6038,3 +6041,66 @@ window.addEventListener('load', () => {
         lineOptions.style.display = 'none';
     }
 });
+
+
+
+// =========================================================
+// FİZİKSEL ARAÇLAR İÇİN RADAR VE ÖNİZLEME MOTORU (GERİ GELDİ)
+// =========================================================
+let sonAracDurumlari = {};
+
+window.araclariAgaGonder = function() {
+    if (typeof isConnected === 'undefined' || !isConnected) return;
+    
+    const gelismisAraclar = [
+        { id: 'ruler', obj: window.RulerTool, selector: '.ruler-container' },
+        { id: 'gonye', obj: window.GonyeTool, selector: '.gonye-container' },
+        { id: 'aciolcer', obj: window.AciolcerTool, selector: '.aciolcer-container' },
+        { id: 'pergel', obj: window.PergelTool, selector: '#compass-container' }
+    ];
+
+    gelismisAraclar.forEach(arac => {
+        if (arac.obj && arac.obj.state) {
+            try {
+                const el = document.querySelector(arac.selector);
+                let isVisible = 'none';
+                let elW = '', elH = ''; 
+                
+                if (el) {
+                    isVisible = (el.style.display !== 'none' && !el.classList.contains('hidden')) ? 'block' : 'none';
+                    elW = el.style.width;
+                    elH = el.style.height;
+                }
+                
+                // Araçların durumunu, dönüş açısını ve boyutunu tek metinde birleştirip değişiklik var mı bakıyoruz
+                const durum = isVisible + JSON.stringify(arac.obj.state) + elW + elH;
+
+                if (sonAracDurumlari[arac.id] !== durum) {
+                    sonAracDurumlari[arac.id] = durum;
+
+                    // Değişiklik varsa PC'ye anında gönder
+                    if (typeof window.sendNetworkData === 'function') {
+                        window.sendNetworkData({
+                            type: 'arac_state_senkron',
+                            arac: arac.id,
+                            display: isVisible,
+                            state: arac.obj.state,
+                            width: elW,   
+                            height: elH   
+                        });
+                    }
+                }
+            } catch (err) { }
+        }
+    });
+};
+
+// Radarı saniyede 10 kez çalıştır (Görünüm senkronizasyonu için)
+setInterval(window.araclariAgaGonder, 100);
+
+// DIŞ DOSYALAR (cetvel.js, pergel.js) İÇİN CANLI ÖNİZLEME YAYINCISI
+window.broadcastPreview = function(toolType, stateData) {
+    if (typeof window.sendNetworkData === 'function' && window.isConnected) {
+        window.sendNetworkData({ type: 'aktif_onizleme', arac: toolType, payload: stateData });
+    }
+};
