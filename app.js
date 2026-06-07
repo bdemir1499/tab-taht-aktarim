@@ -1767,7 +1767,17 @@ function undoLastStroke() {
         if (window.audio_undo) { window.audio_undo.currentTime = 0; window.audio_undo.play(); }
         
         // 1. Kendi listenden son çizgiyi sil
-        drawnStrokes.pop(); 
+        const popped = drawnStrokes.pop(); 
+        
+        // 🚨 3D ŞEKİLSE GERİ ALIRKEN SAHNEDEN DE KALDIR
+        if (popped && popped.type === '3d_shape' && window.Scene3D && window.Scene3D.scene) {
+            const meshToRemove = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === popped.id);
+            if (meshToRemove) {
+                window.Scene3D.scene.remove(meshToRemove);
+                window.Scene3D.currentMesh = null;
+                window.Scene3D.updateHandlePositions();
+            }
+        }
 
         // --- CANLI SINIF: TAHTAYA "SON ÇİZİMİ SİL" MESAJI GÖNDER ---
         if (typeof isConnected !== 'undefined' && isConnected) {
@@ -1788,6 +1798,14 @@ function clearAllStrokes() {
     // 2. Tabletin yerel hafızasını temizle (Arka planları koru)
     drawnStrokes = drawnStrokes.filter(stroke => stroke.isBackground === true);
     window.drawnStrokes = drawnStrokes; 
+    
+    // 🚨 HEPSİNİ SİLERKEN 3D SAHNEYİ TAMAMEN SIFIRLA
+    if (window.Scene3D && window.Scene3D.scene) {
+        const toRemove = window.Scene3D.scene.children.filter(c => c.type === 'Mesh' && c !== window.Scene3D.helperGroup);
+        toRemove.forEach(m => window.Scene3D.scene.remove(m));
+        window.Scene3D.currentMesh = null;
+        window.Scene3D.updateHandlePositions();
+    }
 
     // 3. Tarayıcıdaki eski kayıtları temizle (Eğer PC veya Tablette localStorage kullanıyorsan)
     if (window.localStorage) {
@@ -2148,22 +2166,20 @@ function setActiveTool(tool) {
             const el = document.querySelector('.aciolcer-container');
             if(el) { el.classList.remove('hidden'); el.style.display = 'block'; el.style.zIndex = "9999"; }
         }
-    } else if (tool === 'pergel') {
+   } else if (tool === 'pergel') {
         pergelButton.classList.add('active');
         if (window.PergelTool) {
-            window.PergelTool.show();
-            
-            // PERGELİ DİK VE AÇIK HALE GETİRME KODU
+            window.PergelTool.show(); 
+            // 🚨 PERGELİ DİK VE AÇIK HALE GETİR
             if (window.PergelTool.state) {
-                window.PergelTool.state.rotation = 0; // Yan yatmayı düzeltir (Dik açar)
-                window.PergelTool.state.angle = 45;   // Bacak açısını genişletir
-                window.PergelTool.state.distance = 150; // Mesafe bazlı çalışıyorsa bacakları açar
+                window.PergelTool.state.rotation = 0;
+                window.PergelTool.state.angle = 45;
+                window.PergelTool.state.distance = 150;
                 if (typeof window.PergelTool.updateTransform === 'function') window.PergelTool.updateTransform();
             }
-            
-            const el = document.getElementById('compass-container');
-            if(el) { el.classList.remove('hidden'); el.style.display = 'block'; el.style.zIndex = "9999"; }
-            if (window.bringToolToFront) window.bringToolToFront(el);
+            if (window.bringToolToFront) {
+                window.bringToolToFront(window.PergelTool.pergelElement);
+            }
         }
     }
 
@@ -4634,11 +4650,28 @@ function akilliSilgi(e, isDown) {
                 else if (s.type === 'preview') {
                      vuruldu = true;
                 }
+                // 🚨 YENİ 9: 3D ŞEKİLLERİ SİLME (Silgi Çözümü)
+                else if (s.type === '3d_shape') {
+                     if (Math.hypot((s.x || window.innerWidth/2) - nx, (s.y || window.innerHeight/2) - ny) <= (s.width || 100)/2 + eR) {
+                         vuruldu = true;
+                     }
+                }
             } // <--- Noktalar tarama döngüsünün bitiş parantezi
 
             // VURULDUYSA SİL VE AĞA GÖNDER
             if (vuruldu) {
                 if (!s.id) s.id = Date.now() + Math.random(); 
+                
+                // 🚨 Eğer 3D şekilse, 3D uzay sahnesinden (Scene3D) kazı!
+                if (s.type === '3d_shape' && window.Scene3D && window.Scene3D.scene) {
+                    const meshToRemove = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === s.id);
+                    if (meshToRemove) {
+                        window.Scene3D.scene.remove(meshToRemove);
+                        if (window.Scene3D.currentMesh === meshToRemove) window.Scene3D.currentMesh = null;
+                        window.Scene3D.updateHandlePositions();
+                    }
+                }
+
                 window.drawnStrokes.splice(i, 1);
                 silindiMi = true;
                 
@@ -5803,6 +5836,22 @@ window.Scene3D = {
         const intersects = this.raycaster.intersectObjects(this.scene.children, true);
         let foundMesh = intersects.find(h => h.object.type === 'Mesh' && h.object !== this.helperGroup);
         
+        // 🚨 TABLET DOKUNMATİK ZIRHI: Parmakla basıldığında 3D Işın ıskalasa bile 2D Kutusundan Kesin Yakala!
+        if (!foundMesh && window.drawnStrokes && window.currentTool === 'move') {
+            const canvasEl = document.getElementById('drawing-canvas');
+            if (canvasEl) {
+                const rect = canvasEl.getBoundingClientRect();
+                const canvasX = ((x - rect.left) * (canvasEl.width / rect.width));
+                const canvasY = ((y - rect.top) * (canvasEl.height / rect.height));
+                
+                const hitStroke = window.drawnStrokes.find(s => s.type === '3d_shape' && Math.abs(canvasX - (s.x + s.width / 2)) < s.width / 2 && Math.abs(canvasY - (s.y + s.height / 2)) < s.height / 2);
+                if (hitStroke) {
+                    const sceneMesh = this.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === hitStroke.id);
+                    if (sceneMesh) foundMesh = { object: sceneMesh };
+                }
+            }
+        }
+
         if (foundMesh) {
             this.currentMesh = foundMesh.object;
             this.clickStartPos = { x, y };
@@ -5815,6 +5864,12 @@ window.Scene3D = {
                 this.isDragging = false; this.isRotatingShape = true; this.lastMousePos = { x, y };
             }
             this.updateHandlePositions();
+            
+            // 🚨 TIKLANDIĞI ANDA FORMÜL KUTUSUNUN ÇIKMASI İÇİN SEÇİMİ BİLDİR
+            if (window.currentTool === 'move') {
+                window.selectedItem = this.currentMesh.userData.strokeData;
+                if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
+            }
             return true;
         }
 
@@ -5887,23 +5942,36 @@ window.Scene3D = {
             }
             return;
         }
-        if (this.isDragging && this.currentMesh) {
+
+      if (this.isDragging && this.currentMesh) {
             this.raycaster.setFromCamera(this.getNormalizedCoords(x, y), this.camera);
             const intersectPoint = new THREE.Vector3();
             if (this.raycaster.ray.intersectPlane(this.dragPlane, intersectPoint)) {
                 this.currentMesh.position.addVectors(intersectPoint, this.dragOffset);
                 this.updateHandlePositions();
                 
-                if (this.currentMesh.userData.strokeData && typeof window.sendNetworkData === 'function') {
-                    // SENİN KODUN (cizim_tasi) VE BENİM KODUM (sekil_guncelle) BİRLİKTE ÇALIŞIYOR
+                // 🚨 3D'DEN 2D'YE KÖPRÜ: Ekranda sürüklerken Formül kutusu ve PC eşzamanlı hareket eder
+                if (this.currentMesh.userData.strokeData) {
                     const sd = this.currentMesh.userData.strokeData;
-                    sd.x = x; sd.y = y; 
-                    window.sendNetworkData({ type: 'cizim_tasi', strokeId: sd.id, x: x, y: y });
-                    window.sendNetworkData({ type: 'sekil_guncelle', stroke: sd });
+                    sd.pos3D = { x: this.currentMesh.position.x, y: this.currentMesh.position.y, z: this.currentMesh.position.z };
+                    
+                    const canvasEl = document.getElementById('drawing-canvas');
+                    if (canvasEl) {
+                        const rect = canvasEl.getBoundingClientRect();
+                        const canvasX = ((this.handles.center.x - rect.left) * (canvasEl.width / rect.width));
+                        const canvasY = ((this.handles.center.y - rect.top) * (canvasEl.height / rect.height));
+                        sd.x = canvasX - sd.width / 2;
+                        sd.y = canvasY - sd.height / 2;
+                    }
+
+                    if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: sd });
+                    if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
                 }
             }
             return; 
         } 
+
+
         if (this.isRotatingShape && this.currentMesh && window.currentTool !== 'move') {
             this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), (y - this.lastMousePos.y) * 0.01);
             this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), (x - this.lastMousePos.x) * 0.01);
@@ -6121,25 +6189,50 @@ window.addEventListener('load', () => {
     }
 
     const uiMotor = () => {
-        const slider = document.getElementById('slider-container'); const info = document.getElementById('info-tooltip');
+        const slider = document.getElementById('slider-container'); 
+        const info = document.getElementById('info-tooltip');
+        
         let activeShape = null;
-        if (window.drawnStrokes) activeShape = window.drawnStrokes.find(s => s.type === '3d_shape' && s.rotation >= 36000);
+        // Şekil "Taşı" modunda seçiliyken veya o an çizilirken algıla
+        if (window.currentTool === 'move' && window.selectedItem && window.selectedItem.type === '3d_shape') {
+            activeShape = window.selectedItem;
+        } else if (window.Scene3D && window.Scene3D.isDrawing && window.Scene3D.currentMesh && window.Scene3D.currentMesh.userData) {
+            activeShape = window.Scene3D.currentMesh.userData.strokeData;
+        }
 
         if (activeShape) {
             window.active3DSliderStroke = activeShape;
             if (slider) {
-                if (activeShape.shapeType === '3d_kure') slider.style.display = 'none';
+                if (activeShape.shapeType === 'sphere') slider.style.display = 'none';
                 else {
-                    slider.style.display = 'flex'; let leftPosition = activeShape.x + activeShape.width + 20;
+                    slider.style.display = 'flex'; let leftPosition = activeShape.x + 80;
                     if (leftPosition + 220 > window.innerWidth) leftPosition = activeShape.x - 240; 
-                    slider.style.left = leftPosition + 'px'; slider.style.top = (activeShape.y + activeShape.height - 20) + 'px';
+                    slider.style.left = leftPosition + 'px'; slider.style.top = (activeShape.y + 120) + 'px';
                 }
             }
             if (info) {
                 info.style.display = 'block'; 
-                info.innerText = window.ThreeDTool ? window.ThreeDTool.getFormulas(activeShape) : "";
-                info.style.background = 'transparent'; info.style.border = 'none'; info.style.boxShadow = 'none'; info.style.color = '#FFFF00'; info.style.fontWeight = 'bold'; info.style.textShadow = '2px 2px 4px rgba(0,0,0,0.8), -1px -1px 0 #000';
-                info.style.left = (activeShape.x + activeShape.width + 20) + 'px'; info.style.top = (activeShape.y + 20) + 'px';
+                
+                // 🚨 Pİ=3 ALINARAK ALAN/HACİM HESAPLAYAN ÖZEL FORMÜL MOTORU
+                let formulMetni = "";
+                const r = (activeShape.width / 30).toFixed(1); 
+                const h = (r * 2).toFixed(1); 
+                
+                if (activeShape.shapeType === 'sphere') {
+                    formulMetni = `Küre\nr = ${r} cm\nHacim = (4/3)·π·r³\n= (4/3)·3·(${r})³ = ${(4*r*r*r).toFixed(1)} cm³\nAlan = 4·π·r²\n= 4·3·(${r})² = ${(12*r*r).toFixed(1)} cm²`;
+                } else if (activeShape.shapeType === 'prism_cube') {
+                    formulMetni = `Küp\na = ${r} cm\nHacim = a³ = ${(r*r*r).toFixed(1)} cm³\nAlan = 6·a² = ${(6*r*r).toFixed(1)} cm²`;
+                } else if (activeShape.shapeType === 'prism_cylinder') {
+                    formulMetni = `Silindir\nr = ${r} cm, h = ${h} cm\nHacim = π·r²·h\n= 3·(${r})²·${h} = ${(3*r*r*h).toFixed(1)} cm³\nYanal Alan = 2·π·r·h = ${(2*3*r*h).toFixed(1)} cm²`;
+                } else if (activeShape.shapeType === 'pyramid_cone') {
+                    formulMetni = `Koni\nr = ${r} cm, h = ${h} cm\nHacim = (π·r²·h)/3\n= (3·(${r})²·${h})/3 = ${(r*r*h).toFixed(1)} cm³`;
+                } else {
+                    formulMetni = `Prizma / Piramit\nTaban Ayrıtı (a) ≈ ${r} cm\nYükseklik (h) ≈ ${h} cm`;
+                }
+                
+                info.innerText = formulMetni;
+                info.style.background = 'rgba(0,0,0,0.7)'; info.style.border = '2px solid #00ffcc'; info.style.borderRadius = '10px'; info.style.padding = '10px'; info.style.boxShadow = '0px 4px 10px rgba(0,0,0,0.5)'; info.style.color = '#FFFF00'; info.style.fontWeight = 'bold'; info.style.textShadow = '1px 1px 2px #000';
+                info.style.position = 'absolute'; info.style.left = (activeShape.x + 80) + 'px'; info.style.top = (activeShape.y - 100) + 'px'; info.style.zIndex = '9999';
             }
             const sInput = document.getElementById('shape-slider');
             if (sInput && document.activeElement !== sInput) sInput.value = (activeShape.openRatio || 0) * 100;
