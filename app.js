@@ -2071,11 +2071,11 @@ function setActiveTool(tool) {
     window.tempPolygonData = null; 
     polygonPreviewLabel.classList.add('hidden'); 
     
-    // Fiziksel Araçları gizle
-    if (window.RulerTool) window.RulerTool.hide();
-    if (window.GonyeTool) window.GonyeTool.hide();
-    if (window.AciolcerTool) window.AciolcerTool.hide();
-    if (window.PergelTool) window.PergelTool.hide();
+    // Fiziksel Araçları gizle ve CSS sınıflarını KESİN OLARAK kapat
+    if (window.RulerTool) { window.RulerTool.hide(); const el = document.querySelector('.ruler-container'); if(el) { el.classList.add('hidden'); el.style.display = 'none'; } }
+    if (window.GonyeTool) { window.GonyeTool.hide(); const el = document.querySelector('.gonye-container'); if(el) { el.classList.add('hidden'); el.style.display = 'none'; } }
+    if (window.AciolcerTool) { window.AciolcerTool.hide(); const el = document.querySelector('.aciolcer-container'); if(el) { el.classList.add('hidden'); el.style.display = 'none'; } }
+    if (window.PergelTool) { window.PergelTool.hide(); const el = document.getElementById('compass-container'); if(el) { el.classList.add('hidden'); el.style.display = 'none'; } }
     
     if (snapIndicator) snapIndicator.style.display = 'none';
     
@@ -2126,24 +2126,39 @@ function setActiveTool(tool) {
     } 
 
     // --- DİĞER ARAÇLAR ---
+   // --- DİĞER ARAÇLAR ---
     else if (tool === 'ruler') {
         rulerButton.classList.add('active');
-        if (window.RulerTool) window.RulerTool.show();
+        if (window.RulerTool) {
+            window.RulerTool.show();
+            const el = document.querySelector('.ruler-container');
+            if(el) { el.classList.remove('hidden'); el.style.display = 'flex'; }
+        }
     } else if (tool === 'gonye') {
         gonyeButton.classList.add('active');
-        if (window.GonyeTool) window.GonyeTool.show();
+        if (window.GonyeTool) {
+            window.GonyeTool.show();
+            const el = document.querySelector('.gonye-container');
+            if(el) { el.classList.remove('hidden'); el.style.display = 'flex'; }
+        }
     } else if (tool === 'aciolcer') {
         aciolcerButton.classList.add('active');
-        if (window.AciolcerTool) window.AciolcerTool.show();
+        if (window.AciolcerTool) {
+            window.AciolcerTool.show();
+            const el = document.querySelector('.aciolcer-container');
+            if(el) { el.classList.remove('hidden'); el.style.display = 'block'; }
+        }
     } else if (tool === 'pergel') {
-    pergelButton.classList.add('active');
-    if (window.PergelTool) {
-        window.PergelTool.show(); // Pergelin görünür olmasını sağlar
-        // Pergelin en üstte görünmesi için:
-        if (window.bringToolToFront) {
-            window.bringToolToFront(window.PergelTool.pergelElement);
+        pergelButton.classList.add('active');
+        if (window.PergelTool) {
+            window.PergelTool.show();
+            const el = document.getElementById('compass-container');
+            if(el) { el.classList.remove('hidden'); el.style.display = 'block'; }
+            if (window.bringToolToFront) window.bringToolToFront(el);
         }
     }
+
+
 } else if (tool.startsWith('draw_polygon_')) { 
         polygonButton.classList.add('active');
     } else if (tool === 'move') {
