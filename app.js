@@ -2126,6 +2126,7 @@ function setActiveTool(tool) {
     } 
 
     // --- DİĞER ARAÇLAR ---
+    // --- DİĞER ARAÇLAR ---
     else if (tool === 'ruler') {
         rulerButton.classList.add('active');
         if (window.RulerTool) {
@@ -2151,11 +2152,22 @@ function setActiveTool(tool) {
         pergelButton.classList.add('active');
         if (window.PergelTool) {
             window.PergelTool.show();
+            
+            // PERGELİ DİK VE AÇIK HALE GETİRME KODU
+            if (window.PergelTool.state) {
+                window.PergelTool.state.rotation = 0; // Yan yatmayı düzeltir (Dik açar)
+                window.PergelTool.state.angle = 45;   // Bacak açısını genişletir
+                window.PergelTool.state.distance = 150; // Mesafe bazlı çalışıyorsa bacakları açar
+                if (typeof window.PergelTool.updateTransform === 'function') window.PergelTool.updateTransform();
+            }
+            
             const el = document.getElementById('compass-container');
             if(el) { el.classList.remove('hidden'); el.style.display = 'block'; el.style.zIndex = "9999"; }
             if (window.bringToolToFront) window.bringToolToFront(el);
         }
-    } else if (tool.startsWith('draw_polygon_')) { 
+    }
+
+ else if (tool.startsWith('draw_polygon_')) { 
         polygonButton.classList.add('active');
     } else if (tool === 'move') {
         moveButton.classList.add('active');
@@ -2179,31 +2191,24 @@ penButton.addEventListener('click', () => setActiveTool(currentTool === 'pen' ? 
 eraserButton.addEventListener('click', () => setActiveTool(currentTool === 'eraser' ? 'none' : 'eraser'));
 
 
-// --- FİZİKSEL ARAÇ BUTONLARI KESİN ÇÖZÜMÜ ---
-rulerButton.addEventListener('click', () => { 
-    if (window.RulerTool) { 
-        window.RulerTool.toggle(); 
-        const isHidden = window.RulerTool.rulerElement.style.display === 'none' || window.RulerTool.rulerElement.classList.contains('hidden');
-        rulerButton.classList.toggle('active', !isHidden); 
-    } 
-});
-gonyeButton.addEventListener('click', () => { 
-    if (window.GonyeTool) { 
-        window.GonyeTool.toggle(); 
-        const isHidden = window.GonyeTool.gonyeElement.style.display === 'none' || window.GonyeTool.gonyeElement.classList.contains('hidden');
-        gonyeButton.classList.toggle('active', !isHidden); 
-    } 
-});
-aciolcerButton.addEventListener('click', () => { 
-    if (window.AciolcerTool) { 
-        window.AciolcerTool.toggle(); 
-        const isHidden = window.AciolcerTool.aciolcerElement.style.display === 'none' || window.AciolcerTool.aciolcerElement.classList.contains('hidden');
-        aciolcerButton.classList.toggle('active', !isHidden); 
-    } 
-});
-pergelButton.addEventListener('click', () => {
-    setActiveTool(currentTool === 'pergel' ? 'none' : 'pergel');
-});
+// --- FİZİKSEL ARAÇ BUTONLARI KESİN ÇÖZÜMÜ (TABLET ZIRHI) ---
+const araciBaslat = (aracAdi) => {
+    setActiveTool(currentTool === aracAdi ? 'none' : aracAdi);
+    setTimeout(() => { if(typeof window.araclariAgaGonder === 'function') window.araclariAgaGonder(); }, 50);
+};
+
+const butonBagla = (btn, aracAdi) => {
+    if (!btn) return;
+    const tetikle = (e) => { e.preventDefault(); e.stopPropagation(); araciBaslat(aracAdi); };
+    btn.addEventListener('click', tetikle);
+    btn.addEventListener('touchstart', tetikle, { passive: false });
+};
+
+butonBagla(rulerButton, 'ruler');
+butonBagla(gonyeButton, 'gonye');
+butonBagla(aciolcerButton, 'aciolcer');
+butonBagla(pergelButton, 'pergel');
+
 
 undoButton.addEventListener('click', undoLastStroke);
 clearAllButton.addEventListener('click', clearAllStrokes);
