@@ -6006,10 +6006,46 @@ window.addEventListener('load', () => {
         
        document.querySelectorAll('#options-3d-main button[data-3d]').forEach(b => {
             b.addEventListener('click', (e) => {
-                e.stopPropagation(); const targetTool = 'draw_' + b.getAttribute('data-3d');
-                if (typeof setActiveTool === 'function') setActiveTool(targetTool); else window.currentTool = targetTool;
-                window.active3DShapeTool = targetTool; btn3D.classList.add('active'); 
+                e.stopPropagation(); 
+                const data3d = b.getAttribute('data-3d');
+                
+                // 1. Aracı "Taşı" (Move) moduna al ki şekil gelir gelmez taşınabilsin
+                if (typeof setActiveTool === 'function') setActiveTool('move'); else window.currentTool = 'move';
+                window.active3DShapeTool = 'draw_' + data3d; 
+                btn3D.classList.add('active'); 
                 menu3D.classList.add('hidden'); menu3D.style.display = 'none';
+
+                // 2. 3D Motorunu Başlat (Kapalıysa)
+                if (window.Scene3D) {
+                    if (!window.Scene3D.isInit) window.Scene3D.init();
+                    
+                    // Container'ı zorla en üste çıkar
+                    if (window.Scene3D.container) {
+                        window.Scene3D.container.style.display = 'block';
+                        window.Scene3D.container.style.zIndex = '9995'; // Kanvasın üstüne
+                    }
+                    
+                    // 3. Şekil ismini belirle
+                    let toolName = 'sphere';
+                    if (data3d.includes('kure')) toolName = 'sphere'; 
+                    else if (data3d.includes('kup')) toolName = 'prism_cube'; 
+                    else if (data3d.includes('silindir')) toolName = 'prism_cylinder'; 
+                    else if (data3d.includes('koni')) toolName = 'pyramid_cone'; 
+                    else if (data3d.includes('ucgen_prizma')) toolName = 'prism_3'; 
+                    else if (data3d.includes('dortgen_prizma')) toolName = 'prism_4'; 
+                    else if (data3d.includes('besgen_prizma')) toolName = 'prism_5'; 
+                    else if (data3d.includes('altigen_prizma')) toolName = 'prism_6'; 
+                    else if (data3d.includes('ucgen_piramit')) toolName = 'pyramid_3'; 
+                    else if (data3d.includes('kare_piramit')) toolName = 'pyramid_4'; 
+                    else if (data3d.includes('besgen_piramit')) toolName = 'pyramid_5'; 
+                    else if (data3d.includes('altigen_piramit')) toolName = 'pyramid_6'; 
+                    else toolName = 'prism_rect';
+                    
+                    // 4. Şekli doğrudan ekranın ortasına fırlat ve PC'ye gönder
+                    setTimeout(() => {
+                        window.Scene3D.addShapeToScene(toolName, window.innerWidth / 2, window.innerHeight / 2);
+                    }, 50);
+                }
             });
         });
     }
