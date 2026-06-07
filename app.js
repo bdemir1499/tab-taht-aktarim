@@ -2232,9 +2232,9 @@ function setActiveTool(tool) {
             if(el) { el.classList.remove('hidden'); el.style.display = 'block'; el.style.zIndex = "9999"; }
             
             if (window.PergelTool.state) {
-                // 🚨 ZAMANLAMA ZIRHI: HTML Yüklendikten Sonra Zorla Aç ve Ağa Bildir
                 setTimeout(() => {
-                    window.PergelTool.state.rotation = 0;
+                    // 🚨 PERGELİ DİKLEŞTİRDİK (-90)
+                    window.PergelTool.state.rotation = -90; 
                     window.PergelTool.state.angle = 45;
                     window.PergelTool.state.distance = 150;
                     if (typeof window.PergelTool.updateTransform === 'function') window.PergelTool.updateTransform();
@@ -2772,16 +2772,29 @@ canvas.addEventListener('pointerdown', (e) => {
     let rawX = e.clientX; let rawY = e.clientY;
     if (e.targetTouches && e.targetTouches.length > 0) { rawX = e.targetTouches[0].clientX; rawY = e.targetTouches[0].clientY; }
 
-    // --- 🚨 KÖPRÜ 1: 3D MOTORUNA DEVRET ---
+    // --- 🚨 KÖPRÜ 1: 3D MOTORUNA DEVRET (HIRSIZLIK KORUMALI) ---
     if (window.Scene3D && window.Scene3D.isInit) {
-        // 🚨 SİHİRLİ ÇÖZÜM: 'move' çalıcısı kaldırıldı! Artık 3D şekilleri 2D mantığı (findHit) yönetecek!
-        // Böylece yeşil ve pembe butonlar çıkacak, tablet ekranından rahatça sürüklenecek!
-        if (window.active3DShapeTool || window.currentTool === 'sphere' || (window.currentTool && (window.currentTool.startsWith('prism') || window.currentTool.startsWith('pyramid')))) {
-            let toolName = window.currentTool || 'sphere';
-            if (window.active3DShapeTool) {
-                const t = window.active3DShapeTool;
-                if (t.includes('kure')) toolName = 'sphere'; else if (t.includes('kup')) toolName = 'prism_cube'; else if (t.includes('silindir')) toolName = 'prism_cylinder'; else if (t.includes('koni')) toolName = 'pyramid_cone'; else if (t.includes('ucgen_prizma')) toolName = 'prism_3'; else if (t.includes('dortgen_prizma')) toolName = 'prism_4'; else if (t.includes('besgen_prizma')) toolName = 'prism_5'; else if (t.includes('altigen_prizma')) toolName = 'prism_6'; else if (t.includes('ucgen_piramit')) toolName = 'pyramid_3'; else if (t.includes('kare_piramit')) toolName = 'pyramid_4'; else if (t.includes('besgen_piramit')) toolName = 'pyramid_5'; else if (t.includes('altigen_piramit')) toolName = 'pyramid_6'; else toolName = 'prism_rect'; 
-            }
+        if (window.currentTool === 'move' || window.currentTool === 'select') {
+            const is3DHit = window.Scene3D.onDown(rawX, rawY);
+            if (is3DHit) return; 
+        }
+        // SADECE "draw_3d" ile başlayan 3D araçları seçiliyse 3D motoruna izin ver! (Silgiyi ve Çokgenleri Çalmasın)
+        else if (window.currentTool && window.currentTool.startsWith('draw_3d_')) {
+            let toolName = window.currentTool;
+            if (toolName.includes('kure')) toolName = 'sphere'; 
+            else if (toolName.includes('kup')) toolName = 'prism_cube'; 
+            else if (toolName.includes('silindir')) toolName = 'prism_cylinder'; 
+            else if (toolName.includes('koni')) toolName = 'pyramid_cone'; 
+            else if (toolName.includes('ucgen_prizma')) toolName = 'prism_3'; 
+            else if (toolName.includes('dortgen_prizma')) toolName = 'prism_4'; 
+            else if (toolName.includes('besgen_prizma')) toolName = 'prism_5'; 
+            else if (toolName.includes('altigen_prizma')) toolName = 'prism_6'; 
+            else if (toolName.includes('ucgen_piramit')) toolName = 'pyramid_3'; 
+            else if (toolName.includes('kare_piramit')) toolName = 'pyramid_4'; 
+            else if (toolName.includes('besgen_piramit')) toolName = 'pyramid_5'; 
+            else if (toolName.includes('altigen_piramit')) toolName = 'pyramid_6'; 
+            else toolName = 'prism_rect'; 
+            
             window.Scene3D.setTool(toolName); window.Scene3D.onDown(rawX, rawY); return;
         }
     }
@@ -3005,13 +3018,7 @@ canvas.addEventListener('pointerup', (e) => {
             window.Scene3D.onUp(); 
             
             if (wasDrawing) {
-                window.active3DShapeTool = null; 
-                const mainBtn = document.getElementById('btn-3d-menu'); 
-                if (mainBtn) mainBtn.classList.remove('active');
-                
-                if (typeof setActiveTool === 'function') setActiveTool('move'); 
-                else window.currentTool = 'move';
-                
+                // Şekil çizimi bittiğinde aracı OTOMATİK DEĞİŞTİRME (Kullanıcı dilerse "Taşı"ya basacak)
                 if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'onizleme_bitir' });
             }
             return; 
@@ -5907,24 +5914,26 @@ window.Scene3D = {
 
     onDown: function(x, y) {
         if (!this.isInit) return false;
-
-        if (this.container) {
-            this.container.style.display = 'block';
-            this.container.classList.remove('hidden');
-        }
-
+        if (this.container) { this.container.style.display = 'block'; this.container.classList.remove('hidden'); }
         if (this.isRotatingHandle || this.isResizingHandle) return true;
         
         this.raycaster.setFromCamera(this.getNormalizedCoords(x, y), this.camera);
         const intersects = this.raycaster.intersectObjects(this.scene.children, true);
         let foundMesh = intersects.find(h => h.object.type === 'Mesh' && h.object !== this.helperGroup);
         
-        // 🚨 TABLET ZIRHI: Parmakla basıldığında tam isabet etmese bile şekli 2D kutusundan kesin yakala!
+        // 🚨 TABLET DOKUNMATİK ZIRHI: Parmakla basıldığında 3D Işın ıskalasa bile 2D Kutusundan Kesin Yakala!
         if (!foundMesh && window.drawnStrokes && window.currentTool === 'move') {
-            const hitStroke = window.drawnStrokes.find(s => s.type === '3d_shape' && Math.abs(x - (s.x + s.width / 2)) < s.width && Math.abs(y - (s.y + s.height / 2)) < s.height);
-            if (hitStroke) {
-                const sceneMesh = this.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === hitStroke.id);
-                if (sceneMesh) foundMesh = { object: sceneMesh };
+            const canvasEl = document.getElementById('drawing-canvas');
+            if (canvasEl) {
+                const rect = canvasEl.getBoundingClientRect();
+                const canvasX = ((x - rect.left) * (canvasEl.width / rect.width));
+                const canvasY = ((y - rect.top) * (canvasEl.height / rect.height));
+                
+                const hitStroke = window.drawnStrokes.find(s => s.type === '3d_shape' && Math.abs(canvasX - (s.x + s.width / 2)) < Math.max(40, s.width/2) && Math.abs(canvasY - (s.y + s.height / 2)) < Math.max(40, s.height/2));
+                if (hitStroke) {
+                    const sceneMesh = this.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === hitStroke.id);
+                    if (sceneMesh) foundMesh = { object: sceneMesh };
+                }
             }
         }
 
@@ -5932,10 +5941,9 @@ window.Scene3D = {
             this.currentMesh = foundMesh.object;
             this.clickStartPos = { x, y };
             
-            // "Taşı" aracı seçiliyse şekli sürükleme moduna al
             if (window.currentTool === 'move') {
                 this.isRotatingShape = false; 
-                this.isDragging = true; 
+                this.isDragging = true;
                 this.dragPlane.setFromNormalAndCoplanarPoint(this.camera.getWorldDirection(new THREE.Vector3()), this.currentMesh.position);
                 const intersectPoint = new THREE.Vector3();
                 if(this.raycaster.ray.intersectPlane(this.dragPlane, intersectPoint)) { 
@@ -5948,9 +5956,7 @@ window.Scene3D = {
                     if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
                 }
             } else {
-                this.isDragging = false; 
-                this.isRotatingShape = true; 
-                this.lastMousePos = { x, y };
+                this.isDragging = false; this.isRotatingShape = true; this.lastMousePos = { x, y };
             }
             this.updateHandlePositions();
             return true;
@@ -5977,8 +5983,6 @@ window.Scene3D = {
     },
 
     onMove: function(x, y) {
-        const previewLabel = document.getElementById('polygon-preview-label');
-
         if (this.isRotatingHandle && this.currentMesh) {
             this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), (y - this.lastMousePos.y) * 0.01);
             this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), (x - this.lastMousePos.x) * 0.01);
@@ -5991,21 +5995,6 @@ window.Scene3D = {
             const newScale = Math.max(0.1, this.startScale * (currentDist / this.startResizeDist));
             this.currentMesh.scale.set(newScale, newScale, newScale);
             this.updateHandlePositions();
-            
-            // BOYUTLANDIRIRKEN GERÇEK ZAMANLI ETİKET GÖSTER
-            if (previewLabel && this.currentMesh.userData) {
-                const gercekBoyut = (this.currentMesh.userData.baseSize * newScale * 30 / 30).toFixed(1);
-                previewLabel.innerText = `Ayrıt: ${gercekBoyut} cm`;
-                previewLabel.style.left = (x + 20) + 'px';
-                previewLabel.style.top = (y - 40) + 'px';
-                previewLabel.style.display = 'block';
-                previewLabel.classList.remove('hidden');
-                
-                if (typeof window.sendNetworkData === 'function') {
-                    const sd = this.currentMesh.userData.strokeData;
-                    if (sd) { sd.width = this.currentMesh.userData.baseSize * newScale * 30; window.sendNetworkData({ type: 'sekil_guncelle', stroke: sd }); }
-                }
-            }
             return;
         }
         if (this.isDrawing && this.startPoint && this.previewMesh) {
@@ -6014,63 +6003,40 @@ window.Scene3D = {
             const distance = currentPoint.distanceTo(this.startPoint);
             const scale = Math.max(0.1, distance * 3.5);
             this.previewMesh.scale.set(scale, scale, scale);
-            
-            // İLK ÇİZİM (ÖNİZLEME) ESNASINDA ETİKET GÖSTER
-            if (previewLabel) {
-                const capCM = (0.1 * scale * 30 / 30).toFixed(1);
-                previewLabel.innerText = `Ayrıt: ${capCM} cm`;
-                previewLabel.style.left = (x + 20) + 'px';
-                previewLabel.style.top = (y - 40) + 'px';
-                previewLabel.style.display = 'block';
-                previewLabel.classList.remove('hidden');
-            }
             return;
         }
-
-      if (this.isDragging && this.currentMesh) {
+        if (this.isDragging && this.currentMesh) {
             this.raycaster.setFromCamera(this.getNormalizedCoords(x, y), this.camera);
             const intersectPoint = new THREE.Vector3();
             if (this.raycaster.ray.intersectPlane(this.dragPlane, intersectPoint)) {
-                // 3D uzayda şekli kaydır
                 this.currentMesh.position.addVectors(intersectPoint, this.dragOffset);
                 this.updateHandlePositions();
                 
-                // 🚨 3D ŞEKLİ VE FORMÜL KUTUSUNU PARMAĞA YAPIŞTIR
-                if (this.currentMesh.userData.strokeData) {
+                // 🚨 EKRANDA TAŞINIRKEN BİLGİYİ GERÇEK ZAMANLI PC'YE İLET
+                if (this.currentMesh.userData && this.currentMesh.userData.strokeData) {
                     const sd = this.currentMesh.userData.strokeData;
                     sd.pos3D = { x: this.currentMesh.position.x, y: this.currentMesh.position.y, z: this.currentMesh.position.z };
                     
-                    // Parmağın (x,y) noktasını şeklin 2D merkezi yap (Kutu peşinden gelsin diye)
-                    sd.x = x - (sd.width / 2);
-                    sd.y = y - (sd.height / 2);
+                    // 2D Merkez noktasını (x,y) Formül kutusu için de güncelle
+                    const vec = this.currentMesh.position.clone();
+                    vec.project(this.camera);
+                    const w = window.innerWidth / 2, h = window.innerHeight / 2;
+                    sd.x = ((vec.x * w) + w) - (sd.width / 2);
+                    sd.y = (-(vec.y * h) + h) - (sd.height / 2);
                     
-                    // Formül kutusunun şekille birlikte kayması için UI'yi uyar
                     window.selectedItem = sd;
-                    if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
 
-                    // Hareketi anında PC'ye fırlat
-                    if (typeof window.sendNetworkData === 'function') {
-                        window.sendNetworkData({ type: 'sekil_guncelle', stroke: sd });
-                    }
+                    if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: sd });
+                    if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
                 }
             }
             return; 
         } 
-
-
         if (this.isRotatingShape && this.currentMesh && window.currentTool !== 'move') {
             this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), (y - this.lastMousePos.y) * 0.01);
             this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), (x - this.lastMousePos.x) * 0.01);
             this.lastMousePos = { x, y };
             this.updateHandlePositions();
-            
-            if (this.currentMesh.userData.strokeData && typeof window.sendNetworkData === 'function') {
-                const sd = this.currentMesh.userData.strokeData;
-                sd.rotationX = this.currentMesh.rotation.x;
-                sd.rotationY = this.currentMesh.rotation.y;
-                sd.rotationZ = this.currentMesh.rotation.z;
-                window.sendNetworkData({ type: 'sekil_guncelle', stroke: sd });
-            }
         }
     },
 
@@ -6079,63 +6045,47 @@ window.Scene3D = {
         const wasDrawing = this.isDrawing;
         this.isDrawing = false;
 
-        const previewLabel = document.getElementById('polygon-preview-label');
-        if (previewLabel) previewLabel.classList.add('hidden');
-
         if (wasDrawing && this.previewMesh) {
             const finalScale = this.previewMesh.scale.x || 1;
             const finalRadius = 0.1 * finalScale;
             this.scene.remove(this.previewMesh); this.previewMesh.geometry.dispose(); this.previewMesh = null;
             
-            const gercekRadius = finalRadius < 0.2 ? 1.5 : finalRadius;
-            this.createSolidMesh(this.activeTool, this.startPoint, gercekRadius, true);
-        }
-    },
+            const geometry = this.createGeometry(this.activeTool, finalRadius);
+            if(this.activeTool.startsWith('prism') || this.activeTool.startsWith('pyramid')) geometry.rotateX(Math.PI / 2);
+            
+            const isSphere = this.activeTool === 'sphere';
+            const solidShape = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({ color: 0x00ffcc, shininess: 100, specular: 0x111111, transparent: !isSphere, opacity: isSphere ? 1.0 : 0.4, depthWrite: isSphere, side: THREE.DoubleSide }));
+            
+            // Şekli 3D uzaya tam senin bıraktığın yere yerleştir
+            solidShape.position.copy(this.startPoint || new THREE.Vector3(0,0,0));
+            solidShape.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 })));
+            
+            this.scene.add(solidShape);
+            this.currentMesh = solidShape;
+            this.updateHandlePositions();
 
-    createSolidMesh: function(type, position, radius, isLocalDraw) {
-        const geometry = this.createGeometry(type, radius);
-        if(type.startsWith('prism') || type.startsWith('pyramid')) geometry.rotateX(Math.PI / 2);
-        
-        const isSphere = type === 'sphere';
-        const solidShape = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({ color: 0x00ffcc, shininess: 100, specular: 0x111111, transparent: !isSphere, opacity: isSphere ? 1.0 : 0.4, depthWrite: isSphere, side: THREE.DoubleSide }));
-        solidShape.position.copy(position || new THREE.Vector3(0,0,0));
-        solidShape.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 })));
-        
-        this.scene.add(solidShape);
-        this.currentMesh = solidShape;
-        this.updateHandlePositions();
+            // 🚨 SİHİRLİ DOKUNUŞ: 3D Şeklin 2D Çizim Noktasını Tam İsabet Hesapla! (Ortaya kaçmaz)
+            const vec = solidShape.position.clone();
+            vec.project(this.camera);
+            const w = window.innerWidth / 2;
+            const h = window.innerHeight / 2;
+            const screenX = (vec.x * w) + w;
+            const screenY = -(vec.y * h) + h;
 
-        // SENİN ESKİ VERİ YAPIN VE YENİ 3D ROTASYON VERİSİ BİRLEŞTİRİLDİ
-        const networkData = {
-            type: '3d_shape', id: Date.now().toString() + Math.random(), shapeType: type,
-            x: window.innerWidth/2, y: window.innerHeight/2, 
-            width: radius * 30, height: radius * 30,
-            rotation: 0, yaw: 0, pitch: 1, openRatio: 0, isPreview: false,
-            rotationX: 0, rotationY: 0, rotationZ: 0,
-            pos3D: { x: solidShape.position.x, y: solidShape.position.y, z: solidShape.position.z },
-            color: '#00ffcc'
-        };
-        solidShape.userData = { type: type, baseSize: radius, height: radius * 2, strokeData: networkData };
-        
-        // ŞEKİL BİTTİĞİNDE AĞA (PC'YE) GÖNDER
-        if (isLocalDraw) {
+            const networkData = {
+                type: '3d_shape', id: Date.now().toString() + Math.random(), shapeType: this.activeTool,
+                x: screenX - (finalRadius * 15), 
+                y: screenY - (finalRadius * 15), 
+                width: finalRadius * 30, height: finalRadius * 30,
+                rotationX: 0, rotationY: 0, rotationZ: 0,
+                pos3D: { x: solidShape.position.x, y: solidShape.position.y, z: solidShape.position.z },
+                rotation: 0, yaw: 0, pitch: 1, openRatio: 0, isPreview: false, color: '#00ffcc'
+            };
+            solidShape.userData = { type: this.activeTool, baseSize: finalRadius, height: finalRadius * 2, strokeData: networkData };
+            
             if(window.drawnStrokes) window.drawnStrokes.push(networkData);
             if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'yeni_cizim', stroke: networkData });
         }
-        return solidShape;
-    },
-
-    addShapeFromNetwork: function(stroke) {
-        if (!this.isInit) this.init();
-        const radius = (stroke.width || 60) / 30;
-        const pos = stroke.pos3D ? new THREE.Vector3(stroke.pos3D.x, stroke.pos3D.y, stroke.pos3D.z) : new THREE.Vector3(0,0,0);
-        
-        const solidShape = this.createSolidMesh(stroke.shapeType, pos, radius, false);
-        solidShape.userData.strokeData = stroke;
-        
-        if (stroke.rotationX !== undefined) solidShape.rotation.x = stroke.rotationX;
-        if (stroke.rotationY !== undefined) solidShape.rotation.y = stroke.rotationY;
-        if (stroke.rotationZ !== undefined) solidShape.rotation.z = stroke.rotationZ;
     },
 
     setTool: function(toolName) {
@@ -6279,11 +6229,9 @@ window.addEventListener('load', () => {
         const info = document.getElementById('info-tooltip');
         
         let activeShape = null;
-        // Şekil "Taşı" modunda seçiliyken veya o an çizilirken algıla
+        // Şekil "Taşı" modunda seçiliyken algıla (Formül Kutusu Çıksın)
         if (window.currentTool === 'move' && window.selectedItem && window.selectedItem.type === '3d_shape') {
             activeShape = window.selectedItem;
-        } else if (window.Scene3D && window.Scene3D.isDrawing && window.Scene3D.currentMesh && window.Scene3D.currentMesh.userData) {
-            activeShape = window.Scene3D.currentMesh.userData.strokeData;
         }
 
         if (activeShape) {
@@ -6334,8 +6282,6 @@ window.addEventListener('load', () => {
         }
         requestAnimationFrame(uiMotor);
     };
-    requestAnimationFrame(uiMotor);
-});
 
 // AÇILIŞTA ÇİZGİ MENÜSÜNÜ ZORLA KAPAT
 window.addEventListener('load', () => {
