@@ -2072,10 +2072,10 @@ function setActiveTool(tool) {
     polygonPreviewLabel.classList.add('hidden'); 
     
     // Fiziksel Araçları gizle ve CSS sınıflarını KESİN OLARAK kapat
-    if (window.RulerTool) { window.RulerTool.hide(); const el = document.querySelector('.ruler-container'); if(el) { el.classList.add('hidden'); el.style.display = 'none'; } }
-    if (window.GonyeTool) { window.GonyeTool.hide(); const el = document.querySelector('.gonye-container'); if(el) { el.classList.add('hidden'); el.style.display = 'none'; } }
-    if (window.AciolcerTool) { window.AciolcerTool.hide(); const el = document.querySelector('.aciolcer-container'); if(el) { el.classList.add('hidden'); el.style.display = 'none'; } }
-    if (window.PergelTool) { window.PergelTool.hide(); const el = document.getElementById('compass-container'); if(el) { el.classList.add('hidden'); el.style.display = 'none'; } }
+    if (window.RulerTool) { window.RulerTool.hide(); const el = document.querySelector('.ruler-container'); if(el) { el.classList.add('hidden'); el.style.display = 'none'; el.style.zIndex = "-1"; } }
+    if (window.GonyeTool) { window.GonyeTool.hide(); const el = document.querySelector('.gonye-container'); if(el) { el.classList.add('hidden'); el.style.display = 'none'; el.style.zIndex = "-1"; } }
+    if (window.AciolcerTool) { window.AciolcerTool.hide(); const el = document.querySelector('.aciolcer-container'); if(el) { el.classList.add('hidden'); el.style.display = 'none'; el.style.zIndex = "-1"; } }
+    if (window.PergelTool) { window.PergelTool.hide(); const el = document.getElementById('compass-container'); if(el) { el.classList.add('hidden'); el.style.display = 'none'; el.style.zIndex = "-1"; } }
     
     if (snapIndicator) snapIndicator.style.display = 'none';
     
@@ -2126,34 +2126,33 @@ function setActiveTool(tool) {
     } 
 
     // --- DİĞER ARAÇLAR ---
-   // --- DİĞER ARAÇLAR ---
     else if (tool === 'ruler') {
         rulerButton.classList.add('active');
         if (window.RulerTool) {
             window.RulerTool.show();
             const el = document.querySelector('.ruler-container');
-            if(el) { el.classList.remove('hidden'); el.style.display = 'flex'; }
+            if(el) { el.classList.remove('hidden'); el.style.display = 'flex'; el.style.zIndex = "9999"; }
         }
     } else if (tool === 'gonye') {
         gonyeButton.classList.add('active');
         if (window.GonyeTool) {
             window.GonyeTool.show();
             const el = document.querySelector('.gonye-container');
-            if(el) { el.classList.remove('hidden'); el.style.display = 'flex'; }
+            if(el) { el.classList.remove('hidden'); el.style.display = 'flex'; el.style.zIndex = "9999"; }
         }
     } else if (tool === 'aciolcer') {
         aciolcerButton.classList.add('active');
         if (window.AciolcerTool) {
             window.AciolcerTool.show();
             const el = document.querySelector('.aciolcer-container');
-            if(el) { el.classList.remove('hidden'); el.style.display = 'block'; }
+            if(el) { el.classList.remove('hidden'); el.style.display = 'block'; el.style.zIndex = "9999"; }
         }
     } else if (tool === 'pergel') {
         pergelButton.classList.add('active');
         if (window.PergelTool) {
             window.PergelTool.show();
             const el = document.getElementById('compass-container');
-            if(el) { el.classList.remove('hidden'); el.style.display = 'block'; }
+            if(el) { el.classList.remove('hidden'); el.style.display = 'block'; el.style.zIndex = "9999"; }
             if (window.bringToolToFront) window.bringToolToFront(el);
         }
     }
@@ -2181,12 +2180,33 @@ function setActiveTool(tool) {
 
 penButton.addEventListener('click', () => setActiveTool(currentTool === 'pen' ? 'none' : 'pen'));
 eraserButton.addEventListener('click', () => setActiveTool(currentTool === 'eraser' ? 'none' : 'eraser'));
-// --- FİZİKSEL ARAÇ BUTONLARI KESİN ÇÖZÜMÜ ---
-rulerButton.addEventListener('click', () => setActiveTool(currentTool === 'ruler' ? 'none' : 'ruler'));
-gonyeButton.addEventListener('click', () => setActiveTool(currentTool === 'gonye' ? 'none' : 'gonye'));
-aciolcerButton.addEventListener('click', () => setActiveTool(currentTool === 'aciolcer' ? 'none' : 'aciolcer'));
-pergelButton.addEventListener('click', () => setActiveTool(currentTool === 'pergel' ? 'none' : 'pergel'));
 
+
+// --- FİZİKSEL ARAÇ BUTONLARI KESİN ÇÖZÜMÜ ---
+rulerButton.addEventListener('click', () => { 
+    if (window.RulerTool) { 
+        window.RulerTool.toggle(); 
+        const isHidden = window.RulerTool.rulerElement.style.display === 'none' || window.RulerTool.rulerElement.classList.contains('hidden');
+        rulerButton.classList.toggle('active', !isHidden); 
+    } 
+});
+gonyeButton.addEventListener('click', () => { 
+    if (window.GonyeTool) { 
+        window.GonyeTool.toggle(); 
+        const isHidden = window.GonyeTool.gonyeElement.style.display === 'none' || window.GonyeTool.gonyeElement.classList.contains('hidden');
+        gonyeButton.classList.toggle('active', !isHidden); 
+    } 
+});
+aciolcerButton.addEventListener('click', () => { 
+    if (window.AciolcerTool) { 
+        window.AciolcerTool.toggle(); 
+        const isHidden = window.AciolcerTool.aciolcerElement.style.display === 'none' || window.AciolcerTool.aciolcerElement.classList.contains('hidden');
+        aciolcerButton.classList.toggle('active', !isHidden); 
+    } 
+});
+pergelButton.addEventListener('click', () => {
+    setActiveTool(currentTool === 'pergel' ? 'none' : 'pergel');
+});
 
 undoButton.addEventListener('click', undoLastStroke);
 clearAllButton.addEventListener('click', clearAllStrokes);
