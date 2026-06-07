@@ -5199,24 +5199,26 @@ function setupConnectionEvents() {
                 hedef.height = data.stroke.height;
                 if (data.stroke.rotation !== undefined) hedef.rotation = data.stroke.rotation;
                 
-                // Çokgenler ve çemberler için
                 if (data.stroke.radius !== undefined) hedef.radius = data.stroke.radius;
                 if (data.stroke.cx !== undefined) hedef.cx = data.stroke.cx;
                 if (data.stroke.cy !== undefined) hedef.cy = data.stroke.cy;
                 if (data.stroke.center !== undefined) hedef.center = data.stroke.center;
 
-                // 🚨 3D GÜNCELLEME (TABLETTEN PC'YE HAREKET/BOYUT/DÖNDÜRME) 🚨
+                // 🚨 PC MOTORU: TABLETTEN GELEN SÜRÜKLEME VE DÖNDÜRME BİLGİSİNİ SAHNEYE UYGULA
                 if (hedef.type === '3d_shape' && window.Scene3D && window.Scene3D.scene) {
                     const sceneMesh = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === hedef.id);
                     if (sceneMesh) {
-                        // Yeni boyutu ayarla
                         const yeniScale = (data.stroke.width / 30) / sceneMesh.userData.baseSize;
                         sceneMesh.scale.set(yeniScale, yeniScale, yeniScale);
                         
-                        // Rotasyonları ayarla
                         if (data.stroke.rotationX !== undefined) sceneMesh.rotation.x = data.stroke.rotationX;
                         if (data.stroke.rotationY !== undefined) sceneMesh.rotation.y = data.stroke.rotationY;
                         if (data.stroke.rotationZ !== undefined) sceneMesh.rotation.z = data.stroke.rotationZ;
+                        
+                        // 3D Pozisyonunu tabletle aynı yere çek!
+                        if (data.stroke.pos3D !== undefined) {
+                            sceneMesh.position.set(data.stroke.pos3D.x, data.stroke.pos3D.y, data.stroke.pos3D.z);
+                        }
                         
                         if (window.Scene3D.currentMesh === sceneMesh) window.Scene3D.updateHandlePositions();
                     }
@@ -5824,7 +5826,6 @@ window.Scene3D = {
     onDown: function(x, y) {
         if (!this.isInit) return false;
 
-        // 🚨 GÜVENLİK 3: Çizime başlamadan önce görünürlüğü tekrar teyit et!
         if (this.container) {
             this.container.style.display = 'block';
             this.container.classList.remove('hidden');
@@ -5836,40 +5837,40 @@ window.Scene3D = {
         const intersects = this.raycaster.intersectObjects(this.scene.children, true);
         let foundMesh = intersects.find(h => h.object.type === 'Mesh' && h.object !== this.helperGroup);
         
-        // 🚨 TABLET DOKUNMATİK ZIRHI: Parmakla basıldığında 3D Işın ıskalasa bile 2D Kutusundan Kesin Yakala!
+        // 🚨 TABLET ZIRHI: Parmakla basıldığında tam isabet etmese bile şekli 2D kutusundan kesin yakala!
         if (!foundMesh && window.drawnStrokes && window.currentTool === 'move') {
-            const canvasEl = document.getElementById('drawing-canvas');
-            if (canvasEl) {
-                const rect = canvasEl.getBoundingClientRect();
-                const canvasX = ((x - rect.left) * (canvasEl.width / rect.width));
-                const canvasY = ((y - rect.top) * (canvasEl.height / rect.height));
-                
-                const hitStroke = window.drawnStrokes.find(s => s.type === '3d_shape' && Math.abs(canvasX - (s.x + s.width / 2)) < s.width / 2 && Math.abs(canvasY - (s.y + s.height / 2)) < s.height / 2);
-                if (hitStroke) {
-                    const sceneMesh = this.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === hitStroke.id);
-                    if (sceneMesh) foundMesh = { object: sceneMesh };
-                }
+            const hitStroke = window.drawnStrokes.find(s => s.type === '3d_shape' && Math.abs(x - (s.x + s.width / 2)) < s.width && Math.abs(y - (s.y + s.height / 2)) < s.height);
+            if (hitStroke) {
+                const sceneMesh = this.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === hitStroke.id);
+                if (sceneMesh) foundMesh = { object: sceneMesh };
             }
         }
 
         if (foundMesh) {
             this.currentMesh = foundMesh.object;
             this.clickStartPos = { x, y };
+            
+            // "Taşı" aracı seçiliyse şekli sürükleme moduna al
             if (window.currentTool === 'move') {
-                this.isRotatingShape = false; this.isDragging = true;
+                this.isRotatingShape = false; 
+                this.isDragging = true; 
                 this.dragPlane.setFromNormalAndCoplanarPoint(this.camera.getWorldDirection(new THREE.Vector3()), this.currentMesh.position);
                 const intersectPoint = new THREE.Vector3();
-                if(this.raycaster.ray.intersectPlane(this.dragPlane, intersectPoint)) { this.dragOffset.subVectors(this.currentMesh.position, intersectPoint); }
+                if(this.raycaster.ray.intersectPlane(this.dragPlane, intersectPoint)) { 
+                    this.dragOffset.subVectors(this.currentMesh.position, intersectPoint); 
+                }
+                
+                // Formül kutusunun çıkması için şekli seçili hale getir
+                if (this.currentMesh.userData && this.currentMesh.userData.strokeData) {
+                    window.selectedItem = this.currentMesh.userData.strokeData;
+                    if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
+                }
             } else {
-                this.isDragging = false; this.isRotatingShape = true; this.lastMousePos = { x, y };
+                this.isDragging = false; 
+                this.isRotatingShape = true; 
+                this.lastMousePos = { x, y };
             }
             this.updateHandlePositions();
-            
-            // 🚨 TIKLANDIĞI ANDA FORMÜL KUTUSUNUN ÇIKMASI İÇİN SEÇİMİ BİLDİR
-            if (window.currentTool === 'move') {
-                window.selectedItem = this.currentMesh.userData.strokeData;
-                if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
-            }
             return true;
         }
 
@@ -5887,6 +5888,7 @@ window.Scene3D = {
         
         if (window.currentTool === 'move') {
             this.currentMesh = null;
+            window.selectedItem = null;
             this.updateHandlePositions();
         }
         return false;
@@ -5947,25 +5949,27 @@ window.Scene3D = {
             this.raycaster.setFromCamera(this.getNormalizedCoords(x, y), this.camera);
             const intersectPoint = new THREE.Vector3();
             if (this.raycaster.ray.intersectPlane(this.dragPlane, intersectPoint)) {
+                // 3D uzayda şekli kaydır
                 this.currentMesh.position.addVectors(intersectPoint, this.dragOffset);
                 this.updateHandlePositions();
                 
-                // 🚨 3D'DEN 2D'YE KÖPRÜ: Ekranda sürüklerken Formül kutusu ve PC eşzamanlı hareket eder
+                // 🚨 3D ŞEKLİ VE FORMÜL KUTUSUNU PARMAĞA YAPIŞTIR
                 if (this.currentMesh.userData.strokeData) {
                     const sd = this.currentMesh.userData.strokeData;
                     sd.pos3D = { x: this.currentMesh.position.x, y: this.currentMesh.position.y, z: this.currentMesh.position.z };
                     
-                    const canvasEl = document.getElementById('drawing-canvas');
-                    if (canvasEl) {
-                        const rect = canvasEl.getBoundingClientRect();
-                        const canvasX = ((this.handles.center.x - rect.left) * (canvasEl.width / rect.width));
-                        const canvasY = ((this.handles.center.y - rect.top) * (canvasEl.height / rect.height));
-                        sd.x = canvasX - sd.width / 2;
-                        sd.y = canvasY - sd.height / 2;
-                    }
-
-                    if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: sd });
+                    // Parmağın (x,y) noktasını şeklin 2D merkezi yap (Kutu peşinden gelsin diye)
+                    sd.x = x - (sd.width / 2);
+                    sd.y = y - (sd.height / 2);
+                    
+                    // Formül kutusunun şekille birlikte kayması için UI'yi uyar
+                    window.selectedItem = sd;
                     if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
+
+                    // Hareketi anında PC'ye fırlat
+                    if (typeof window.sendNetworkData === 'function') {
+                        window.sendNetworkData({ type: 'sekil_guncelle', stroke: sd });
+                    }
                 }
             }
             return; 
