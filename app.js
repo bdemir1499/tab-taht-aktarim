@@ -5096,11 +5096,9 @@ function setupConnectionEvents() {
             const existingIndex = stroke.id ? window.drawnStrokes.findIndex(s => s.id === stroke.id) : -1;
 
             if (existingIndex !== -1) {
-                // REDDETME, ÜZERİNE YAZ! (Eski veriyi silip yenisini/tamamlanmış olanı koyuyoruz)
                 window.drawnStrokes[existingIndex] = stroke;
                 if (window.redrawAllStrokes) window.redrawAllStrokes();
             } else {
-                // Hiç yoksa ilk kez ekle
                 if (stroke.type === 'image' && stroke.imgData) {
                     const tempImg = new Image();
                     tempImg.src = stroke.imgData;
@@ -5112,6 +5110,18 @@ function setupConnectionEvents() {
                 } else {
                     window.drawnStrokes.push(stroke);
                     if (window.redrawAllStrokes) window.redrawAllStrokes();
+                    
+                    // 🚨 EĞER GELEN ÇİZİM 3D ŞEKİLSE PC MOTORUNU TETİKLE 🚨
+                    if (stroke.type === '3d_shape' && window.Scene3D) {
+                        if (!window.Scene3D.isInit) window.Scene3D.init();
+                        if (window.Scene3D.container) {
+                            window.Scene3D.container.style.display = 'block';
+                            window.Scene3D.container.style.zIndex = '9995';
+                        }
+                        if (typeof window.Scene3D.addShapeFromNetwork === 'function') {
+                            window.Scene3D.addShapeFromNetwork(stroke);
+                        }
+                    }
                 }
             }
             return;
@@ -5161,6 +5171,23 @@ function setupConnectionEvents() {
                 if (data.stroke.cx !== undefined) hedef.cx = data.stroke.cx;
                 if (data.stroke.cy !== undefined) hedef.cy = data.stroke.cy;
                 if (data.stroke.center !== undefined) hedef.center = data.stroke.center;
+
+                // 🚨 3D GÜNCELLEME (TABLETTEN PC'YE HAREKET/BOYUT/DÖNDÜRME) 🚨
+                if (hedef.type === '3d_shape' && window.Scene3D && window.Scene3D.scene) {
+                    const sceneMesh = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === hedef.id);
+                    if (sceneMesh) {
+                        // Yeni boyutu ayarla
+                        const yeniScale = (data.stroke.width / 30) / sceneMesh.userData.baseSize;
+                        sceneMesh.scale.set(yeniScale, yeniScale, yeniScale);
+                        
+                        // Rotasyonları ayarla
+                        if (data.stroke.rotationX !== undefined) sceneMesh.rotation.x = data.stroke.rotationX;
+                        if (data.stroke.rotationY !== undefined) sceneMesh.rotation.y = data.stroke.rotationY;
+                        if (data.stroke.rotationZ !== undefined) sceneMesh.rotation.z = data.stroke.rotationZ;
+                        
+                        if (window.Scene3D.currentMesh === sceneMesh) window.Scene3D.updateHandlePositions();
+                    }
+                }
                 
                 if (window.redrawAllStrokes) window.redrawAllStrokes();
             }
@@ -5811,6 +5838,8 @@ window.Scene3D = {
     },
 
     onMove: function(x, y) {
+        const previewLabel = document.getElementById('polygon-preview-label');
+
         if (this.isRotatingHandle && this.currentMesh) {
             this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), (y - this.lastMousePos.y) * 0.01);
             this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), (x - this.lastMousePos.x) * 0.01);
@@ -5823,6 +5852,21 @@ window.Scene3D = {
             const newScale = Math.max(0.1, this.startScale * (currentDist / this.startResizeDist));
             this.currentMesh.scale.set(newScale, newScale, newScale);
             this.updateHandlePositions();
+            
+            // BOYUTLANDIRIRKEN GERÇEK ZAMANLI ETİKET GÖSTER
+            if (previewLabel && this.currentMesh.userData) {
+                const gercekBoyut = (this.currentMesh.userData.baseSize * newScale * 30 / 30).toFixed(1);
+                previewLabel.innerText = `Ayrıt: ${gercekBoyut} cm`;
+                previewLabel.style.left = (x + 20) + 'px';
+                previewLabel.style.top = (y - 40) + 'px';
+                previewLabel.style.display = 'block';
+                previewLabel.classList.remove('hidden');
+                
+                if (typeof window.sendNetworkData === 'function') {
+                    const sd = this.currentMesh.userData.strokeData;
+                    if (sd) { sd.width = this.currentMesh.userData.baseSize * newScale * 30; window.sendNetworkData({ type: 'sekil_guncelle', stroke: sd }); }
+                }
+            }
             return;
         }
         if (this.isDrawing && this.startPoint && this.previewMesh) {
@@ -5831,6 +5875,16 @@ window.Scene3D = {
             const distance = currentPoint.distanceTo(this.startPoint);
             const scale = Math.max(0.1, distance * 3.5);
             this.previewMesh.scale.set(scale, scale, scale);
+            
+            // İLK ÇİZİM (ÖNİZLEME) ESNASINDA ETİKET GÖSTER
+            if (previewLabel) {
+                const capCM = (0.1 * scale * 30 / 30).toFixed(1);
+                previewLabel.innerText = `Ayrıt: ${capCM} cm`;
+                previewLabel.style.left = (x + 20) + 'px';
+                previewLabel.style.top = (y - 40) + 'px';
+                previewLabel.style.display = 'block';
+                previewLabel.classList.remove('hidden');
+            }
             return;
         }
         if (this.isDragging && this.currentMesh) {
@@ -5841,7 +5895,11 @@ window.Scene3D = {
                 this.updateHandlePositions();
                 
                 if (this.currentMesh.userData.strokeData && typeof window.sendNetworkData === 'function') {
-                    window.sendNetworkData({ type: 'cizim_tasi', strokeId: this.currentMesh.userData.strokeData.id, x: x, y: y });
+                    // SENİN KODUN (cizim_tasi) VE BENİM KODUM (sekil_guncelle) BİRLİKTE ÇALIŞIYOR
+                    const sd = this.currentMesh.userData.strokeData;
+                    sd.x = x; sd.y = y; 
+                    window.sendNetworkData({ type: 'cizim_tasi', strokeId: sd.id, x: x, y: y });
+                    window.sendNetworkData({ type: 'sekil_guncelle', stroke: sd });
                 }
             }
             return; 
@@ -5851,6 +5909,14 @@ window.Scene3D = {
             this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), (x - this.lastMousePos.x) * 0.01);
             this.lastMousePos = { x, y };
             this.updateHandlePositions();
+            
+            if (this.currentMesh.userData.strokeData && typeof window.sendNetworkData === 'function') {
+                const sd = this.currentMesh.userData.strokeData;
+                sd.rotationX = this.currentMesh.rotation.x;
+                sd.rotationY = this.currentMesh.rotation.y;
+                sd.rotationZ = this.currentMesh.rotation.z;
+                window.sendNetworkData({ type: 'sekil_guncelle', stroke: sd });
+            }
         }
     },
 
@@ -5859,39 +5925,69 @@ window.Scene3D = {
         const wasDrawing = this.isDrawing;
         this.isDrawing = false;
 
+        const previewLabel = document.getElementById('polygon-preview-label');
+        if (previewLabel) previewLabel.classList.add('hidden');
+
         if (wasDrawing && this.previewMesh) {
             const finalScale = this.previewMesh.scale.x || 1;
             const finalRadius = 0.1 * finalScale;
             this.scene.remove(this.previewMesh); this.previewMesh.geometry.dispose(); this.previewMesh = null;
             
-            const geometry = this.createGeometry(this.activeTool, finalRadius);
-            if(this.activeTool.startsWith('prism') || this.activeTool.startsWith('pyramid')) geometry.rotateX(Math.PI / 2);
-            
-            const isSphere = this.activeTool === 'sphere';
-            const solidShape = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({ color: 0x00ffcc, shininess: 100, specular: 0x111111, transparent: !isSphere, opacity: isSphere ? 1.0 : 0.4, depthWrite: isSphere, side: THREE.DoubleSide }));
-            solidShape.position.copy(this.startPoint || new THREE.Vector3(0,0,0));
-            solidShape.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 })));
-            
-            this.scene.add(solidShape);
-            this.currentMesh = solidShape;
-            this.updateHandlePositions();
+            const gercekRadius = finalRadius < 0.2 ? 1.5 : finalRadius;
+            this.createSolidMesh(this.activeTool, this.startPoint, gercekRadius, true);
+        }
+    },
 
-            const networkData = {
-                type: '3d_shape', id: Date.now().toString(), shapeType: this.activeTool,
-                x: window.innerWidth/2, y: window.innerHeight/2, width: finalRadius * 30, height: finalRadius * 30,
-                rotation: 0, yaw: 0, pitch: 1, openRatio: 0, isPreview: false, color: '#00ffcc'
-            };
-            solidShape.userData = { type: this.activeTool, baseSize: finalRadius, height: finalRadius * 2, strokeData: networkData };
-            
+    createSolidMesh: function(type, position, radius, isLocalDraw) {
+        const geometry = this.createGeometry(type, radius);
+        if(type.startsWith('prism') || type.startsWith('pyramid')) geometry.rotateX(Math.PI / 2);
+        
+        const isSphere = type === 'sphere';
+        const solidShape = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({ color: 0x00ffcc, shininess: 100, specular: 0x111111, transparent: !isSphere, opacity: isSphere ? 1.0 : 0.4, depthWrite: isSphere, side: THREE.DoubleSide }));
+        solidShape.position.copy(position || new THREE.Vector3(0,0,0));
+        solidShape.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 })));
+        
+        this.scene.add(solidShape);
+        this.currentMesh = solidShape;
+        this.updateHandlePositions();
+
+        // SENİN ESKİ VERİ YAPIN VE YENİ 3D ROTASYON VERİSİ BİRLEŞTİRİLDİ
+        const networkData = {
+            type: '3d_shape', id: Date.now().toString() + Math.random(), shapeType: type,
+            x: window.innerWidth/2, y: window.innerHeight/2, 
+            width: radius * 30, height: radius * 30,
+            rotation: 0, yaw: 0, pitch: 1, openRatio: 0, isPreview: false,
+            rotationX: 0, rotationY: 0, rotationZ: 0,
+            pos3D: { x: solidShape.position.x, y: solidShape.position.y, z: solidShape.position.z },
+            color: '#00ffcc'
+        };
+        solidShape.userData = { type: type, baseSize: radius, height: radius * 2, strokeData: networkData };
+        
+        // ŞEKİL BİTTİĞİNDE AĞA (PC'YE) GÖNDER
+        if (isLocalDraw) {
             if(window.drawnStrokes) window.drawnStrokes.push(networkData);
             if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'yeni_cizim', stroke: networkData });
         }
+        return solidShape;
+    },
+
+    addShapeFromNetwork: function(stroke) {
+        if (!this.isInit) this.init();
+        const radius = (stroke.width || 60) / 30;
+        const pos = stroke.pos3D ? new THREE.Vector3(stroke.pos3D.x, stroke.pos3D.y, stroke.pos3D.z) : new THREE.Vector3(0,0,0);
+        
+        const solidShape = this.createSolidMesh(stroke.shapeType, pos, radius, false);
+        solidShape.userData.strokeData = stroke;
+        
+        if (stroke.rotationX !== undefined) solidShape.rotation.x = stroke.rotationX;
+        if (stroke.rotationY !== undefined) solidShape.rotation.y = stroke.rotationY;
+        if (stroke.rotationZ !== undefined) solidShape.rotation.z = stroke.rotationZ;
     },
 
     setTool: function(toolName) {
         if (!this.isInit) this.init();
         this.activeTool = toolName;
-        // 🚨 GÜVENLİK 4: Araç seçildiğinde de konteynerı zorla göster!
+        // 🚨 GÜVENLİK 4: Araç seçildiğinde de konteynerı zorla göster! (Senin notun)
         if (this.container) {
             this.container.style.display = 'block';
             this.container.classList.remove('hidden');
@@ -5920,6 +6016,7 @@ window.Scene3D = {
                         window.sendNetworkData({ type: 'cizim_sil', strokeId: targetObj.userData.strokeData.id });
                     }
                 }
+                // SENİN EKLENTİN: Etiketi silme işlemi KORUNDU
                 if (targetObj.userData.labelElement) targetObj.userData.labelElement.remove();
                 this.scene.remove(targetObj);
                 if (this.currentMesh === targetObj) this.currentMesh = null;
@@ -5928,44 +6025,18 @@ window.Scene3D = {
             }
         }
         return false;
-    }, // 🚨 VİRGÜL!
+    },
 
     handleEraser: function(pos) {
         if (this.deleteObjectAt(pos.x, pos.y)) {
             if (typeof redrawAllStrokes === 'function') redrawAllStrokes();
         }
-    }, // 🚨 İŞTE BİZİM EKSİK OLAN HAYATİ VİRGÜL BURADA!
+    },
 
     addShapeToScene: function(type, x, y) {
         if (!this.isInit) this.init();
-        const size = 2; 
-        const geometry = this.createGeometry(type, size);
-        const isSphere = type === 'sphere';
-        const material = new THREE.MeshPhongMaterial({ 
-            color: 0x00ffcc, shininess: 100, specular: 0x111111, 
-            transparent: !isSphere, opacity: isSphere ? 1.0 : 0.4, 
-            depthWrite: isSphere, side: THREE.DoubleSide 
-        });
-        const solidShape = new THREE.Mesh(geometry, material);
-        solidShape.position.set(0, 0, 0);
-        const edges = new THREE.EdgesGeometry(geometry);
-        const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 });
-        solidShape.add(new THREE.LineSegments(edges, lineMat));
-        
-        const networkData = {
-            type: '3d_shape', id: Date.now().toString(), shapeType: type,
-            x: window.innerWidth/2, y: window.innerHeight/2, width: size * 30, height: size * 30,
-            rotation: 0, yaw: 0, pitch: 1, openRatio: 0, isPreview: false, color: '#00ffcc'
-        };
-        solidShape.userData = { type: type, baseSize: size, height: size * 2, strokeData: networkData };
-        
-        this.scene.add(solidShape);
-        this.currentMesh = solidShape;
-        this.updateHandlePositions();
-        
-        if(window.drawnStrokes) window.drawnStrokes.push(networkData);
-        if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'yeni_cizim', stroke: networkData });
-        
+        this.createSolidMesh(type, new THREE.Vector3(0,0,0), 2, true);
+        // SENİN EKLENTİN: Konsol logu KORUNDU
         console.log(type + " sahneye başarıyla çağrıldı!");
     }
 }; // --- GERÇEK 3D UZAY MOTORU (Scene3D) BURADA BİTİYOR ---
@@ -6009,23 +6080,24 @@ window.addEventListener('load', () => {
                 e.stopPropagation(); 
                 const data3d = b.getAttribute('data-3d');
                 
-                // 1. Aracı "Taşı" (Move) moduna al ki şekil gelir gelmez taşınabilsin
-                if (typeof setActiveTool === 'function') setActiveTool('move'); else window.currentTool = 'move';
+                // 1. Aracı çizim moduna al (Ekrana dokunmayı beklesin)
+                if (typeof setActiveTool === 'function') setActiveTool('none');
+                
                 window.active3DShapeTool = 'draw_' + data3d; 
-                btn3D.classList.add('active'); 
-                menu3D.classList.add('hidden'); menu3D.style.display = 'none';
+                const btn3D = document.getElementById('btn-3d-menu');
+                if (btn3D) btn3D.classList.add('active'); 
+                
+                const menu3D = document.getElementById('options-3d-main');
+                if (menu3D) { menu3D.classList.add('hidden'); menu3D.style.display = 'none'; }
 
-                // 2. 3D Motorunu Başlat (Kapalıysa)
+                // 2. 3D Motorunu Başlat ve Beklemeye Al
                 if (window.Scene3D) {
                     if (!window.Scene3D.isInit) window.Scene3D.init();
-                    
-                    // Container'ı zorla en üste çıkar
                     if (window.Scene3D.container) {
                         window.Scene3D.container.style.display = 'block';
-                        window.Scene3D.container.style.zIndex = '9995'; // Kanvasın üstüne
+                        window.Scene3D.container.style.zIndex = '9995'; 
                     }
                     
-                    // 3. Şekil ismini belirle
                     let toolName = 'sphere';
                     if (data3d.includes('kure')) toolName = 'sphere'; 
                     else if (data3d.includes('kup')) toolName = 'prism_cube'; 
@@ -6041,10 +6113,8 @@ window.addEventListener('load', () => {
                     else if (data3d.includes('altigen_piramit')) toolName = 'pyramid_6'; 
                     else toolName = 'prism_rect';
                     
-                    // 4. Şekli doğrudan ekranın ortasına fırlat ve PC'ye gönder
-                    setTimeout(() => {
-                        window.Scene3D.addShapeToScene(toolName, window.innerWidth / 2, window.innerHeight / 2);
-                    }, 50);
+                    window.currentTool = toolName;
+                    window.Scene3D.setTool(toolName);
                 }
             });
         });
