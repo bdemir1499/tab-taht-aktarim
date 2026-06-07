@@ -4633,6 +4633,7 @@ function akilliSilgi(e, isDown) {
     if (silindiMi && window.redrawAllStrokes) {
         window.redrawAllStrokes(); 
     }
+}
 
 // --- SİLGİ OLAY DİNLEYİCİLERİ (Artık Güvende) ---
 if (canvasElm) {
