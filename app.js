@@ -4786,6 +4786,7 @@ myPeer.on('connection', function(conn) {
 
                 const baglantiHazir = () => {
                     isConnected = true;
+                    window.isConnected = true; // 🚨 EKLENDİ: Cetvel ve Pergel'e "Bağlandık" mesajı gönderir
                     window.baglantiOnaylandi = true;
 
                     const statusEl = document.getElementById('connection-status');
@@ -4862,9 +4863,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 myConnection = myPeer.connect(targetCode);
                 
                 // --- BAĞLANTIYI GARANTİLEMEK İÇİN İKİLİ KONTROL ---
+                // --- BAĞLANTIYI GARANTİLEMEK İÇİN İKİLİ KONTROL ---
                 myConnection.on('open', () => {
                     console.log("Tablet: Connection Open tetiklendi!");
                     isConnected = true;
+                    window.isConnected = true; // 🚨 EKLENDİ: Cetvel ve Pergel'e "Bağlandık" mesajı gönderir
                     window.baglantiOnaylandi = true;
                     document.getElementById('connection-status').innerText = "BAĞLANDI 🟢";
                     document.getElementById('connection-status').style.color = "#00ffcc";
@@ -5293,8 +5296,13 @@ function setupConnectionEvents() {
                     }
                 }
                 if (el) {
-                    if (data.display === 'none') { data.arac === 'pergel' ? el.classList.add('hidden') : el.style.display = 'none'; }
-                    else { data.arac === 'pergel' ? el.classList.remove('hidden') : el.style.display = (data.arac === 'ruler' || data.arac === 'gonye') ? 'flex' : 'block'; }
+                    if (data.display === 'none') { 
+                        el.classList.add('hidden'); // 🚨 KESİN OLARAK GİZLE
+                        el.style.display = 'none'; 
+                    } else { 
+                        el.classList.remove('hidden'); // 🚨 KESİN OLARAK GÖSTER
+                        el.style.display = (data.arac === 'ruler' || data.arac === 'gonye') ? 'flex' : 'block'; 
+                    }
                     if (data.width) el.style.width = data.width;
                     if (data.height) el.style.height = data.height;
                 }
