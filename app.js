@@ -1930,37 +1930,42 @@ if (stroke.type === 'image') {
             const cY = stroke.y + stroke.height / 2;
             const angleRad = (stroke.rotation || 0) * (Math.PI / 180);
 
-            // Sadece Taşı modunda ve şekil SEÇİLİYKEN butonları yakala
-            if (window.currentTool === 'move' && window.selectedItem === stroke) {
-                const rotX = cX + Math.sin(angleRad) * (stroke.height / 2 + 40);
-                const rotY = cY - Math.cos(angleRad) * (stroke.height / 2 + 40);
-                if (distance(pos, {x: rotX, y: rotY}) < 30) return { item: stroke, pointKey: 'image_rotate' };
+            if (currentTool === 'move' && selectedItem === stroke) {
+                // Yeşil (Döndürme)
+                const rotY = -stroke.height / 2 - 40;
+                const rotX_world = cX + Math.sin(angleRad) * Math.abs(rotY);
+                const rotY_world = cY - Math.cos(angleRad) * Math.abs(rotY);
+                if (distance(pos, {x: rotX_world, y: rotY_world}) < 35) return { item: stroke, pointKey: 'image_rotate' };
 
-                const resX = cX + (stroke.width / 2 * Math.cos(angleRad) - stroke.height / 2 * Math.sin(angleRad)) + 20 * Math.cos(angleRad);
-                const resY = cY + (stroke.width / 2 * Math.sin(angleRad) + stroke.height / 2 * Math.cos(angleRad)) + 20 * Math.sin(angleRad);
-                if (distance(pos, {x: resX, y: resY}) < 35) return { item: stroke, pointKey: 'image_resize' };
+                // Pembe (Boyutlandırma)
+                const resX_local = stroke.width / 2 + 20;
+                const resY_local = stroke.height / 2 + 20;
+                const resX_world = cX + (resX_local * Math.cos(angleRad) - resY_local * Math.sin(angleRad));
+                const resY_world = cY + (resX_local * Math.sin(angleRad) + resY_local * Math.cos(angleRad));
+                if (distance(pos, {x: resX_world, y: resY_world}) < 35) return { item: stroke, pointKey: 'image_resize' };
             }
 
-            // Şeklin Gövdesinden Tutma (Her zaman, seçili olmasa bile çalışmalı!)
-            const dx = pos.x - cX; const dy = pos.y - cY;
-            const localX = dx * Math.cos(-angleRad) - dy * Math.sin(-angleRad);
-            const localY = dx * Math.sin(-angleRad) + dy * Math.cos(-angleRad);
-            if (Math.abs(localX) < stroke.width / 2 && Math.abs(localY) < stroke.height / 2) {
+            // 🚨 3D Şeklin Tüm Gövdesini Yakala (Taşıma Başlasın ve Butonlar Çıksın)
+            if (distance(pos, {x: cX, y: cY}) < Math.max(stroke.width, stroke.height) + 30) {
                 return { item: stroke, pointKey: 'self' };
             }
         }
 
-if (currentTool === 'move' && selectedItem === stroke) {
+        if (currentTool === 'move' && selectedItem === stroke) {
             if (stroke.type === 'polygon') {
                 const rotateHandlePos = window.PolygonTool.getRotateHandlePosition(stroke);
-                // 🚨 TABLET HASSASİYETİ: Kulpları tutma alanı büyütüldü
-                if (distance(pos, rotateHandlePos) < 35) return { item: stroke, pointKey: 'rotate' }; 
-                if (stroke.vertices && stroke.vertices.length > 0) {
-                    const resizeHandlePos = stroke.vertices[0];
-                    if (distance(pos, resizeHandlePos) < 35) return { item: stroke, pointKey: 'resize' }; 
-                }
+                const resizeHandlePos = (stroke.vertices && stroke.vertices.length > 0) ? stroke.vertices[0] : null;
+                
+                const dRot = distance(pos, rotateHandlePos);
+                const dRes = resizeHandlePos ? distance(pos, resizeHandlePos) : Infinity;
+
+                // 🚨 PEMBE VE YEŞİL BUTON ÇAKIŞMA ZIRHI (Öncelik en yakın olana verilir)
+                if (dRes < 35 && dRes <= dRot) return { item: stroke, pointKey: 'resize' }; 
+                if (dRot < 35) return { item: stroke, pointKey: 'rotate' }; 
             }
         }
+
+
 // --- DİKDÖRTGEN YAKALAMA (TABLET UYUMLU) ---
         if (stroke.type === 'rectangle') {
             const centerX = stroke.x + stroke.width / 2;
@@ -2219,24 +2224,24 @@ function setActiveTool(tool) {
             const el = document.querySelector('.aciolcer-container');
             if(el) { el.classList.remove('hidden'); el.style.display = 'block'; el.style.zIndex = "9999"; }
         }
-   } else if (tool === 'pergel') {
+  } else if (tool === 'pergel') {
         pergelButton.classList.add('active');
         if (window.PergelTool) {
             window.PergelTool.show(); 
-            // 🚨 TABLET ZIRHI: CSS sınıflarını kesin olarak ez ve zorla göster
             const el = document.getElementById('compass-container');
             if(el) { el.classList.remove('hidden'); el.style.display = 'block'; el.style.zIndex = "9999"; }
             
-            // 🚨 PERGELİ DİK VE AÇIK HALE GETİR
             if (window.PergelTool.state) {
-                window.PergelTool.state.rotation = 0;
-                window.PergelTool.state.angle = 45;
-                window.PergelTool.state.distance = 150;
-                if (typeof window.PergelTool.updateTransform === 'function') window.PergelTool.updateTransform();
+                // 🚨 ZAMANLAMA ZIRHI: HTML Yüklendikten Sonra Zorla Aç ve Ağa Bildir
+                setTimeout(() => {
+                    window.PergelTool.state.rotation = 0;
+                    window.PergelTool.state.angle = 45;
+                    window.PergelTool.state.distance = 150;
+                    if (typeof window.PergelTool.updateTransform === 'function') window.PergelTool.updateTransform();
+                    if (typeof window.araclariAgaGonder === 'function') window.araclariAgaGonder();
+                }, 100);
             }
-            if (window.bringToolToFront) {
-                window.bringToolToFront(el || window.PergelTool.pergelElement);
-            }
+            if (window.bringToolToFront) window.bringToolToFront(el || window.PergelTool.pergelElement);
         }
     }
 
@@ -2796,9 +2801,23 @@ canvas.addEventListener('pointerdown', (e) => {
         const hit = findHit(pos); 
         if (hit) {
             drawnStrokes = drawnStrokes.filter(s => s !== hit.item); drawnStrokes.push(hit.item); window.drawnStrokes = drawnStrokes;
-            if (hit.pointKey === 'toggle_edges') { hit.item.showEdgeLabels = !hit.item.showEdgeLabels; redrawAllStrokes(); return; }
-            if (hit.pointKey === 'toggle_angles') { hit.item.showAngleLabels = !hit.item.showAngleLabels; redrawAllStrokes(); return; }
-            if (hit.pointKey === 'toggle_circle_info') { hit.item.showCircleInfo = !hit.item.showCircleInfo; redrawAllStrokes(); return; }
+            
+            // 🚨 ETİKETLERİN PC'YE GÖNDERİLMESİ (Ağa Sinyal Eklendi)
+            if (hit.pointKey === 'toggle_edges') { 
+                hit.item.showEdgeLabels = !hit.item.showEdgeLabels; 
+                if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: hit.item });
+                redrawAllStrokes(); return; 
+            }
+            if (hit.pointKey === 'toggle_angles') { 
+                hit.item.showAngleLabels = !hit.item.showAngleLabels; 
+                if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: hit.item });
+                redrawAllStrokes(); return; 
+            }
+            if (hit.pointKey === 'toggle_circle_info') { 
+                hit.item.showCircleInfo = !hit.item.showCircleInfo; 
+                if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: hit.item });
+                redrawAllStrokes(); return; 
+            }
 
             isMoving = true; selectedItem = hit.item; selectedPointKey = hit.pointKey; dragStartPos = pos; 
             if (typeof isConnected !== 'undefined' && isConnected) window.sendNetworkData({ type: 'secimi_senkronize_et', strokeId: selectedItem.id });
@@ -2887,9 +2906,12 @@ canvas.addEventListener('pointermove', (e) => {
     let rawX = e.clientX; let rawY = e.clientY;
     if (e.targetTouches && e.targetTouches.length > 0) { rawX = e.targetTouches[0].clientX; rawY = e.targetTouches[0].clientY; }
 
-    // --- 🚨 KÖPRÜ 2: 3D HAREKETİ ---
+    // --- 🚨 KÖPRÜ 2: 3D HAREKETİ (TAŞIMA MOTORU ZIRHI) ---
     if (window.Scene3D && window.Scene3D.isInit) {
-        if (window.Scene3D.isDragging || window.Scene3D.isDrawing || window.Scene3D.isRotatingShape) { window.Scene3D.onMove(rawX, rawY); return; }
+        // 🚨 3D Motorunun "Taşı" (move) Aracını Çalması Tamamen Yasaklandı! 
+        if (currentTool !== 'move' && (window.Scene3D.isDragging || window.Scene3D.isDrawing || window.Scene3D.isRotatingShape)) { 
+            window.Scene3D.onMove(rawX, rawY); return; 
+        }
     }
 
     if (window.isImageRotating && selectedItem) { const cX = selectedItem.x + selectedItem.width / 2; const cY = selectedItem.y + selectedItem.height / 2; selectedItem.rotation = (Math.atan2(pos.y - cY, pos.x - cX) * 180 / Math.PI) + 90; window.sendNetworkData({ type: 'arac_senkron', selector: '.yuzen-kopya-container', transform: `rotate(${selectedItem.rotation}deg)` }); window.sendNetworkData({ type: 'sekil_guncelle', stroke: selectedItem }); if (window.redrawAllStrokes) window.redrawAllStrokes(); return; }
@@ -5561,18 +5583,23 @@ function setupConnectionEvents() {
         if (data.type === 'secimi_senkronize_et') {
             const index = window.drawnStrokes.findIndex(s => s.id === data.strokeId);
             if (index !== -1) {
-                window.selectedItem = window.drawnStrokes[index];
-                window.currentTool = 'move';
+                // 🚨 PC'deki LOKAL değişkenleri ez ve aracı zorla 'move' yap (Butonlar görünsün)
+                selectedItem = window.drawnStrokes[index];
+                window.selectedItem = selectedItem;
+                
+                if (typeof setActiveTool === 'function') setActiveTool('move');
+                else currentTool = 'move';
+                
                 if (window.redrawAllStrokes) window.redrawAllStrokes();
             }
         }
 
         if (data.type === 'secimi_kaldir') {
+            selectedItem = null;
             window.selectedItem = null;
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
-
-    }
+    } // <--- processData fonksiyonu TAM BURADA kusursuzca kapanır
 
     // --- 3. BAĞLANTI KOPMASI DURUMU ---
     myConnection.on('close', function() {
