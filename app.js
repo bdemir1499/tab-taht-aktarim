@@ -2772,30 +2772,13 @@ canvas.addEventListener('pointerdown', (e) => {
     let rawX = e.clientX; let rawY = e.clientY;
     if (e.targetTouches && e.targetTouches.length > 0) { rawX = e.targetTouches[0].clientX; rawY = e.targetTouches[0].clientY; }
 
-    // --- 🚨 KÖPRÜ 1: 3D MOTORUNA DEVRET (HIRSIZLIK KORUMALI) ---
-    if (window.Scene3D && window.Scene3D.isInit) {
-        if (window.currentTool === 'move' || window.currentTool === 'select') {
-            const is3DHit = window.Scene3D.onDown(rawX, rawY);
-            if (is3DHit) return; 
-        }
-        // SADECE "draw_3d" ile başlayan 3D araçları seçiliyse 3D motoruna izin ver! (Silgiyi ve Çokgenleri Çalmasın)
+    // SADECE "draw_3d" ile başlayan 3D araçları seçiliyse 3D motoruna izin ver! (Silgiyi ve Çokgenleri Çalmasın)
         else if (window.currentTool && window.currentTool.startsWith('draw_3d_')) {
-            let toolName = window.currentTool;
-            if (toolName.includes('kure')) toolName = 'sphere'; 
-            else if (toolName.includes('kup')) toolName = 'prism_cube'; 
-            else if (toolName.includes('silindir')) toolName = 'prism_cylinder'; 
-            else if (toolName.includes('koni')) toolName = 'pyramid_cone'; 
-            else if (toolName.includes('ucgen_prizma')) toolName = 'prism_3'; 
-            else if (toolName.includes('dortgen_prizma')) toolName = 'prism_4'; 
-            else if (toolName.includes('besgen_prizma')) toolName = 'prism_5'; 
-            else if (toolName.includes('altigen_prizma')) toolName = 'prism_6'; 
-            else if (toolName.includes('ucgen_piramit')) toolName = 'pyramid_3'; 
-            else if (toolName.includes('kare_piramit')) toolName = 'pyramid_4'; 
-            else if (toolName.includes('besgen_piramit')) toolName = 'pyramid_5'; 
-            else if (toolName.includes('altigen_piramit')) toolName = 'pyramid_6'; 
-            else toolName = 'prism_rect'; 
-            
-            window.Scene3D.setTool(toolName); window.Scene3D.onDown(rawX, rawY); return;
+            // 🚨 KESİN ÇÖZÜM: İngilizce isimleri doğrudan tool isminden çekiyoruz! Prizma takılması bitti.
+            let toolName = window.currentTool.replace('draw_3d_', '');
+            window.Scene3D.setTool(toolName); 
+            window.Scene3D.onDown(rawX, rawY); 
+            return;
         }
     }
 
@@ -2864,7 +2847,7 @@ canvas.addEventListener('pointerdown', (e) => {
     switch (currentTool) {
         case 'pen': isDrawing = true; const pInfoDown = getPointerInfo(e); const pStroke = { type: 'pen', path: [{x: snapPos.x, y: snapPos.y, p: pInfoDown.type === 'pen' ? pInfoDown.pressure : 1}], color: currentPenColor, baseWidth: currentPenWidth, id: Date.now() + Math.random() }; drawnStrokes.push(pStroke); break;
         case 'point': isDrawing = false; const noktaObj = { type: 'point', x: snapPos.x, y: snapPos.y, label: nextPointChar, color: window.isToolThemeBlack ? '#000000' : (window.currentLineColor || '#FFFFFF'), id: Date.now() + Math.random() }; drawnStrokes.push(noktaObj); if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) window.sendNetworkData({ type: 'yeni_cizim', stroke: noktaObj }); nextPointChar = advanceChar(nextPointChar); if (typeof window.nextPointChar !== 'undefined') window.nextPointChar = nextPointChar; setTimeout(() => { if (typeof redrawAllStrokes === 'function') redrawAllStrokes(); }, 10); break;
-        case 'eraser': isDrawing = true; break;
+        case 'eraser': isDrawing = false; break; // 🚨 KESİN ÇÖZÜM: Silgi modunda kalem izi çizilmesi tamamen yasaklandı!
         case 'straightLine': if (!isDrawingLine) { isDrawingLine = true; lineStartPoint = snapPos; } break;
         case 'line': if (!isDrawingInfinityLine) { isDrawingInfinityLine = true; lineStartPoint = pos; } break;
         case 'segment': if (!isDrawingSegment) { isDrawingSegment = true; lineStartPoint = snapPos; } break;
@@ -2921,9 +2904,10 @@ canvas.addEventListener('pointermove', (e) => {
 
     // --- 🚨 KÖPRÜ 2: 3D HAREKETİ (TAŞIMA MOTORU ZIRHI) ---
     if (window.Scene3D && window.Scene3D.isInit) {
-        // 🚨 3D Motorunun "Taşı" (move) Aracını Çalması Tamamen Yasaklandı! 
-        if (currentTool !== 'move' && (window.Scene3D.isDragging || window.Scene3D.isDrawing || window.Scene3D.isRotatingShape)) { 
-            window.Scene3D.onMove(rawX, rawY); return; 
+        // 🚨 KESİN ÇÖZÜM: "Taşı" modundayken de şeklin hareket etmesi için 3D motoruna izin verdik.
+        if (window.Scene3D.isDragging || window.Scene3D.isDrawing || window.Scene3D.isRotatingShape) { 
+            window.Scene3D.onMove(rawX, rawY); 
+            return; 
         }
     }
 
@@ -3018,7 +3002,14 @@ canvas.addEventListener('pointerup', (e) => {
             window.Scene3D.onUp(); 
             
             if (wasDrawing) {
-                // Şekil çizimi bittiğinde aracı OTOMATİK DEĞİŞTİRME (Kullanıcı dilerse "Taşı"ya basacak)
+                // 🚨 KESİN ÇÖZÜM: "Taşı" (move) butonuna otomatik geçmeyi İPTAL ettik. Sistem boşta kalır.
+                window.active3DShapeTool = null;
+                window.currentTool = 'none'; 
+                if (typeof setActiveTool === 'function') setActiveTool('none'); 
+                
+                const mainBtn = document.getElementById('btn-3d-menu'); 
+                if (mainBtn) mainBtn.classList.remove('active');
+                
                 if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'onizleme_bitir' });
             }
             return; 
@@ -5288,6 +5279,11 @@ function setupConnectionEvents() {
                 if (data.stroke.cy !== undefined) hedef.cy = data.stroke.cy;
                 if (data.stroke.center !== undefined) hedef.center = data.stroke.center;
 
+                // 🚨 KESİN ÇÖZÜM: Tabletteki (Açı / Kenar uzunluğu / Çember formülü) etiketlerini PC'de de GÖSTER!
+                if (data.stroke.showEdgeLabels !== undefined) hedef.showEdgeLabels = data.stroke.showEdgeLabels;
+                if (data.stroke.showAngleLabels !== undefined) hedef.showAngleLabels = data.stroke.showAngleLabels;
+                if (data.stroke.showCircleInfo !== undefined) hedef.showCircleInfo = data.stroke.showCircleInfo;
+
                 // 🚨 PC MOTORU: TABLETTEN GELEN SÜRÜKLEME VE DÖNDÜRME BİLGİSİNİ SAHNEYE UYGULA
                 if (hedef.type === '3d_shape' && window.Scene3D && window.Scene3D.scene) {
                     const sceneMesh = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === hedef.id);
@@ -6184,24 +6180,21 @@ window.addEventListener('load', () => {
                 e.stopPropagation(); 
                 const data3d = b.getAttribute('data-3d');
                 
-                // 1. Aracı çizim moduna al (Ekrana dokunmayı beklesin)
                 if (typeof setActiveTool === 'function') setActiveTool('none');
                 
                 window.active3DShapeTool = 'draw_' + data3d; 
                 const btn3D = document.getElementById('btn-3d-menu');
                 if (btn3D) btn3D.classList.add('active'); 
-                
                 const menu3D = document.getElementById('options-3d-main');
                 if (menu3D) { menu3D.classList.add('hidden'); menu3D.style.display = 'none'; }
 
-                // 2. 3D Motorunu Başlat ve Beklemeye Al
+                // 3D Motorunu Uyandır ve Aracı Ver
                 if (window.Scene3D) {
                     if (!window.Scene3D.isInit) window.Scene3D.init();
                     if (window.Scene3D.container) {
                         window.Scene3D.container.style.display = 'block';
                         window.Scene3D.container.style.zIndex = '9995'; 
                     }
-                    
                     let toolName = 'sphere';
                     if (data3d.includes('kure')) toolName = 'sphere'; 
                     else if (data3d.includes('kup')) toolName = 'prism_cube'; 
@@ -6217,7 +6210,7 @@ window.addEventListener('load', () => {
                     else if (data3d.includes('altigen_piramit')) toolName = 'pyramid_6'; 
                     else toolName = 'prism_rect';
                     
-                    window.currentTool = toolName;
+                    window.currentTool = 'draw_3d_' + toolName; 
                     window.Scene3D.setTool(toolName);
                 }
             });
