@@ -100,10 +100,13 @@ window.PergelTool = {
     show: function() {
         if (!this.pergelElement) this.init();
         this.pergelElement.classList.remove('hidden');
-        this.state.pivot = { x: window.innerWidth / 2 - 50, y: window.innerHeight / 2 };
-        this.state.radius = 100;
-        this.state.rotation = 0;
+        this.state.pivot = { x: window.innerWidth / 2 - 75, y: window.innerHeight / 2 };
+        
+        // 🚨 KESİN ÇÖZÜM: İNSAN GİBİ DİK VE AYAKLARI AÇIK DURUŞ
+        this.state.radius = 150; // Ayak açıklığını belirler
+        this.state.rotation = 0; // 0 Derece pergeli tamamen dik tutar
         this.state.previousDrawAngle = 0; 
+        
         this.updateTransform();
     },
 
@@ -124,9 +127,9 @@ window.PergelTool = {
             if (part) part.addEventListener('pointerdown', boundPointerDown);
         });
         
-        if (this.handleTop) {
-            this.handleTop.addEventListener('dblclick', this.onFlip.bind(this));
-        }
+        // dblclick olayı tabletlerde hataya sebep olduğu için kaldırıldı.
+        // Çift tıklama artık sadece pointerdown üzerinden kusursuzca hesaplanacak.
+        window.addEventListener('pointermove', this.onPointerMove.bind(this), { passive: false });
 
         window.addEventListener('pointermove', this.onPointerMove.bind(this), { passive: false });
         window.addEventListener('pointerup', this.onPointerUp.bind(this), { passive: false });
@@ -142,18 +145,6 @@ window.PergelTool = {
 
         if (target.setPointerCapture) target.setPointerCapture(e.pointerId);
 
-        // --- 1. TABLET İÇİN ÇİFT TIKLAMA ALGILAYICI ---
-        if (target === this.handleTop) {
-            const currentTime = new Date().getTime();
-            const tapLength = currentTime - (this.state.lastTapTime || 0);
-            if (tapLength < 400 && tapLength > 0) {
-                this.onFlip(e); 
-                this.state.lastTapTime = 0; 
-                return; 
-            }
-            this.state.lastTapTime = currentTime;
-        }
-
         if (window.currentTool === 'eraser') {
             window.isDrawing = false; 
             if (window.setActiveTool) window.setActiveTool('none'); 
@@ -165,11 +156,44 @@ window.PergelTool = {
         this.startPos = this.getPointerPos(e);
         this.startState = JSON.parse(JSON.stringify(this.state)); 
 
-// 👇👇👇 EKLENECEK KISIM BURASI 👇👇👇
-        // Dokunmanın başladığı an kanvasın konumunu dondur ve kaydet
         const mainCanvas = document.getElementById('drawing-canvas');
         this.activeRect = mainCanvas ? mainCanvas.getBoundingClientRect() : { left: 0, top: 0 };
-        // 👆👆👆 ----------------------- 👆👆👆
+
+        // 🚨 ÇİFT TIKLAMA VE BASILI TUTMA MOTORU (KUSURSUZ) 🚨
+        if (target === this.handleTop) {
+            const currentTime = new Date().getTime();
+            const tapLength = currentTime - (this.state.lastTapTime || 0);
+
+            if (tapLength < 400 && tapLength > 0) {
+                // ÇİFT TIKLANDI: Çizimi iptal et ve Ters Çevir
+                if (this.holdTimer) clearTimeout(this.holdTimer);
+                this.onFlip(e); 
+                this.state.lastTapTime = 0; 
+                return; 
+            }
+            this.state.lastTapTime = currentTime;
+
+            // İLK TIKLAMA: Basılı tutmayı bekle
+            this.holdTimer = setTimeout(() => {
+                if (window.audio_draw) window.audio_draw.play(); 
+                this.interactionMode = 'drawing';
+                this.state.isDrawing = true; 
+                
+                const currPos = this.startPos;
+                const d_dx = currPos.x - this.state.pivot.x;
+                const d_dy = currPos.y - this.state.pivot.y;
+                const current_raw_angle = Math.atan2(d_dy, d_dx) * 180 / Math.PI;
+                this.state.startAngle = this.state.rotation; 
+                this.state.previousDrawAngle = current_raw_angle;
+                
+                if (this.previewCanvas) {
+                    this.previewCanvas.style.display = 'block';
+                    this.previewCanvas.width = window.innerWidth;
+                    this.previewCanvas.height = window.innerHeight;
+                }
+            }, 250); // 250ms parmağını tutarsa çizim başlar
+            return;
+        }
 
         if (target === this.scaleHandle) {
             this.interactionMode = 'scaling_tool'; 
@@ -180,22 +204,6 @@ window.PergelTool = {
             this.interactionMode = 'resizing';
             if (this.radiusLabel) this.radiusLabel.style.display = 'block';
         } 
-        else if (target === this.handleTop) { 
-            if (window.audio_draw) window.audio_draw.play(); 
-            this.interactionMode = 'drawing';
-            this.state.isDrawing = true; 
-            const currPos = this.getPointerPos(e);
-            const d_dx = currPos.x - this.state.pivot.x;
-            const d_dy = currPos.y - this.state.pivot.y;
-            const current_raw_angle = Math.atan2(d_dy, d_dx) * 180 / Math.PI;
-            this.state.startAngle = this.state.rotation; 
-            this.state.previousDrawAngle = current_raw_angle;
-            if (this.previewCanvas) {
-                this.previewCanvas.style.display = 'block';
-                this.previewCanvas.width = window.innerWidth;
-                this.previewCanvas.height = window.innerHeight;
-            }
-        }
         else if (target === this.needleTip || target === this.penTip || target === this.leftLeg || target === this.rightLeg) {
             this.interactionMode = 'dragging';
             this.startState.containerX = parseFloat(this.pergelElement.style.left || 0);
@@ -261,7 +269,15 @@ window.PergelTool = {
 
     // --- BIRAKMA VE BİTİRME (ZIPLAMA VE TİTREME SAVAR) ---
     onPointerUp: function(e) {
+        // Parmağı kaldırınca bekleyen çizim emrini iptal et (Sadece tıklamışsa iptal olur)
+        if (this.holdTimer) {
+            clearTimeout(this.holdTimer);
+            this.holdTimer = null;
+        }
+
         if (this.interactionMode === 'none') return;
+
+        // 1. Kilidi kaldır (Parmağı serbest bırak)
 
         // 1. Kilidi kaldır (Parmağı serbest bırak)
         if (e.target && e.target.releasePointerCapture) {
@@ -429,5 +445,5 @@ window.PergelTool = {
     }
 }; // PergelTool nesnesinin kapanışı
 
-window.PergelTool.init();
+// 🚨 HATANIN KAYNAĞI: Sadece bir kez başlatılmalı!
 window.PergelTool.init();

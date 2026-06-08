@@ -2233,10 +2233,10 @@ function setActiveTool(tool) {
             
             if (window.PergelTool.state) {
                 setTimeout(() => {
-                    // 🚨 PERGELİ DİKLEŞTİRDİK (-90)
-                    window.PergelTool.state.rotation = -90; 
-                    window.PergelTool.state.angle = 45;
-                    window.PergelTool.state.distance = 150;
+                    // 🚨 HATALI DEĞERLER DÜZELTİLDİ (Sadece Radius ve 0 Derece)
+                    window.PergelTool.state.rotation = 0; 
+                    window.PergelTool.state.radius = 150; 
+                    
                     if (typeof window.PergelTool.updateTransform === 'function') window.PergelTool.updateTransform();
                     if (typeof window.araclariAgaGonder === 'function') window.araclariAgaGonder();
                 }, 100);
@@ -6299,65 +6299,4 @@ window.addEventListener('load', () => {
 });
 
 
-
-// =========================================================
-// FİZİKSEL ARAÇLAR İÇİN RADAR VE ÖNİZLEME MOTORU (GERİ GELDİ)
-// =========================================================
-let sonAracDurumlari = {};
-
-window.araclariAgaGonder = function() {
-    if (typeof isConnected === 'undefined' || !isConnected) return;
-    
-    const gelismisAraclar = [
-        { id: 'ruler', obj: window.RulerTool, selector: '.ruler-container' },
-        { id: 'gonye', obj: window.GonyeTool, selector: '.gonye-container' },
-        { id: 'aciolcer', obj: window.AciolcerTool, selector: '.aciolcer-container' },
-        { id: 'pergel', obj: window.PergelTool, selector: '#compass-container' }
-    ];
-
-    gelismisAraclar.forEach(arac => {
-        if (arac.obj && arac.obj.state) {
-            try {
-                const el = document.querySelector(arac.selector);
-                let isVisible = 'none';
-                let elW = '', elH = ''; 
-                
-                if (el) {
-                    isVisible = (el.style.display !== 'none' && !el.classList.contains('hidden')) ? 'block' : 'none';
-                    elW = el.style.width;
-                    elH = el.style.height;
-                }
-                
-                // Araçların durumunu, dönüş açısını ve boyutunu tek metinde birleştirip değişiklik var mı bakıyoruz
-                const durum = isVisible + JSON.stringify(arac.obj.state) + elW + elH;
-
-                if (sonAracDurumlari[arac.id] !== durum) {
-                    sonAracDurumlari[arac.id] = durum;
-
-                    // Değişiklik varsa PC'ye anında gönder
-                    if (typeof window.sendNetworkData === 'function') {
-                        window.sendNetworkData({
-                            type: 'arac_state_senkron',
-                            arac: arac.id,
-                            display: isVisible,
-                            state: arac.obj.state,
-                            width: elW,   
-                            height: elH   
-                        });
-                    }
-                }
-            } catch (err) { }
-        }
-    });
-};
-
-// Radarı saniyede 10 kez çalıştır (Görünüm senkronizasyonu için)
-setInterval(window.araclariAgaGonder, 100);
-
-// DIŞ DOSYALAR (cetvel.js, pergel.js) İÇİN CANLI ÖNİZLEME YAYINCISI
-window.broadcastPreview = function(toolType, stateData) {
-    if (typeof window.sendNetworkData === 'function' && window.isConnected) {
-        window.sendNetworkData({ type: 'aktif_onizleme', arac: toolType, payload: stateData });
-    }
-};
 
