@@ -2772,7 +2772,13 @@ canvas.addEventListener('pointerdown', (e) => {
     let rawX = e.clientX; let rawY = e.clientY;
     if (e.targetTouches && e.targetTouches.length > 0) { rawX = e.targetTouches[0].clientX; rawY = e.targetTouches[0].clientY; }
 
-    // SADECE "draw_3d" ile başlayan 3D araçları seçiliyse 3D motoruna izin ver! (Silgiyi ve Çokgenleri Çalmasın)
+    // --- 🚨 KÖPRÜ 1: 3D MOTORUNA DEVRET (HIRSIZLIK KORUMALI) ---
+    if (window.Scene3D && window.Scene3D.isInit) {
+        if (window.currentTool === 'move' || window.currentTool === 'select') {
+            const is3DHit = window.Scene3D.onDown(rawX, rawY);
+            if (is3DHit) return; 
+        }
+        // SADECE "draw_3d" ile başlayan 3D araçları seçiliyse 3D motoruna izin ver! (Silgiyi ve Çokgenleri Çalmasın)
         else if (window.currentTool && window.currentTool.startsWith('draw_3d_')) {
             // 🚨 KESİN ÇÖZÜM: İngilizce isimleri doğrudan tool isminden çekiyoruz! Prizma takılması bitti.
             let toolName = window.currentTool.replace('draw_3d_', '');
