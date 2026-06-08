@@ -6282,6 +6282,12 @@ window.addEventListener('load', () => {
         }
         requestAnimationFrame(uiMotor);
     };
+    
+    // YUKARIDAKİ EKSİK OLAN KAPANIŞ PARANTEZLERİ BURADA!
+    requestAnimationFrame(uiMotor);
+});
+
+// AÇILIŞTA ÇİZGİ MENÜSÜNÜ ZORLA KAPAT
 
 // AÇILIŞTA ÇİZGİ MENÜSÜNÜ ZORLA KAPAT
 window.addEventListener('load', () => {
