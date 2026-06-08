@@ -354,7 +354,11 @@ window.PergelTool = {
         if (!this.pergelElement) return;
         const PI_RAD = Math.PI / 180;
         const pivot = this.state.pivot;
-        const containerHeight = this.pergelElement.offsetHeight;
+        
+        // 🚨 PC BOYUT SİGORTASI: Eğer element gizliyse veya yeni açılıyorsa 0 piksel olmasını engeller
+        const containerHeight = this.pergelElement.offsetHeight || 298; 
+        const containerWidth = this.pergelElement.offsetWidth || 238;
+        
         const L = containerHeight * 0.8; 
         const pen = {
             x: pivot.x + this.state.radius * Math.cos(this.state.rotation * PI_RAD),
@@ -381,7 +385,9 @@ window.PergelTool = {
         }
         this.pergelElement.style.setProperty('--angle-left', `${cssAngleLeft}deg`);
         this.pergelElement.style.setProperty('--angle-right', `${cssAngleRight}deg`);
-        this.pergelElement.style.left = `${joint.x - (this.pergelElement.offsetWidth / 2)}px`;
+        
+        // Hesaplamada sigortalı genişlik ve yükseklik değerleri kullanılır
+        this.pergelElement.style.left = `${joint.x - (containerWidth / 2)}px`;
         this.pergelElement.style.top = `${joint.y - (containerHeight * this.JOINT_OFFSET_Y_PERCENT)}px`;
         this.pergelElement.style.transform = 'none'; 
     },
