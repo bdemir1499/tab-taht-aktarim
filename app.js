@@ -2741,15 +2741,14 @@ if (animateButton) {
         if (e) e.stopPropagation(); 
 
         if (animateButton.classList.contains('active')) {
-            setActiveTool('none');
-            if (snapshotOptions) {
+            if (typeof setActiveTool === 'function') setActiveTool('none');
+            if (typeof snapshotOptions !== 'undefined' && snapshotOptions) {
                 snapshotOptions.classList.add('hidden');
                 snapshotOptions.style.display = 'none';
             }
         } else {
-            // 🚨 KESİN ÇÖZÜM: Önce diğer araçları kapatıyoruz, ardından alt menüyü (Kutu / Serbest) görünür yapıp hizalıyoruz
-            setActiveTool('none'); 
-            if (snapshotOptions) {
+            if (typeof setActiveTool === 'function') setActiveTool('none'); 
+            if (typeof snapshotOptions !== 'undefined' && snapshotOptions) {
                 snapshotOptions.classList.remove('hidden');
                 snapshotOptions.style.display = 'flex';
                 const buttonRect = animateButton.getBoundingClientRect();
@@ -2760,15 +2759,12 @@ if (animateButton) {
         }
     };
 
+    // Bütün dinleyiciler if (animateButton) bloğunun İÇİNDE olmalıdır:
     animateButton.addEventListener('click', toggleAnimate);
     animateButton.addEventListener('touchstart', toggleAnimate, { passive: false });
-}
-    };
-
-    // 🚨 KESİN ÇÖZÜM: Tabletler için 'click' ve 'touchstart' çakışmasını engelleyen 'pointerdown' kullanımı
     animateButton.addEventListener('pointerdown', toggleAnimate, { passive: false });
-}
 
+} // <--- KOD DOSYASI TAM OLARAK BU PARANTEZLE BİTMELİDİR!
 
 
 canvas.addEventListener('pointerdown', (e) => {
