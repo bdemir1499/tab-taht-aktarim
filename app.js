@@ -2749,54 +2749,27 @@ lineColorOptions.forEach(box => {
 lineColorOptions[0].classList.add('selected');
 window.currentLineColor = lineColorOptions[0].dataset.color || lineColorOptions[0].style.backgroundColor; 
 
-// 🚨 ÇÖZÜM 1: 2D ÇİZİMLERİ 3D ŞEKİLLERİN ÜZERİNE ÇIKARMA (KATMAN ZIRHI)
-if (typeof canvas !== 'undefined' && canvas) {
-    canvas.style.position = 'relative';
-    canvas.style.zIndex = '999'; // 2D Kalem tahtasını en öne al!
-}
-// 3D motoru devreye girdiğinde WebGL sahnesini usulca arkaya it
-const katmanAyarla = setInterval(() => {
-    if (window.Scene3D && window.Scene3D.renderer && window.Scene3D.renderer.domElement) {
-        window.Scene3D.renderer.domElement.style.position = 'absolute';
-        window.Scene3D.renderer.domElement.style.top = '0';
-        window.Scene3D.renderer.domElement.style.left = '0';
-        window.Scene3D.renderer.domElement.style.zIndex = '10'; // 3D'yi arkaya al
-        clearInterval(katmanAyarla); // Görev tamamlandı, dinlemeyi bırak
-    }
-}, 500);
-
 // --- app.js: Canlandır Butonu (Dokunmatik ve Tıklama GARANTİLİ) ---
 if (animateButton) {
     let menuAcilisKilidi = false;
-    
-    // Çift tetiklenmeyi ve eski karışıklıkları önlemek için sadece pointerdown kullanıyoruz
-    animateButton.addEventListener('pointerdown', (e) => {
-        e.preventDefault(); e.stopPropagation();
+    const toggleAnimate = (e) => {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
         
+        // Çift tıklama (hayalet dokunuş) engeli
         if (menuAcilisKilidi) return;
         menuAcilisKilidi = true;
         setTimeout(() => { menuAcilisKilidi = false; }, 300); 
 
-        let sOptions = document.getElementById('snapshot-options') || document.querySelector('.snapshot-options') || (typeof snapshotOptions !== 'undefined' ? snapshotOptions : null);
-
-        // 🚨 ÇÖZÜM 2: Eğer araç zaten Canlandır ise KAPAT, değilse KESİN OLARAK AÇ!
-        if (currentTool === 'snapshot') {
-            if (typeof setActiveTool === 'function') setActiveTool('none');
-            if (sOptions) { sOptions.classList.add('hidden'); sOptions.style.display = 'none'; }
-        } else {
-            if (typeof setActiveTool === 'function') setActiveTool('snapshot'); 
-            // setActiveTool içindeki gizleme komutlarını ezip zorla görünür yapıyoruz:
-            if (sOptions) {
-                sOptions.classList.remove('hidden');
-                sOptions.style.display = 'flex';
-                sOptions.style.zIndex = '9999';
-                const buttonRect = animateButton.getBoundingClientRect();
-                const panelRect = animateButton.parentElement.getBoundingClientRect();
-                sOptions.style.top = `${buttonRect.top - panelRect.top}px`;
-            }
+        // Sadece aracı seç, menü işini setActiveTool kendisi halledecek
+        if (typeof setActiveTool === 'function') {
+            setActiveTool(currentTool === 'snapshot' ? 'none' : 'snapshot');
         }
-    }, { passive: false });
+    };
+
+    animateButton.addEventListener('click', toggleAnimate);
+    animateButton.addEventListener('pointerdown', toggleAnimate, { passive: false });
 } // <--- KOD DOSYASI TAM OLARAK BU PARANTEZLE BİTMELİDİR!
+
 
 canvas.addEventListener('pointerdown', (e) => {
     // 🚨 SİHİRLİ DOKUNUŞ 1: Ne olursa olsun ÖNCE tarayıcının yerleşik kaydırmasını (titremeyi) kilitliyoruz!
