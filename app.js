@@ -2767,6 +2767,7 @@ if (animateButton) {
 } // <--- KOD DOSYASI TAM OLARAK BU PARANTEZLE BİTMELİDİR!
 
 
+
 canvas.addEventListener('pointerdown', (e) => {
     // 🚨 SİHİRLİ DOKUNUŞ 1: Ne olursa olsun ÖNCE tarayıcının yerleşik kaydırmasını (titremeyi) kilitliyoruz!
     if (e.cancelable) e.preventDefault();
