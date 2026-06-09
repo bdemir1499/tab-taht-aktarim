@@ -338,12 +338,8 @@ window.PergelTool = {
             this.leftLeg.appendChild(this.needleTip);
             this.rightLeg.appendChild(this.penTip); this.rightLeg.appendChild(this.penResizeHandle);
         }
-        const PI_RAD = Math.PI / 180;
-        const oldPen = {
-            x: this.state.pivot.x + this.state.radius * Math.cos(this.state.rotation * PI_RAD),
-            y: this.state.pivot.y + this.state.radius * Math.sin(this.state.rotation * PI_RAD)
-        };
-        this.state.pivot = oldPen; 
+
+        // 🚨 KESİN ÇÖZÜM: İğne sabit kalır, sadece kalem ucu 180 derece karşıya zıplar!
         this.state.rotation = (this.state.rotation + 180) % 360; 
         this.state.previousDrawAngle = this.state.rotation;
         this.state.startAngle = this.state.rotation;

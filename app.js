@@ -1085,16 +1085,31 @@ function redrawAllStrokes() {
                 else { ctx.moveTo(p.start.x, p.start.y); ctx.lineTo(p.end.x, p.end.y); }
                 ctx.stroke();
             }
-            else if (p.tool === 'rectangle' && p.start && p.end) {
+            else if ((p.tool === 'rectangle' || p.tool === 'draw_rectangle') && p.start && p.end) {
                 ctx.beginPath();
                 ctx.rect(Math.min(p.start.x, p.end.x), Math.min(p.start.y, p.end.y), Math.abs(p.end.x - p.start.x), Math.abs(p.end.y - p.start.y));
                 ctx.stroke();
             }
+            // 🚨 ÇOKGENLERİ DAİRE YERİNE KENDİ ŞEKLİYLE ÇİZ
+            else if (p.tool === 'polygon' && p.start && p.end) {
+                const cx = p.start.x, cy = p.start.y, radius = p.radius, sides = p.sides;
+                ctx.beginPath(); 
+                if (sides === 0) {
+                    ctx.arc(cx, cy, radius, 0, Math.PI * 2); 
+                } else if (sides >= 3) { 
+                    const angleRad = p.rotation || 0;
+                    for (let i = 0; i <= sides; i++) { 
+                        const polyAngle = (i * 2 * Math.PI / sides) + angleRad; 
+                        const px = cx + radius * Math.cos(polyAngle); 
+                        const py = cy + radius * Math.sin(polyAngle); 
+                        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py); 
+                    } 
+                } 
+                ctx.stroke();
+            }
             else if (p.start && p.end) {
                 const radius = p.radius || Math.hypot(p.end.x - p.start.x, p.end.y - p.start.y);
-                ctx.beginPath();
-                ctx.arc(p.start.x, p.start.y, radius, 0, Math.PI * 2);
-                ctx.stroke();
+                ctx.beginPath(); ctx.arc(p.start.x, p.start.y, radius, 0, Math.PI * 2); ctx.stroke();
             }
             ctx.restore();
             continue; // Bu nesneyi çizdik, diğer döngülere girmesine gerek yok
@@ -2132,6 +2147,16 @@ function setActiveTool(tool) {
         if (fillOptions) { fillOptions.classList.add('hidden'); fillOptions.style.display = ''; }
     penOptions.classList.add('hidden'); 
 
+// ... diğer gizleme kodları buradadır ...
+penOptions.classList.add('hidden');
+
+// AŞAĞIDAKİ BLOKU EKLİYORSUN:
+if (typeof snapshotOptions !== 'undefined' && snapshotOptions) {
+    snapshotOptions.classList.add('hidden');
+    snapshotOptions.style.display = 'none';
+}
+// ...
+
     // Değişkenleri sıfırla
     isDrawing = false;
     lineStartPoint = null;
@@ -2712,20 +2737,25 @@ window.currentLineColor = lineColorOptions[0].dataset.color || lineColorOptions[
 // --- app.js: Canlandır Butonu (Dokunmatik ve Tıklama GARANTİLİ) ---
 if (animateButton) {
     const toggleAnimate = (e) => {
-        // Dokunmatik ekranlarda çift tetiklenmeyi ve diğer araçların araya girmesini önle
         if (e && e.cancelable) e.preventDefault(); 
         if (e) e.stopPropagation(); 
 
-        // Modu Değiştir
-        setActiveTool(currentTool === 'snapshot' ? 'none' : 'snapshot');
-        
-        // Görsel Ayarlar (Aktiflik Rengi ve İmleç)
-        if (currentTool === 'snapshot') {
-            animateButton.classList.add('active');
-            body.classList.add('cursor-snapshot'); 
+        if (animateButton.classList.contains('active')) {
+            setActiveTool('none');
+            if (typeof snapshotOptions !== 'undefined' && snapshotOptions) { 
+                snapshotOptions.classList.add('hidden'); 
+                snapshotOptions.style.display = 'none'; 
+            }
         } else {
-            animateButton.classList.remove('active');
-            body.classList.remove('cursor-snapshot');
+            setActiveTool('none');
+            if (typeof snapshotOptions !== 'undefined' && snapshotOptions) {
+                snapshotOptions.classList.remove('hidden'); 
+                snapshotOptions.style.display = 'flex'; 
+                const buttonRect = animateButton.getBoundingClientRect();
+                const panelRect = animateButton.parentElement.getBoundingClientRect();
+                snapshotOptions.style.top = `${buttonRect.top - panelRect.top}px`;
+            }
+            animateButton.classList.add('active');
         }
     };
 
@@ -2734,8 +2764,7 @@ if (animateButton) {
     
     // 2. Parmak Dokunuşu (Akıllı Tahta için ŞART olan kısım)
     animateButton.addEventListener('touchstart', toggleAnimate, { passive: false });
-}
-
+} // <--- KOD TAM OLARAK BURADA BİTMELİDİR. ALTINDA PARANTEZ VEYA BAŞKA BİR ŞEY KALMASIN.
 
 canvas.addEventListener('pointerdown', (e) => {
     // 🚨 SİHİRLİ DOKUNUŞ 1: Ne olursa olsun ÖNCE tarayıcının yerleşik kaydırmasını (titremeyi) kilitliyoruz!
@@ -2830,7 +2859,7 @@ canvas.addEventListener('pointerdown', (e) => {
             else if (hit.pointKey === 'p2') originalStartPos = { x: hit.item.p2.x, y: hit.item.p2.y };
             else if (hit.pointKey === 'center') originalStartPos = { x: (hit.item.cx || hit.item.center.x), y: (hit.item.cy || hit.item.center.y) };
             else if (hit.pointKey === 'rotate' || hit.pointKey === 'resize' || hit.pointKey === 'image_resize' || hit.pointKey === 'image_rotate') {
-                originalStartPos = { radius: hit.item.radius, rotation: hit.item.rotation, x: hit.item.x || (hit.item.center ? hit.item.center.x : 0), y: hit.item.y || (hit.item.center ? hit.item.center.y : 0) };
+                originalStartPos = { radius: hit.item.radius, rotation: hit.item.rotation, rotationX: hit.item.rotationX || 0, rotationY: hit.item.rotationY || 0, x: hit.item.x || (hit.item.center ? hit.item.center.x : 0), y: hit.item.y || (hit.item.center ? hit.item.center.y : 0) };
                 if (selectedItem.type === 'rectangle' || selectedItem.type === 'image') { initialWidth = selectedItem.width; initialHeight = selectedItem.height; }
             }
             const itemType = hit.item.type;
@@ -2923,7 +2952,29 @@ canvas.addEventListener('pointermove', (e) => {
     if (currentTool === 'move' && isMoving && selectedItem) {
         const dx = pos.x - dragStartPos.x; const dy = pos.y - dragStartPos.y;
         if (selectedPointKey === 'self' || selectedPointKey === 'center') { if (selectedItem.type === 'arc') { selectedItem.cx = originalStartPos.x + dx; selectedItem.cy = originalStartPos.y + dy; } else if (selectedItem.center) { selectedItem.center.x = originalStartPos.x + dx; selectedItem.center.y = originalStartPos.y + dy; } else { selectedItem.x = (originalStartPos.x || 0) + dx; selectedItem.y = (originalStartPos.y || 0) + dy; } if (selectedItem.vertices) selectedItem.vertices = null; } 
-        else if (selectedPointKey === 'rotate' || selectedPointKey === 'image_rotate') { const isRect = (['rectangle', 'rect', 'image', '3d_shape'].includes(selectedItem.type)); const cX = isRect ? selectedItem.x + selectedItem.width / 2 : selectedItem.center.x; const cY = isRect ? selectedItem.y + selectedItem.height / 2 : selectedItem.center.y; selectedItem.rotation = (originalStartPos.rotation || 0) + (Math.atan2(pos.y - cY, pos.x - cX) - Math.atan2(dragStartPos.y - cY, dragStartPos.x - cX)) * (180 / Math.PI); if (selectedItem.vertices) selectedItem.vertices = null; } 
+        else if (selectedPointKey === 'rotate' || selectedPointKey === 'image_rotate') { 
+            if (selectedItem.type === '3d_shape') {
+                // 🚨 KESİN ÇÖZÜM: 3D Şekilleri X ve Y ekseninde (Öne-Arkaya ve Sağa-Sola) Döndürme
+                const dragDx = pos.x - dragStartPos.x;
+                const dragDy = pos.y - dragStartPos.y;
+                selectedItem.rotationY = (originalStartPos.rotationY || 0) + dragDx * 0.02;
+                selectedItem.rotationX = (originalStartPos.rotationX || 0) + dragDy * 0.02;
+                if (window.Scene3D && window.Scene3D.scene) {
+                    const sceneMesh = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === selectedItem.id);
+                    if (sceneMesh) {
+                        sceneMesh.rotation.x = selectedItem.rotationX;
+                        sceneMesh.rotation.y = selectedItem.rotationY;
+                        window.Scene3D.updateHandlePositions();
+                    }
+                }
+            } else {
+                const isRect = (['rectangle', 'rect', 'image'].includes(selectedItem.type)); 
+                const cX = isRect ? selectedItem.x + selectedItem.width / 2 : selectedItem.center.x; 
+                const cY = isRect ? selectedItem.y + selectedItem.height / 2 : selectedItem.center.y; 
+                selectedItem.rotation = (originalStartPos.rotation || 0) + (Math.atan2(pos.y - cY, pos.x - cX) - Math.atan2(dragStartPos.y - cY, dragStartPos.x - cX)) * (180 / Math.PI); 
+                if (selectedItem.vertices) selectedItem.vertices = null; 
+            }
+        } 
         else if (selectedPointKey === 'resize' || selectedPointKey === 'image_resize') { if (['rectangle', 'rect', 'image', '3d_shape'].includes(selectedItem.type)) { const sW = initialWidth || selectedItem.width; const sH = initialHeight || selectedItem.height; const startCX = (originalStartPos.x || 0) + (sW / 2); const startCY = (originalStartPos.y || 0) + (sH / 2); const startDist = Math.hypot(dragStartPos.x - startCX, dragStartPos.y - startCY); if (startDist > 10) { const ratio = Math.hypot(pos.x - startCX, pos.y - startCY) / startDist; selectedItem.width = sW * ratio; selectedItem.height = sH * ratio; selectedItem.x = startCX - (selectedItem.width / 2); selectedItem.y = startCY - (selectedItem.height / 2); const previewLabel = document.getElementById('polygon-preview-label'); if (previewLabel && selectedItem.type !== 'image') { const kalibrasyon = 30; previewLabel.innerText = `w: ${(selectedItem.width / kalibrasyon).toFixed(1)} cm, h: ${(selectedItem.height / kalibrasyon).toFixed(1)} cm`; previewLabel.style.left = (pos.x + 15) + 'px'; previewLabel.style.top = (pos.y - 35) + 'px'; previewLabel.style.display = 'block'; previewLabel.classList.remove('hidden'); } } } else { const startDist = Math.hypot(dragStartPos.x - selectedItem.center.x, dragStartPos.y - selectedItem.center.y); if (startDist > 0) selectedItem.radius = originalStartPos.radius * (Math.hypot(pos.x - selectedItem.center.x, pos.y - selectedItem.center.y) / startDist); if (selectedItem.vertices) selectedItem.vertices = null; const previewLabel = document.getElementById('polygon-preview-label'); if (previewLabel) { const sides = selectedItem.sideCount || selectedItem.type; let kenarPx = selectedItem.radius; if (sides >= 3) kenarPx = 2 * selectedItem.radius * Math.sin(Math.PI / sides); previewLabel.innerText = sides === 0 ? `r: ${(kenarPx / 30).toFixed(1)} cm` : `a: ${(kenarPx / 30).toFixed(1)} cm`; previewLabel.style.left = (pos.x + 15) + 'px'; previewLabel.style.top = (pos.y - 35) + 'px'; previewLabel.style.display = 'block'; previewLabel.classList.remove('hidden'); } } }
         redrawAllStrokes(); 
         if (typeof isConnected !== 'undefined' && isConnected) { window.sendNetworkData({ type: 'sekil_guncelle', stroke: { id: selectedItem.id, isBackground: selectedItem.isBackground === true, x: selectedItem.x, y: selectedItem.y, width: selectedItem.width, height: selectedItem.height, rotation: selectedItem.rotation || 0, radius: selectedItem.radius, cx: selectedItem.cx, cy: selectedItem.cy, center: selectedItem.center } }); window.sendNetworkData({ type: 'secimi_senkronize_et', strokeId: selectedItem.id }); } return; 
@@ -2959,8 +3010,10 @@ canvas.addEventListener('pointermove', (e) => {
             const anlikPos = typeof getPointerPos === 'function' ? getPointerPos(e) : { x: e.clientX, y: e.clientY };
             let previewData = null;
             if (['straightLine', 'line', 'segment', 'ray'].includes(currentTool) && typeof lineStartPoint !== 'undefined' && lineStartPoint) previewData = { tool: currentTool, start: lineStartPoint, end: anlikPos };
-            else if (currentTool === 'rectangle' && typeof rectStartPoint !== 'undefined' && rectStartPoint) previewData = { tool: currentTool, start: rectStartPoint, end: anlikPos };
-            else if (window.tempPolygonData && window.tempPolygonData.center) previewData = { tool: 'polygon', start: window.tempPolygonData.center, end: anlikPos, radius: Math.hypot(anlikPos.x - window.tempPolygonData.center.x, anlikPos.y - window.tempPolygonData.center.y) };
+            // 🚨 ÇÖZÜM 4 İÇİN DİKDÖRTGEN İSMİ DE DÜZELTİLDİ:
+            else if (currentTool === 'draw_rectangle' && typeof rectStartPoint !== 'undefined' && rectStartPoint) previewData = { tool: 'draw_rectangle', start: rectStartPoint, end: anlikPos };
+            // 🚨 ÇÖZÜM 3: KENAR SAYISI VE DÖNÜŞ AÇISI AĞA EKLENDİ:
+            else if (window.tempPolygonData && window.tempPolygonData.center) previewData = { tool: 'polygon', start: window.tempPolygonData.center, end: anlikPos, radius: Math.hypot(anlikPos.x - window.tempPolygonData.center.x, anlikPos.y - window.tempPolygonData.center.y), sides: window.tempPolygonData.type, rotation: Math.atan2(anlikPos.y - window.tempPolygonData.center.y, anlikPos.x - window.tempPolygonData.center.x) };
             if (previewData) window.sendNetworkData({ type: 'aktif_onizleme', arac: 'cizim_onizleme', payload: previewData });
         }
     }
@@ -6142,8 +6195,26 @@ window.Scene3D = {
     addShapeToScene: function(type, x, y) {
         if (!this.isInit) this.init();
         this.createSolidMesh(type, new THREE.Vector3(0,0,0), 2, true);
-        // SENİN EKLENTİN: Konsol logu KORUNDU
         console.log(type + " sahneye başarıyla çağrıldı!");
+    },
+    
+    // 🚨 EKSİK OLAN FONKSİYON: PC'nin 3D Şekilleri Ağa Bakarak Çizmesi
+    addShapeFromNetwork: function(strokeData) {
+        if (!this.isInit) this.init();
+        const geometry = this.createGeometry(strokeData.shapeType, strokeData.width / 30);
+        if(strokeData.shapeType.startsWith('prism') || strokeData.shapeType.startsWith('pyramid')) geometry.rotateX(Math.PI / 2);
+        
+        const isSphere = strokeData.shapeType === 'sphere';
+        const solidShape = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({ color: 0x00ffcc, shininess: 100, specular: 0x111111, transparent: !isSphere, opacity: isSphere ? 1.0 : 0.4, depthWrite: isSphere, side: THREE.DoubleSide }));
+        
+        if (strokeData.pos3D) solidShape.position.set(strokeData.pos3D.x, strokeData.pos3D.y, strokeData.pos3D.z);
+        if (strokeData.rotationX !== undefined) solidShape.rotation.x = strokeData.rotationX;
+        if (strokeData.rotationY !== undefined) solidShape.rotation.y = strokeData.rotationY;
+        
+        solidShape.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 })));
+        solidShape.userData = { type: strokeData.shapeType, baseSize: strokeData.width / 30, height: (strokeData.width / 30) * 2, strokeData: strokeData };
+        this.scene.add(solidShape);
+        if (typeof this.updateHandlePositions === 'function') this.updateHandlePositions();
     }
 }; // --- GERÇEK 3D UZAY MOTORU (Scene3D) BURADA BİTİYOR ---
 
