@@ -2145,7 +2145,9 @@ function setActiveTool(tool) {
     }
 
         if (fillOptions) { fillOptions.classList.add('hidden'); fillOptions.style.display = ''; }
-    penOptions.classList.add('hidden'); 
+    
+    // 🚨 ÇÖZÜM 1: Kalem menüsünü kesin olarak gizle
+    if (penOptions) { penOptions.classList.add('hidden'); penOptions.style.display = 'none'; } 
 
 // ... diğer gizleme kodları buradadır ...
 penOptions.classList.add('hidden');
@@ -2195,7 +2197,16 @@ if (typeof snapshotOptions !== 'undefined' && snapshotOptions) {
     if (tool === 'pen') {
         penButton.classList.add('active');
         body.classList.add('cursor-pen');
-        penOptions.classList.remove('hidden'); 
+        
+        // 🚨 ÇÖZÜM 2: Kalem menüsünü zorla görünür yap ve buton hizasına getir!
+        if (typeof penOptions !== 'undefined' && penOptions) {
+            penOptions.classList.remove('hidden');
+            penOptions.style.display = 'flex';
+            penOptions.style.zIndex = '9999';
+            const buttonRect = penButton.getBoundingClientRect();
+            const panelRect = penButton.parentElement.getBoundingClientRect();
+            penOptions.style.top = `${buttonRect.top - panelRect.top}px`;
+        }
     } else if (tool === 'eraser') {
         eraserButton.classList.add('active');
         body.classList.add('cursor-eraser');
@@ -2736,36 +2747,40 @@ window.currentLineColor = lineColorOptions[0].dataset.color || lineColorOptions[
 
 // --- app.js: Canlandır Butonu (Dokunmatik ve Tıklama GARANTİLİ) ---
 if (animateButton) {
+    let menuAcilisKilidi = false; // Çift dokunma çakışmasını engelleyen hayati kilit
+
     const toggleAnimate = (e) => {
-        if (e && e.cancelable) e.preventDefault(); 
-        if (e) e.stopPropagation(); 
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        
+        if (menuAcilisKilidi) return;
+        menuAcilisKilidi = true;
+        setTimeout(() => { menuAcilisKilidi = false; }, 300); 
+
+        // 🚨 KESİN ÇÖZÜM: HTML içindeki alt menüyü zorla bulup getir!
+        let sOptions = document.getElementById('snapshot-options') || document.querySelector('.snapshot-options') || (typeof snapshotOptions !== 'undefined' ? snapshotOptions : null);
 
         if (animateButton.classList.contains('active')) {
             if (typeof setActiveTool === 'function') setActiveTool('none');
-            if (typeof snapshotOptions !== 'undefined' && snapshotOptions) {
-                snapshotOptions.classList.add('hidden');
-                snapshotOptions.style.display = 'none';
-            }
+            if (sOptions) { sOptions.classList.add('hidden'); sOptions.style.display = 'none'; }
         } else {
             if (typeof setActiveTool === 'function') setActiveTool('none'); 
-            if (typeof snapshotOptions !== 'undefined' && snapshotOptions) {
-                snapshotOptions.classList.remove('hidden');
-                snapshotOptions.style.display = 'flex';
+            if (sOptions) {
+                sOptions.classList.remove('hidden');
+                sOptions.style.display = 'flex';
+                sOptions.style.zIndex = '9999'; // Menünün altta kalmasını önler
                 const buttonRect = animateButton.getBoundingClientRect();
                 const panelRect = animateButton.parentElement.getBoundingClientRect();
-                snapshotOptions.style.top = `${buttonRect.top - panelRect.top}px`;
+                sOptions.style.top = `${buttonRect.top - panelRect.top}px`;
             }
             animateButton.classList.add('active');
         }
     };
 
-    // Bütün dinleyiciler if (animateButton) bloğunun İÇİNDE olmalıdır:
     animateButton.addEventListener('click', toggleAnimate);
     animateButton.addEventListener('touchstart', toggleAnimate, { passive: false });
     animateButton.addEventListener('pointerdown', toggleAnimate, { passive: false });
 
 } // <--- KOD DOSYASI TAM OLARAK BU PARANTEZLE BİTMELİDİR!
-
 
 
 canvas.addEventListener('pointerdown', (e) => {
