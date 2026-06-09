@@ -2735,33 +2735,34 @@ lineColorOptions[0].classList.add('selected');
 window.currentLineColor = lineColorOptions[0].dataset.color || lineColorOptions[0].style.backgroundColor; 
 
 // --- app.js: Canlandır Butonu (Dokunmatik ve Tıklama GARANTİLİ) ---
-// --- app.js: Canlandır Butonu (Dokunmatik ve Tıklama GARANTİLİ) ---
 if (animateButton) {
-    let menuAcilisKilidi = false; // Çift tetiklenmeyi (Ghost Touch) önleyen kilit
-
     const toggleAnimate = (e) => {
-        if (e) { e.preventDefault(); e.stopPropagation(); }
-        
-        if (menuAcilisKilidi) return; // 300ms içinde ikinci kez basılırsa yut
-        menuAcilisKilidi = true;
-        setTimeout(() => { menuAcilisKilidi = false; }, 300); 
-        
-        let sOptions = document.getElementById('snapshot-options') || document.querySelector('.snapshot-options');
+        if (e && e.cancelable) e.preventDefault(); 
+        if (e) e.stopPropagation(); 
 
         if (animateButton.classList.contains('active')) {
-            if (typeof setActiveTool === 'function') setActiveTool('none');
-            if (sOptions) { sOptions.classList.add('hidden'); sOptions.style.display = 'none'; }
+            setActiveTool('none');
+            if (snapshotOptions) {
+                snapshotOptions.classList.add('hidden');
+                snapshotOptions.style.display = 'none';
+            }
         } else {
-            if (typeof setActiveTool === 'function') setActiveTool('none');
-            if (sOptions) {
-                sOptions.classList.remove('hidden'); 
-                sOptions.style.display = 'flex'; 
+            // 🚨 KESİN ÇÖZÜM: Önce diğer araçları kapatıyoruz, ardından alt menüyü (Kutu / Serbest) görünür yapıp hizalıyoruz
+            setActiveTool('none'); 
+            if (snapshotOptions) {
+                snapshotOptions.classList.remove('hidden');
+                snapshotOptions.style.display = 'flex';
                 const buttonRect = animateButton.getBoundingClientRect();
                 const panelRect = animateButton.parentElement.getBoundingClientRect();
-                sOptions.style.top = `${buttonRect.top - panelRect.top}px`;
+                snapshotOptions.style.top = `${buttonRect.top - panelRect.top}px`;
             }
             animateButton.classList.add('active');
         }
+    };
+
+    animateButton.addEventListener('click', toggleAnimate);
+    animateButton.addEventListener('touchstart', toggleAnimate, { passive: false });
+}
     };
 
     // 🚨 KESİN ÇÖZÜM: Tabletler için 'click' ve 'touchstart' çakışmasını engelleyen 'pointerdown' kullanımı
@@ -3016,7 +3017,31 @@ canvas.addEventListener('pointermove', (e) => {
             } 
         }
         redrawAllStrokes(); 
-        if (typeof isConnected !== 'undefined' && isConnected) { window.sendNetworkData({ type: 'sekil_guncelle', stroke: { id: selectedItem.id, isBackground: selectedItem.isBackground === true, x: selectedItem.x, y: selectedItem.y, width: selectedItem.width, height: selectedItem.height, rotation: selectedItem.rotation || 0, radius: selectedItem.radius, cx: selectedItem.cx, cy: selectedItem.cy, center: selectedItem.center } }); window.sendNetworkData({ type: 'secimi_senkronize_et', strokeId: selectedItem.id }); } return; 
+        if (typeof isConnected !== 'undefined' && isConnected) { 
+            // 🚨 KESİN ÇÖZÜM: 3D döndürme ve konum koordinatları (rotationX/Y/Z ve pos3D) süzgeçten kurtarıldı, PC'ye gönderiliyor!
+            window.sendNetworkData({ 
+                type: 'sekil_guncelle', 
+                stroke: { 
+                    id: selectedItem.id, 
+                    isBackground: selectedItem.isBackground === true, 
+                    x: selectedItem.x, 
+                    y: selectedItem.y, 
+                    width: selectedItem.width, 
+                    height: selectedItem.height, 
+                    rotation: selectedItem.rotation || 0, 
+                    rotationX: selectedItem.rotationX,
+                    rotationY: selectedItem.rotationY,
+                    rotationZ: selectedItem.rotationZ,
+                    pos3D: selectedItem.pos3D,
+                    radius: selectedItem.radius, 
+                    cx: selectedItem.cx, 
+                    cy: selectedItem.cy, 
+                    center: selectedItem.center 
+                } 
+            }); 
+            window.sendNetworkData({ type: 'secimi_senkronize_et', strokeId: selectedItem.id }); 
+        } 
+        return; 
     }
 
     if (['ruler', 'gonye', 'aciolcer', 'pergel', 'none'].includes(currentTool)) return;
