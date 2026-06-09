@@ -1085,16 +1085,16 @@ function redrawAllStrokes() {
                 else { ctx.moveTo(p.start.x, p.start.y); ctx.lineTo(p.end.x, p.end.y); }
                 ctx.stroke();
             }
+            // 🚨 ÇÖZÜM: DİKDÖRTGEN VE ÇOKGENLERİ DAİRE YERİNE KENDİ ŞEKLİYLE ÇİZ
             else if ((p.tool === 'rectangle' || p.tool === 'draw_rectangle') && p.start && p.end) {
                 ctx.beginPath();
                 ctx.rect(Math.min(p.start.x, p.end.x), Math.min(p.start.y, p.end.y), Math.abs(p.end.x - p.start.x), Math.abs(p.end.y - p.start.y));
                 ctx.stroke();
             }
-            // 🚨 ÇOKGENLERİ DAİRE YERİNE KENDİ ŞEKLİYLE ÇİZ
             else if (p.tool === 'polygon' && p.start && p.end) {
                 const cx = p.start.x, cy = p.start.y, radius = p.radius, sides = p.sides;
                 ctx.beginPath(); 
-                if (sides === 0) {
+                if (!sides || sides === 0) {
                     ctx.arc(cx, cy, radius, 0, Math.PI * 2); 
                 } else if (sides >= 3) { 
                     const angleRad = p.rotation || 0;
@@ -1112,7 +1112,7 @@ function redrawAllStrokes() {
                 ctx.beginPath(); ctx.arc(p.start.x, p.start.y, radius, 0, Math.PI * 2); ctx.stroke();
             }
             ctx.restore();
-            continue; // Bu nesneyi çizdik, diğer döngülere girmesine gerek yok
+            continue; // Bu nesneyi çizdik, diğer döngülere girmesine gerek yok // Bu nesneyi çizdik, diğer döngülere girmesine gerek yok
         }
         // ------------------------------------------
 
@@ -2739,33 +2739,29 @@ if (animateButton) {
     const toggleAnimate = (e) => {
         if (e && e.cancelable) e.preventDefault(); 
         if (e) e.stopPropagation(); 
+        
+        // 🚨 KESİN ÇÖZÜM: HTML içinden menüyü zorla bulup getiriyoruz
+        let sOptions = document.getElementById('snapshot-options') || document.querySelector('.snapshot-options') || window.snapshotOptions;
 
         if (animateButton.classList.contains('active')) {
-            setActiveTool('none');
-            if (typeof snapshotOptions !== 'undefined' && snapshotOptions) { 
-                snapshotOptions.classList.add('hidden'); 
-                snapshotOptions.style.display = 'none'; 
-            }
+            if (typeof setActiveTool === 'function') setActiveTool('none');
+            if (sOptions) { sOptions.classList.add('hidden'); sOptions.style.display = 'none'; }
         } else {
-            setActiveTool('none');
-            if (typeof snapshotOptions !== 'undefined' && snapshotOptions) {
-                snapshotOptions.classList.remove('hidden'); 
-                snapshotOptions.style.display = 'flex'; 
+            if (typeof setActiveTool === 'function') setActiveTool('none');
+            if (sOptions) {
+                sOptions.classList.remove('hidden'); 
+                sOptions.style.display = 'flex'; 
                 const buttonRect = animateButton.getBoundingClientRect();
                 const panelRect = animateButton.parentElement.getBoundingClientRect();
-                snapshotOptions.style.top = `${buttonRect.top - panelRect.top}px`;
+                sOptions.style.top = `${buttonRect.top - panelRect.top}px`;
             }
             animateButton.classList.add('active');
         }
     };
 
-    // 1. Standart Tıklama (Mouse için)
     animateButton.addEventListener('click', toggleAnimate);
-    
-    // 2. Parmak Dokunuşu (Akıllı Tahta için ŞART olan kısım)
     animateButton.addEventListener('touchstart', toggleAnimate, { passive: false });
-} // <--- KOD TAM OLARAK BURADA BİTMELİDİR. ALTINDA PARANTEZ VEYA BAŞKA BİR ŞEY KALMASIN.
-
+}
 canvas.addEventListener('pointerdown', (e) => {
     // 🚨 SİHİRLİ DOKUNUŞ 1: Ne olursa olsun ÖNCE tarayıcının yerleşik kaydırmasını (titremeyi) kilitliyoruz!
     if (e.cancelable) e.preventDefault();
@@ -2952,6 +2948,8 @@ canvas.addEventListener('pointermove', (e) => {
     if (currentTool === 'move' && isMoving && selectedItem) {
         const dx = pos.x - dragStartPos.x; const dy = pos.y - dragStartPos.y;
         if (selectedPointKey === 'self' || selectedPointKey === 'center') { if (selectedItem.type === 'arc') { selectedItem.cx = originalStartPos.x + dx; selectedItem.cy = originalStartPos.y + dy; } else if (selectedItem.center) { selectedItem.center.x = originalStartPos.x + dx; selectedItem.center.y = originalStartPos.y + dy; } else { selectedItem.x = (originalStartPos.x || 0) + dx; selectedItem.y = (originalStartPos.y || 0) + dy; } if (selectedItem.vertices) selectedItem.vertices = null; } 
+
+
         else if (selectedPointKey === 'rotate' || selectedPointKey === 'image_rotate') { 
             if (selectedItem.type === '3d_shape') {
                 // 🚨 KESİN ÇÖZÜM: 3D Şekilleri X ve Y ekseninde (Öne-Arkaya ve Sağa-Sola) Döndürme
@@ -6198,7 +6196,7 @@ window.Scene3D = {
         console.log(type + " sahneye başarıyla çağrıldı!");
     },
     
-    // 🚨 EKSİK OLAN FONKSİYON: PC'nin 3D Şekilleri Ağa Bakarak Çizmesi
+    // 🚨 KESİN ÇÖZÜM: PC'nin 3D Şekilleri Tabletinden Alıp Çizmesi İçin Ağ Alıcısı
     addShapeFromNetwork: function(strokeData) {
         if (!this.isInit) this.init();
         const geometry = this.createGeometry(strokeData.shapeType, strokeData.width / 30);
@@ -6217,6 +6215,7 @@ window.Scene3D = {
         if (typeof this.updateHandlePositions === 'function') this.updateHandlePositions();
     }
 }; // --- GERÇEK 3D UZAY MOTORU (Scene3D) BURADA BİTİYOR ---
+
 
 // ==========================================
 // 4. ARAYÜZ VE MENÜ MOTORU (Özellik Kaybı Yok)
