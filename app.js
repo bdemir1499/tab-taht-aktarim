@@ -2735,13 +2735,18 @@ lineColorOptions[0].classList.add('selected');
 window.currentLineColor = lineColorOptions[0].dataset.color || lineColorOptions[0].style.backgroundColor; 
 
 // --- app.js: Canlandır Butonu (Dokunmatik ve Tıklama GARANTİLİ) ---
+// --- app.js: Canlandır Butonu (Dokunmatik ve Tıklama GARANTİLİ) ---
 if (animateButton) {
+    let menuAcilisKilidi = false; // Çift tetiklenmeyi (Ghost Touch) önleyen kilit
+
     const toggleAnimate = (e) => {
-        if (e && e.cancelable) e.preventDefault(); 
-        if (e) e.stopPropagation(); 
+        if (e) { e.preventDefault(); e.stopPropagation(); }
         
-        // 🚨 KESİN ÇÖZÜM: HTML içinden menüyü zorla bulup getiriyoruz
-        let sOptions = document.getElementById('snapshot-options') || document.querySelector('.snapshot-options') || window.snapshotOptions;
+        if (menuAcilisKilidi) return; // 300ms içinde ikinci kez basılırsa yut
+        menuAcilisKilidi = true;
+        setTimeout(() => { menuAcilisKilidi = false; }, 300); 
+        
+        let sOptions = document.getElementById('snapshot-options') || document.querySelector('.snapshot-options');
 
         if (animateButton.classList.contains('active')) {
             if (typeof setActiveTool === 'function') setActiveTool('none');
@@ -2759,9 +2764,12 @@ if (animateButton) {
         }
     };
 
-    animateButton.addEventListener('click', toggleAnimate);
-    animateButton.addEventListener('touchstart', toggleAnimate, { passive: false });
+    // 🚨 KESİN ÇÖZÜM: Tabletler için 'click' ve 'touchstart' çakışmasını engelleyen 'pointerdown' kullanımı
+    animateButton.addEventListener('pointerdown', toggleAnimate, { passive: false });
 }
+
+
+
 canvas.addEventListener('pointerdown', (e) => {
     // 🚨 SİHİRLİ DOKUNUŞ 1: Ne olursa olsun ÖNCE tarayıcının yerleşik kaydırmasını (titremeyi) kilitliyoruz!
     if (e.cancelable) e.preventDefault();
@@ -2973,7 +2981,40 @@ canvas.addEventListener('pointermove', (e) => {
                 if (selectedItem.vertices) selectedItem.vertices = null; 
             }
         } 
-        else if (selectedPointKey === 'resize' || selectedPointKey === 'image_resize') { if (['rectangle', 'rect', 'image', '3d_shape'].includes(selectedItem.type)) { const sW = initialWidth || selectedItem.width; const sH = initialHeight || selectedItem.height; const startCX = (originalStartPos.x || 0) + (sW / 2); const startCY = (originalStartPos.y || 0) + (sH / 2); const startDist = Math.hypot(dragStartPos.x - startCX, dragStartPos.y - startCY); if (startDist > 10) { const ratio = Math.hypot(pos.x - startCX, pos.y - startCY) / startDist; selectedItem.width = sW * ratio; selectedItem.height = sH * ratio; selectedItem.x = startCX - (selectedItem.width / 2); selectedItem.y = startCY - (selectedItem.height / 2); const previewLabel = document.getElementById('polygon-preview-label'); if (previewLabel && selectedItem.type !== 'image') { const kalibrasyon = 30; previewLabel.innerText = `w: ${(selectedItem.width / kalibrasyon).toFixed(1)} cm, h: ${(selectedItem.height / kalibrasyon).toFixed(1)} cm`; previewLabel.style.left = (pos.x + 15) + 'px'; previewLabel.style.top = (pos.y - 35) + 'px'; previewLabel.style.display = 'block'; previewLabel.classList.remove('hidden'); } } } else { const startDist = Math.hypot(dragStartPos.x - selectedItem.center.x, dragStartPos.y - selectedItem.center.y); if (startDist > 0) selectedItem.radius = originalStartPos.radius * (Math.hypot(pos.x - selectedItem.center.x, pos.y - selectedItem.center.y) / startDist); if (selectedItem.vertices) selectedItem.vertices = null; const previewLabel = document.getElementById('polygon-preview-label'); if (previewLabel) { const sides = selectedItem.sideCount || selectedItem.type; let kenarPx = selectedItem.radius; if (sides >= 3) kenarPx = 2 * selectedItem.radius * Math.sin(Math.PI / sides); previewLabel.innerText = sides === 0 ? `r: ${(kenarPx / 30).toFixed(1)} cm` : `a: ${(kenarPx / 30).toFixed(1)} cm`; previewLabel.style.left = (pos.x + 15) + 'px'; previewLabel.style.top = (pos.y - 35) + 'px'; previewLabel.style.display = 'block'; previewLabel.classList.remove('hidden'); } } }
+        else if (selectedPointKey === 'resize' || selectedPointKey === 'image_resize') {
+            // 🚨 KESİN ÇÖZÜM: 3D Şekillere Özel Yumuşak Büyütme/Küçültme
+            if (selectedItem.type === '3d_shape') {
+                const sW = initialWidth || 100;
+                const startCX = (originalStartPos.x || 0) + (sW / 2);
+                const startCY = (originalStartPos.y || 0) + (sW / 2);
+                const startDist = Math.hypot(dragStartPos.x - startCX, dragStartPos.y - startCY) || 1;
+                const currentDist = Math.hypot(pos.x - startCX, pos.y - startCY);
+                
+                const ratio = currentDist / startDist;
+                
+                if (ratio > 0.1 && ratio < 10) { // Sıçrama ve sonsuz büyüme engellendi
+                    selectedItem.width = sW * ratio;
+                    selectedItem.height = sW * ratio; 
+                    selectedItem.x = startCX - (selectedItem.width / 2);
+                    selectedItem.y = startCY - (selectedItem.height / 2);
+                    
+                    if (window.Scene3D && window.Scene3D.scene) {
+                        const sceneMesh = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === selectedItem.id);
+                        if (sceneMesh) {
+                            const yeniScale = (selectedItem.width / 30) / sceneMesh.userData.baseSize;
+                            sceneMesh.scale.set(yeniScale, yeniScale, yeniScale);
+                            window.Scene3D.updateHandlePositions();
+                        }
+                    }
+                }
+            } 
+            // DİĞER (2D) ŞEKİLLERİN ORİJİNAL KODLARI
+            else if (['rectangle', 'rect', 'image'].includes(selectedItem.type)) { 
+                const sW = initialWidth || selectedItem.width; const sH = initialHeight || selectedItem.height; const startCX = (originalStartPos.x || 0) + (sW / 2); const startCY = (originalStartPos.y || 0) + (sH / 2); const startDist = Math.hypot(dragStartPos.x - startCX, dragStartPos.y - startCY); if (startDist > 10) { const ratio = Math.hypot(pos.x - startCX, pos.y - startCY) / startDist; selectedItem.width = sW * ratio; selectedItem.height = sH * ratio; selectedItem.x = startCX - (selectedItem.width / 2); selectedItem.y = startCY - (selectedItem.height / 2); const previewLabel = document.getElementById('polygon-preview-label'); if (previewLabel && selectedItem.type !== 'image') { const kalibrasyon = 30; previewLabel.innerText = `w: ${(selectedItem.width / kalibrasyon).toFixed(1)} cm, h: ${(selectedItem.height / kalibrasyon).toFixed(1)} cm`; previewLabel.style.left = (pos.x + 15) + 'px'; previewLabel.style.top = (pos.y - 35) + 'px'; previewLabel.style.display = 'block'; previewLabel.classList.remove('hidden'); } } 
+            } else { 
+                const startDist = Math.hypot(dragStartPos.x - selectedItem.center.x, dragStartPos.y - selectedItem.center.y); if (startDist > 0) selectedItem.radius = originalStartPos.radius * (Math.hypot(pos.x - selectedItem.center.x, pos.y - selectedItem.center.y) / startDist); if (selectedItem.vertices) selectedItem.vertices = null; const previewLabel = document.getElementById('polygon-preview-label'); if (previewLabel) { const sides = selectedItem.sideCount || selectedItem.type; let kenarPx = selectedItem.radius; if (sides >= 3) kenarPx = 2 * selectedItem.radius * Math.sin(Math.PI / sides); previewLabel.innerText = sides === 0 ? `r: ${(kenarPx / 30).toFixed(1)} cm` : `a: ${(kenarPx / 30).toFixed(1)} cm`; previewLabel.style.left = (pos.x + 15) + 'px'; previewLabel.style.top = (pos.y - 35) + 'px'; previewLabel.style.display = 'block'; previewLabel.classList.remove('hidden'); } 
+            } 
+        }
         redrawAllStrokes(); 
         if (typeof isConnected !== 'undefined' && isConnected) { window.sendNetworkData({ type: 'sekil_guncelle', stroke: { id: selectedItem.id, isBackground: selectedItem.isBackground === true, x: selectedItem.x, y: selectedItem.y, width: selectedItem.width, height: selectedItem.height, rotation: selectedItem.rotation || 0, radius: selectedItem.radius, cx: selectedItem.cx, cy: selectedItem.cy, center: selectedItem.center } }); window.sendNetworkData({ type: 'secimi_senkronize_et', strokeId: selectedItem.id }); } return; 
     }
@@ -5367,8 +5408,20 @@ function setupConnectionEvents() {
 
         if (data.type === 'sil_objeyi') {
             const zombiIndex = window.drawnStrokes.findIndex(s => s.id === data.strokeId);
+            
+            // 🚨 KESİN ÇÖZÜM: 3D Şekil ise PC'nin uzay sahnesinden de TAMAMEN SİL!
+            if (window.Scene3D && window.Scene3D.scene) {
+                const meshToRemove = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === data.strokeId);
+                if (meshToRemove) {
+                    window.Scene3D.scene.remove(meshToRemove);
+                    if (window.Scene3D.currentMesh === meshToRemove) window.Scene3D.currentMesh = null;
+                    window.Scene3D.updateHandlePositions();
+                }
+            }
+
             if (zombiIndex !== -1) window.drawnStrokes.splice(zombiIndex, 1);
             else if (data.index !== undefined && window.drawnStrokes[data.index]) window.drawnStrokes.splice(data.index, 1);
+            
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
 
