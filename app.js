@@ -2749,25 +2749,46 @@ lineColorOptions.forEach(box => {
 lineColorOptions[0].classList.add('selected');
 window.currentLineColor = lineColorOptions[0].dataset.color || lineColorOptions[0].style.backgroundColor; 
 
-// --- app.js: Canlandır Butonu (Dokunmatik ve Tıklama GARANTİLİ) ---
-if (animateButton) {
-    let menuAcilisKilidi = false;
-    const toggleAnimate = (e) => {
-        if (e) { e.preventDefault(); e.stopPropagation(); }
+// 🚨 ÇÖZÜM 1: 3D SAHNEYİ Z-INDEX BOZMADAN 2D ÇİZİMİN ARKASINA YERLEŞTİRME
+const katmanAyarla = setInterval(() => {
+    if (window.Scene3D && window.Scene3D.renderer && window.Scene3D.renderer.domElement && typeof canvas !== 'undefined' && canvas && canvas.parentNode) {
+        // 3D motorunu HTML'de 2D çizim tahtasının hemen arkasına (önceki sıraya) ekler.
+        // Böylece z-index kullanmadan 3D şekiller çizimlerin altında kalır ve butonlar kaybolmaz!
+        canvas.parentNode.insertBefore(window.Scene3D.renderer.domElement, canvas);
         
-        // Çift tıklama (hayalet dokunuş) engeli
-        if (menuAcilisKilidi) return;
-        menuAcilisKilidi = true;
-        setTimeout(() => { menuAcilisKilidi = false; }, 300); 
+        // 3D sahnesinin tıklamaları çalmasını (butonları engellemesini) önler
+        window.Scene3D.renderer.domElement.style.pointerEvents = 'none';
+        
+        clearInterval(katmanAyarla); // Görev tamamlandı
+    }
+}, 500);
 
-        // Sadece aracı seç, menü işini setActiveTool kendisi halledecek
-        if (typeof setActiveTool === 'function') {
-            setActiveTool(currentTool === 'snapshot' ? 'none' : 'snapshot');
+// --- app.js: Canlandır Butonu (TEK SEFERDE AÇILIP KAPANMA GARANTİSİ) ---
+if (animateButton) {
+    // Karmaşık tıklama olaylarını iptal edip, sadece tek bir güvenli algılayıcı kullanıyoruz
+    animateButton.onpointerdown = (e) => {
+        e.preventDefault(); e.stopPropagation();
+        
+        let sOptions = document.getElementById('snapshot-options') || document.querySelector('.snapshot-options') || (typeof snapshotOptions !== 'undefined' ? snapshotOptions : null);
+        
+        // Eğer araç zaten Canlandır ise KAPAT
+        if (currentTool === 'snapshot') {
+            if (typeof setActiveTool === 'function') setActiveTool('none');
+            if (sOptions) { sOptions.classList.add('hidden'); sOptions.style.display = 'none'; }
+        } 
+        // Eğer kapalıysa KESİN OLARAK AÇ
+        else {
+            if (typeof setActiveTool === 'function') setActiveTool('snapshot');
+            if (sOptions) {
+                sOptions.classList.remove('hidden');
+                sOptions.style.display = 'flex';
+                sOptions.style.zIndex = '9999';
+                const buttonRect = animateButton.getBoundingClientRect();
+                const panelRect = animateButton.parentElement.getBoundingClientRect();
+                sOptions.style.top = `${buttonRect.top - panelRect.top}px`;
+            }
         }
     };
-
-    animateButton.addEventListener('click', toggleAnimate);
-    animateButton.addEventListener('pointerdown', toggleAnimate, { passive: false });
 } // <--- KOD DOSYASI TAM OLARAK BU PARANTEZLE BİTMELİDİR!
 
 
