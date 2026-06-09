@@ -2197,15 +2197,11 @@ if (typeof snapshotOptions !== 'undefined' && snapshotOptions) {
     if (tool === 'pen') {
         penButton.classList.add('active');
         body.classList.add('cursor-pen');
-        
-        // 🚨 ÇÖZÜM 2: Kalem menüsünü zorla görünür yap ve buton hizasına getir!
         if (typeof penOptions !== 'undefined' && penOptions) {
             penOptions.classList.remove('hidden');
             penOptions.style.display = 'flex';
             penOptions.style.zIndex = '9999';
-            const buttonRect = penButton.getBoundingClientRect();
-            const panelRect = penButton.parentElement.getBoundingClientRect();
-            penOptions.style.top = `${buttonRect.top - panelRect.top}px`;
+            if (penButton) penOptions.style.top = `${penButton.getBoundingClientRect().top - penButton.parentElement.getBoundingClientRect().top}px`;
         }
     } else if (tool === 'eraser') {
         eraserButton.classList.add('active');
@@ -2213,6 +2209,14 @@ if (typeof snapshotOptions !== 'undefined' && snapshotOptions) {
     } else if (tool === 'snapshot') { 
         if(animateButton) animateButton.classList.add('active');
         body.classList.add('cursor-snapshot');
+        
+        // 🚨 ÇÖZÜM 1: Canlandır alt menüsünü KESİN OLARAK aç ve hizala!
+        if (typeof snapshotOptions !== 'undefined' && snapshotOptions) {
+            snapshotOptions.classList.remove('hidden');
+            snapshotOptions.style.display = 'flex';
+            snapshotOptions.style.zIndex = '9999';
+            if (animateButton) snapshotOptions.style.top = `${animateButton.getBoundingClientRect().top - animateButton.parentElement.getBoundingClientRect().top}px`;
+        }
     } 
     // --- ÇİZGİ ARAÇLARI GRUBU ---
     else if (tool === 'point') {
@@ -2747,39 +2751,23 @@ window.currentLineColor = lineColorOptions[0].dataset.color || lineColorOptions[
 
 // --- app.js: Canlandır Butonu (Dokunmatik ve Tıklama GARANTİLİ) ---
 if (animateButton) {
-    let menuAcilisKilidi = false; // Çift dokunma çakışmasını engelleyen hayati kilit
-
+    let menuAcilisKilidi = false;
     const toggleAnimate = (e) => {
         if (e) { e.preventDefault(); e.stopPropagation(); }
         
+        // Çift tıklama (hayalet dokunuş) engeli
         if (menuAcilisKilidi) return;
         menuAcilisKilidi = true;
         setTimeout(() => { menuAcilisKilidi = false; }, 300); 
 
-        // 🚨 KESİN ÇÖZÜM: HTML içindeki alt menüyü zorla bulup getir!
-        let sOptions = document.getElementById('snapshot-options') || document.querySelector('.snapshot-options') || (typeof snapshotOptions !== 'undefined' ? snapshotOptions : null);
-
-        if (animateButton.classList.contains('active')) {
-            if (typeof setActiveTool === 'function') setActiveTool('none');
-            if (sOptions) { sOptions.classList.add('hidden'); sOptions.style.display = 'none'; }
-        } else {
-            if (typeof setActiveTool === 'function') setActiveTool('none'); 
-            if (sOptions) {
-                sOptions.classList.remove('hidden');
-                sOptions.style.display = 'flex';
-                sOptions.style.zIndex = '9999'; // Menünün altta kalmasını önler
-                const buttonRect = animateButton.getBoundingClientRect();
-                const panelRect = animateButton.parentElement.getBoundingClientRect();
-                sOptions.style.top = `${buttonRect.top - panelRect.top}px`;
-            }
-            animateButton.classList.add('active');
+        // Sadece aracı seç, menü işini setActiveTool kendisi halledecek
+        if (typeof setActiveTool === 'function') {
+            setActiveTool(currentTool === 'snapshot' ? 'none' : 'snapshot');
         }
     };
 
     animateButton.addEventListener('click', toggleAnimate);
-    animateButton.addEventListener('touchstart', toggleAnimate, { passive: false });
     animateButton.addEventListener('pointerdown', toggleAnimate, { passive: false });
-
 } // <--- KOD DOSYASI TAM OLARAK BU PARANTEZLE BİTMELİDİR!
 
 
@@ -6411,21 +6399,41 @@ window.addEventListener('load', () => {
                 const r = (activeShape.width / 30).toFixed(1); 
                 const h = (r * 2).toFixed(1); 
                 
+                // Formüller HTML destekli renkli ve kalın yazılarla şekillendiriliyor
                 if (activeShape.shapeType === 'sphere') {
-                    formulMetni = `Küre\nr = ${r} cm\nHacim = (4/3)·π·r³\n= (4/3)·3·(${r})³ = ${(4*r*r*r).toFixed(1)} cm³\nAlan = 4·π·r²\n= 4·3·(${r})² = ${(12*r*r).toFixed(1)} cm²`;
+                    formulMetni = `<span style="color:#00ffcc; font-size:16px;">Küre</span><br>r = ${r} cm<br><br><span style="color:#ff00ff">Hacim = (4/3)·π·r³</span><br>= (4/3)·3·(${r})³ = <b>${(4*r*r*r).toFixed(1)} cm³</b><br><br><span style="color:#ff00ff">Alan = 4·π·r²</span><br>= 4·3·(${r})² = <b>${(12*r*r).toFixed(1)} cm²</b>`;
                 } else if (activeShape.shapeType === 'prism_cube') {
-                    formulMetni = `Küp\na = ${r} cm\nHacim = a³ = ${(r*r*r).toFixed(1)} cm³\nAlan = 6·a² = ${(6*r*r).toFixed(1)} cm²`;
+                    formulMetni = `<span style="color:#00ffcc; font-size:16px;">Küp</span><br>a = ${r} cm<br><br><span style="color:#ff00ff">Hacim = a³</span><br>= (${r})³ = <b>${(r*r*r).toFixed(1)} cm³</b><br><br><span style="color:#ff00ff">Alan = 6·a²</span><br>= 6·(${r})² = <b>${(6*r*r).toFixed(1)} cm²</b>`;
                 } else if (activeShape.shapeType === 'prism_cylinder') {
-                    formulMetni = `Silindir\nr = ${r} cm, h = ${h} cm\nHacim = π·r²·h\n= 3·(${r})²·${h} = ${(3*r*r*h).toFixed(1)} cm³\nYanal Alan = 2·π·r·h = ${(2*3*r*h).toFixed(1)} cm²`;
+                    formulMetni = `<span style="color:#00ffcc; font-size:16px;">Silindir</span><br>r = ${r} cm, h = ${h} cm<br><br><span style="color:#ff00ff">Hacim = π·r²·h</span><br>= 3·(${r})²·${h} = <b>${(3*r*r*h).toFixed(1)} cm³</b><br><br><span style="color:#ff00ff">Yanal Alan = 2·π·r·h</span><br>= 2·3·${r}·${h} = <b>${(2*3*r*h).toFixed(1)} cm²</b>`;
                 } else if (activeShape.shapeType === 'pyramid_cone') {
-                    formulMetni = `Koni\nr = ${r} cm, h = ${h} cm\nHacim = (π·r²·h)/3\n= (3·(${r})²·${h})/3 = ${(r*r*h).toFixed(1)} cm³`;
+                    formulMetni = `<span style="color:#00ffcc; font-size:16px;">Koni</span><br>r = ${r} cm, h = ${h} cm<br><br><span style="color:#ff00ff">Hacim = (π·r²·h)/3</span><br>= (3·(${r})²·${h})/3 = <b>${(r*r*h).toFixed(1)} cm³</b>`;
                 } else {
-                    formulMetni = `Prizma / Piramit\nTaban Ayrıtı (a) ≈ ${r} cm\nYükseklik (h) ≈ ${h} cm`;
+                    formulMetni = `<span style="color:#00ffcc; font-size:16px;">Prizma / Piramit</span><br>Taban Ayrıtı (a) ≈ ${r} cm<br>Yükseklik (h) ≈ ${h} cm`;
                 }
                 
-                info.innerText = formulMetni;
-                info.style.background = 'rgba(0,0,0,0.7)'; info.style.border = '2px solid #00ffcc'; info.style.borderRadius = '10px'; info.style.padding = '10px'; info.style.boxShadow = '0px 4px 10px rgba(0,0,0,0.5)'; info.style.color = '#FFFF00'; info.style.fontWeight = 'bold'; info.style.textShadow = '1px 1px 2px #000';
-                info.style.position = 'absolute'; info.style.left = (activeShape.x + 80) + 'px'; info.style.top = (activeShape.y - 100) + 'px'; info.style.zIndex = '9999';
+                info.innerHTML = formulMetni; // Satır atlamaları okunsun diye innerHTML kullanıyoruz
+                info.style.background = 'rgba(20, 20, 30, 0.9)'; 
+                info.style.border = '2px solid #00ffcc'; 
+                info.style.borderRadius = '10px'; 
+                info.style.padding = '12px'; 
+                info.style.boxShadow = '0px 4px 15px rgba(0,0,0,0.6)'; 
+                info.style.color = '#FFFFFF'; 
+                info.style.fontFamily = 'monospace';
+                info.style.fontSize = '14px';
+                info.style.lineHeight = '1.5';
+                info.style.position = 'absolute'; 
+                info.style.pointerEvents = 'none'; // Kutu tıklamaları engellemesin
+                
+                // 🚨 Kutu ekrandan dışarı (yukarı veya sağa) taşmasın diye zırh:
+                let targetLeft = activeShape.x + 80;
+                let targetTop = activeShape.y - 150;
+                if (targetTop < 10) targetTop = 10;
+                if (targetLeft + 200 > window.innerWidth) targetLeft = window.innerWidth - 220;
+                
+                info.style.left = targetLeft + 'px'; 
+                info.style.top = targetTop + 'px'; 
+                info.style.zIndex = '9999';
             }
             const sInput = document.getElementById('shape-slider');
             if (sInput && document.activeElement !== sInput) sInput.value = (activeShape.openRatio || 0) * 100;
