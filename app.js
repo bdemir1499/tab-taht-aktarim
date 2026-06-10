@@ -2749,48 +2749,29 @@ lineColorOptions.forEach(box => {
 lineColorOptions[0].classList.add('selected');
 window.currentLineColor = lineColorOptions[0].dataset.color || lineColorOptions[0].style.backgroundColor; 
 
-// 🚨 ÇÖZÜM 1: 3D SAHNEYİ Z-INDEX BOZMADAN 2D ÇİZİMİN ARKASINA YERLEŞTİRME
-const katmanAyarla = setInterval(() => {
-    if (window.Scene3D && window.Scene3D.renderer && window.Scene3D.renderer.domElement && typeof canvas !== 'undefined' && canvas && canvas.parentNode) {
-        // 3D motorunu HTML'de 2D çizim tahtasının hemen arkasına (önceki sıraya) ekler.
-        // Böylece z-index kullanmadan 3D şekiller çizimlerin altında kalır ve butonlar kaybolmaz!
-        canvas.parentNode.insertBefore(window.Scene3D.renderer.domElement, canvas);
-        
-        // 3D sahnesinin tıklamaları çalmasını (butonları engellemesini) önler
-        window.Scene3D.renderer.domElement.style.pointerEvents = 'none';
-        
-        clearInterval(katmanAyarla); // Görev tamamlandı
-    }
-}, 500);
-
-// --- app.js: Canlandır Butonu (TEK SEFERDE AÇILIP KAPANMA GARANTİSİ) ---
+// --- app.js: Canlandır Butonu (Dokunmatik ve Tıklama GARANTİLİ) ---
 if (animateButton) {
-    // Karmaşık tıklama olaylarını iptal edip, sadece tek bir güvenli algılayıcı kullanıyoruz
-    animateButton.onpointerdown = (e) => {
-        e.preventDefault(); e.stopPropagation();
-        
-        let sOptions = document.getElementById('snapshot-options') || document.querySelector('.snapshot-options') || (typeof snapshotOptions !== 'undefined' ? snapshotOptions : null);
-        
-        // Eğer araç zaten Canlandır ise KAPAT
-        if (currentTool === 'snapshot') {
-            if (typeof setActiveTool === 'function') setActiveTool('none');
-            if (sOptions) { sOptions.classList.add('hidden'); sOptions.style.display = 'none'; }
-        } 
-        // Eğer kapalıysa KESİN OLARAK AÇ
-        else {
-            if (typeof setActiveTool === 'function') setActiveTool('snapshot');
-            if (sOptions) {
-                sOptions.classList.remove('hidden');
-                sOptions.style.display = 'flex';
-                sOptions.style.zIndex = '9999';
-                const buttonRect = animateButton.getBoundingClientRect();
-                const panelRect = animateButton.parentElement.getBoundingClientRect();
-                sOptions.style.top = `${buttonRect.top - panelRect.top}px`;
-            }
+    let menuAcilisKilidi = false;
+    const toggleAnimate = (e) => {
+        if (e && e.cancelable) e.preventDefault(); 
+        if (e) e.stopPropagation(); 
+
+        // 🚨 ÇÖZÜM 2: Çift Tıklama (Ghost Touch) Engeli
+        if (menuAcilisKilidi) return;
+        menuAcilisKilidi = true;
+        setTimeout(() => { menuAcilisKilidi = false; }, 300);
+
+        // Aracı çalıştır, alt menünün açılmasını setActiveTool halledecek
+        if (typeof setActiveTool === 'function') {
+            setActiveTool(currentTool === 'snapshot' ? 'none' : 'snapshot');
         }
     };
-} // <--- KOD DOSYASI TAM OLARAK BU PARANTEZLE BİTMELİDİR!
 
+    // Eski çakışan olayları tamamen iptal edip en güvenli dinleyiciyi ekliyoruz
+    animateButton.onclick = null;
+    animateButton.ontouchstart = null;
+    animateButton.addEventListener('pointerdown', toggleAnimate, { passive: false });
+}
 
 canvas.addEventListener('pointerdown', (e) => {
     // 🚨 SİHİRLİ DOKUNUŞ 1: Ne olursa olsun ÖNCE tarayıcının yerleşik kaydırmasını (titremeyi) kilitliyoruz!
@@ -4687,6 +4668,11 @@ function dilButonlariniHazirla() {
                 
                 // 1. Tabletin (Tıklanan cihazın) ekranını aç
                 setLanguage(targetLang);
+
+                // 🚨 ÇÖZÜM 3: Tablette yasal uyarı penceresini KESİN OLARAK Kapat!
+                const disclaimer = document.getElementById('disclaimer-modal');
+                if (disclaimer) disclaimer.style.display = 'none';
+                window.acilisPenceresiKapatildi = true;
                 
                 // 2. Karşı cihaza (PC/Tahtaya) "Aynı dili seç ve ekranı aç" emri gönder!
                 if (typeof isConnected !== 'undefined' && isConnected && typeof sendNetworkData !== 'undefined') {
@@ -6547,3 +6533,13 @@ window.broadcastPreview = function(toolType, stateData) {
     }
 };
 
+// 🚨 ÇÖZÜM 1: 3D ŞEKİLLERİ 2D ÇİZİMLERİN (KALEMİN) ALTINA ALMA ZIRHI
+const canvasKatmanZirhi = document.createElement('style');
+canvasKatmanZirhi.innerHTML = `
+    /* Çizim tahtasını en öne al */
+    #drawing-canvas { position: relative !important; z-index: 50 !important; }
+    
+    /* 3D uzay sahnesini kalemlerin altına, ama gridin üstüne koy */
+    #three-container { position: absolute !important; z-index: 10 !important; pointer-events: none !important; }
+`;
+document.head.appendChild(canvasKatmanZirhi);
