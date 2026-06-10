@@ -4859,6 +4859,16 @@ function dilButonlariniHazirla() {
                 
                 if (e.cancelable) e.preventDefault();
                 e.stopPropagation();
+
+                // 🚨 FİZİKSEL DOKUNMA SIZMASI (GHOST CLICK) KALKANI 🚨
+                // Dil seçilip overlay kapandığı an, arkadaki butonlara hayalet tıklama çarpmasın diye
+                // tüm arayüz panellerini 500ms (yarım saniye) boyunca tamamen tıklanamaz yapıyoruz.
+                document.querySelectorAll('.panel').forEach(panel => {
+                    panel.style.pointerEvents = 'none';
+                    setTimeout(() => {
+                        panel.style.pointerEvents = 'auto'; // Yarım saniye sonra kilit otomatik açılır
+                    }, 500);
+                });
                 
                 // 1. Tabletin (Tıklanan cihazın) ekranını aç
                 setLanguage(targetLang);
@@ -6582,9 +6592,19 @@ window.addEventListener('load', () => {
         const info = document.getElementById('info-tooltip');
         
         let activeShape = null;
-        // Şekil "Taşı" modunda seçiliyken algıla (Formül Kutusu Çıksın)
+        // Şekil "Taşı" modunda seçiliyken algıla
         if (window.currentTool === 'move' && window.selectedItem && window.selectedItem.type === '3d_shape') {
             activeShape = window.selectedItem;
+        } else if (window.currentTool && window.currentTool.startsWith('draw_3d_')) {
+            // 3D çizim yapıldığında (veya araç seçiliyken) son çizilen 3D şekli sürgüye bağla
+            if (window.drawnStrokes) {
+                for (let i = window.drawnStrokes.length - 1; i >= 0; i--) {
+                    if (window.drawnStrokes[i].type === '3d_shape') {
+                        activeShape = window.drawnStrokes[i];
+                        break;
+                    }
+                }
+            }
         }
 
         if (activeShape) {
