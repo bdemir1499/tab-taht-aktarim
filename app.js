@@ -1037,8 +1037,10 @@ window.bringToolToFront = function(clickedElement) {
         window.AciolcerTool ? window.AciolcerTool.aciolcerElement : null,
         window.PergelTool ? window.PergelTool.pergelElement : null
     ];
-    tools.forEach(tool => { if (tool) tool.style.zIndex = 5; });
-    if (clickedElement) clickedElement.style.zIndex = 6;
+    // 🚨 KESİN ÇÖZÜM: Araçlara dokununca z-index'leri 5'e düşüp çizim tahtasının altında kayboluyordu!
+    // Artık araçlar her zaman 9990 ve 9999 gücünde en üstte kalacak.
+    tools.forEach(tool => { if (tool) tool.style.zIndex = 9990; });
+    if (clickedElement) clickedElement.style.zIndex = 9999;
 }
 
 function redrawAllStrokes() {
@@ -2749,30 +2751,67 @@ lineColorOptions.forEach(box => {
 lineColorOptions[0].classList.add('selected');
 window.currentLineColor = lineColorOptions[0].dataset.color || lineColorOptions[0].style.backgroundColor; 
 
-// --- app.js: Canlandır Butonu (Dokunmatik ve Tıklama GARANTİLİ) ---
-if (animateButton) {
-    let menuAcilisKilidi = false;
-    const toggleAnimate = (e) => {
-        if (e && e.cancelable) e.preventDefault(); 
-        if (e) e.stopPropagation(); 
+// ==========================================
+// 🚨 NİHAİ ÇÖZÜM: KATMAN (Z-INDEX) VE BUTON KORUMA ZIRHI 🚨
+// ==========================================
+const katmanZirhi = document.createElement('style');
+katmanZirhi.innerHTML = `
+    /* 1. Çizim Tahtası: 3D şekillerin üstünde, butonların altında kalmalı */
+    #drawing-canvas { position: relative !important; z-index: 50 !important; background-color: transparent !important; }
+    
+    /* 2. 3D Sahnesi: Kalemin altında kalmalı ki üstüne çizilebilsin */
+    #three-container { position: absolute !important; z-index: 40 !important; pointer-events: none !important; display: block !important; }
+    
+    /* 3. Arayüz ve Butonlar: Asla kaybolmamaları için en üst seviyeye sabitlendi */
+    .panel, .panel *, button, .tool-button, .tool-button-sub, .tool-options,
+    #pen-options, #line-options, #polygon-options, #fill-options, #snapshot-options,
+    #options-3d-main, #options-prizmalar, #options-piramitler, #slider-container, #info-tooltip {
+        z-index: 10000 !important;
+    }
+`;
+document.head.appendChild(katmanZirhi);
 
-        // 🚨 ÇÖZÜM 2: Çift Tıklama (Ghost Touch) Engeli
+// 3D motorunun gizli kalmamasını garantile
+if (window.Scene3D && window.Scene3D.container) {
+    window.Scene3D.container.style.display = 'block';
+    window.Scene3D.container.classList.remove('hidden');
+}
+
+// --- app.js: Canlandır Butonu (TEK SEFERDE AÇILMA GARANTİSİ) ---
+if (typeof animateButton !== 'undefined' && animateButton) {
+    let menuAcilisKilidi = false;
+    
+    const toggleAnimate = (e) => {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        
         if (menuAcilisKilidi) return;
         menuAcilisKilidi = true;
-        setTimeout(() => { menuAcilisKilidi = false; }, 300);
+        setTimeout(() => { menuAcilisKilidi = false; }, 300); 
 
-        // Aracı çalıştır, alt menünün açılmasını setActiveTool halledecek
-        if (typeof setActiveTool === 'function') {
-            setActiveTool(currentTool === 'snapshot' ? 'none' : 'snapshot');
+        let sOptions = document.getElementById('snapshot-options') || document.querySelector('.snapshot-options');
+        
+        if (currentTool === 'snapshot') {
+            if (typeof setActiveTool === 'function') setActiveTool('none');
+            if (sOptions) { sOptions.classList.add('hidden'); sOptions.style.display = 'none'; }
+        } else {
+            if (typeof setActiveTool === 'function') setActiveTool('snapshot');
+            if (sOptions) {
+                sOptions.classList.remove('hidden');
+                sOptions.style.display = 'flex';
+                sOptions.style.zIndex = '10000';
+                const buttonRect = animateButton.getBoundingClientRect();
+                const panelRect = animateButton.parentElement.getBoundingClientRect();
+                sOptions.style.top = `${buttonRect.top - panelRect.top}px`;
+            }
         }
     };
 
-    // Eski çakışan olayları tamamen iptal edip en güvenli dinleyiciyi ekliyoruz
+    // Eski dinleyicileri ezip, en güvenli olanı kuruyoruz
     animateButton.onclick = null;
     animateButton.ontouchstart = null;
     animateButton.addEventListener('pointerdown', toggleAnimate, { passive: false });
 }
-
+// <--- KOD DOSYASI BURADA BİTMELİDİR!
 canvas.addEventListener('pointerdown', (e) => {
     // 🚨 SİHİRLİ DOKUNUŞ 1: Ne olursa olsun ÖNCE tarayıcının yerleşik kaydırmasını (titremeyi) kilitliyoruz!
     if (e.cancelable) e.preventDefault();
