@@ -6533,13 +6533,20 @@ window.broadcastPreview = function(toolType, stateData) {
     }
 };
 
-// 🚨 ÇÖZÜM 1: 3D ŞEKİLLERİ 2D ÇİZİMLERİN (KALEMİN) ALTINA ALMA ZIRHI
+// 🚨 KESİN ÇÖZÜM: 3D ŞEKİLLERİ ÇİZİMİN ALTINA ALIRKEN BUTONLARI KORUMA ZIRHI
 const canvasKatmanZirhi = document.createElement('style');
 canvasKatmanZirhi.innerHTML = `
-    /* Çizim tahtasını en öne al */
+    /* Çizim tahtasını 3D cisimlerin üstüne çıkarıyoruz */
     #drawing-canvas { position: relative !important; z-index: 50 !important; }
     
-    /* 3D uzay sahnesini kalemlerin altına, ama gridin üstüne koy */
+    /* 3D uzay sahnesini çizimlerin arkasına itiyoruz */
     #three-container { position: absolute !important; z-index: 10 !important; pointer-events: none !important; }
+    
+    /* 🔴 BUTONLARIN GERİ GELMESİNİ SAĞLAYAN EN ÜST KATMAN KORUMASI 🔴 */
+    .panel, .panel *, button, .tool-button, .tool-button-sub, .tool-options, 
+    #pen-options, #line-options, #polygon-options, #fill-options, #snapshot-options, 
+    #options-3d-main, #options-prizmalar, #options-piramitler, #slider-container, #info-tooltip { 
+        z-index: 10000 !important; 
+    }
 `;
 document.head.appendChild(canvasKatmanZirhi);
