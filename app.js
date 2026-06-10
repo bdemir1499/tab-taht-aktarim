@@ -920,27 +920,93 @@ const fillOptions = document.getElementById('fill-options');
 const fillColorBoxes = document.querySelectorAll('#fill-options .color-box');
 let currentFillColor = '#FF69B4';
 
-// --- CANLANDIR VE KES MENÜSÜ ---
+// --- CANLANDIR VE KES MENÜSÜ (GÜNCELLENMİŞ VE BİRLEŞTİRİLMİŞ) ---
 const btnSnapshotMain = document.getElementById('btn-snapshot-main');
 const snapshotOptions = document.getElementById('snapshot-options');
 const btnSnapshotBox = document.getElementById('btn-snapshot-box');
 const btnSnapshotLasso = document.getElementById('btn-snapshot-lasso');
 
+let menuAcilisKilidi = false;
+const toggleSnapshotMenu = (e) => {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    if (menuAcilisKilidi) return;
+    menuAcilisKilidi = true;
+    setTimeout(() => { menuAcilisKilidi = false; }, 300); 
+
+    let sOptions = document.getElementById('snapshot-options') || document.querySelector('.snapshot-options');
+    if (!sOptions) return;
+
+    // Ekrandaki gerçek görünürlük durumunu kontrol et (inline style dahil)
+    const menuKapaliMi = sOptions.classList.contains('hidden') || sOptions.style.display === 'none';
+
+    if (menuKapaliMi) {
+        // Aracı aktif et
+        if (typeof setActiveTool === 'function') {
+            setActiveTool('snapshot');
+        } else {
+            currentTool = 'snapshot';
+        }
+        
+        // Menüyü görünür yap ve inline style engelini kaldır
+        sOptions.classList.remove('hidden');
+        sOptions.style.display = 'flex';
+        sOptions.style.zIndex = '10000';
+        
+        // Butonların aktiflik durumunu güncelle
+        if (btnSnapshotMain) btnSnapshotMain.classList.add('active');
+        if (animateButton) animateButton.classList.add('active');
+
+        // Hizalamayı yap
+        const refBtn = btnSnapshotMain || animateButton;
+        if (refBtn) {
+            const buttonRect = refBtn.getBoundingClientRect();
+            const panelRect = refBtn.parentElement.getBoundingClientRect();
+            sOptions.style.top = `${buttonRect.top - panelRect.top}px`;
+        }
+    } else {
+        // Menüyü kapat ve aracı sıfırla
+        if (typeof setActiveTool === 'function') {
+            setActiveTool('none');
+        } else {
+            currentTool = 'none';
+        }
+        
+        sOptions.classList.add('hidden');
+        sOptions.style.display = 'none';
+        
+        if (btnSnapshotMain) btnSnapshotMain.classList.remove('active');
+        if (animateButton) animateButton.classList.remove('active');
+    }
+};
+
 if (btnSnapshotMain) {
-    btnSnapshotMain.addEventListener('click', () => {
-        snapshotOptions.classList.toggle('hidden');
-    });
+    btnSnapshotMain.onclick = null;
+    btnSnapshotMain.ontouchstart = null;
+    btnSnapshotMain.addEventListener('click', toggleSnapshotMenu);
+    btnSnapshotMain.addEventListener('pointerdown', toggleSnapshotMenu);
 }
 if (btnSnapshotBox) {
-    btnSnapshotBox.addEventListener('click', () => {
-        setActiveTool('snapshot'); // Senin mevcut standart kutu aracın
-        snapshotOptions.classList.add('hidden');
+    btnSnapshotBox.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setActiveTool('snapshot'); // Kutu aracını seç
+        if (snapshotOptions) {
+            snapshotOptions.classList.add('hidden');
+            snapshotOptions.style.display = 'none';
+        }
     });
 }
 if (btnSnapshotLasso) {
-    btnSnapshotLasso.addEventListener('click', () => {
-        setActiveTool('lasso'); // YENİ: Serbest kesim aracımız
-        snapshotOptions.classList.add('hidden');
+    btnSnapshotLasso.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setActiveTool('lasso'); // Serbest (Kement) kesim aracını seç
+        if (snapshotOptions) {
+            snapshotOptions.classList.add('hidden');
+            snapshotOptions.style.display = 'none';
+        }
     });
 }
 
@@ -2210,16 +2276,20 @@ if (typeof snapshotOptions !== 'undefined' && snapshotOptions) {
         body.classList.add('cursor-eraser');
     } else if (tool === 'snapshot') { 
         if(animateButton) animateButton.classList.add('active');
+        if(btnSnapshotMain) btnSnapshotMain.classList.add('active'); // 🚨 EKLENDİ
         body.classList.add('cursor-snapshot');
         
         // 🚨 ÇÖZÜM 1: Canlandır alt menüsünü KESİN OLARAK aç ve hizala!
         if (typeof snapshotOptions !== 'undefined' && snapshotOptions) {
             snapshotOptions.classList.remove('hidden');
             snapshotOptions.style.display = 'flex';
-            snapshotOptions.style.zIndex = '9999';
-            if (animateButton) snapshotOptions.style.top = `${animateButton.getBoundingClientRect().top - animateButton.parentElement.getBoundingClientRect().top}px`;
+            snapshotOptions.style.zIndex = '10000'; // 🚨 Z-index değeri yükseltildi
+            const refBtn = btnSnapshotMain || animateButton; // 🚨 EKLENDİ
+            if (refBtn) snapshotOptions.style.top = `${refBtn.getBoundingClientRect().top - refBtn.parentElement.getBoundingClientRect().top}px`;
         }
-    } 
+    }
+
+
     // --- ÇİZGİ ARAÇLARI GRUBU ---
     else if (tool === 'point') {
         lineButton.classList.add('active'); // Ana buton aktif
@@ -2777,46 +2847,43 @@ if (window.Scene3D && window.Scene3D.container) {
     window.Scene3D.container.classList.remove('hidden');
 }
 
-// --- app.js: Canlandır Butonu (Dokunmatik ve Tıklama GARANTİLİ) ---
-if (typeof animateButton !== 'undefined' && animateButton) {
-    let menuAcilisKilidi = false;
-    
-    const toggleAnimate = (e) => {
-        if (e) { e.preventDefault(); e.stopPropagation(); }
-        
-        if (menuAcilisKilidi) return;
-        menuAcilisKilidi = true;
-        setTimeout(() => { menuAcilisKilidi = false; }, 300); 
+// 👇👇👇 İŞTE KODU TAM OLARAK BURAYA, BU BOŞLUĞA YAPIŞTIRIYORSUN 👇👇👇
 
-        let sOptions = document.getElementById('snapshot-options') || document.querySelector('.snapshot-options');
+// 🚨 PERGEL TEPE ÇİFT TIKLAMA KESİN DÜZELTMESİ (SIÇRAMA ENGELİ)
+document.addEventListener('dblclick', (e) => {
+    const hedef = e.target;
+    // Çift tıklanan eleman pergelin tepesi mi kontrol et
+    if (hedef && (hedef.id === 'compass-top' || hedef.classList.contains('compass-top') || hedef.id === 'pergel-tepe' || hedef.closest('#compass-top') || hedef.closest('.pergel-tepe') || hedef.closest('#compass-handle'))) {
         
-        // 🚨 NOKTA ATIŞI DEĞİŞİKLİK: Değişkenlere değil, menünün ekrandaki GERÇEK durumuna bakıyoruz.
-        // Menü gizliyse (kopyalamadan sonra kapandıysa) ilk tıklamada şak diye açılmasını sağlar.
-        const menuKapaliMi = !sOptions || sOptions.classList.contains('hidden') || sOptions.style.display === 'none';
+        // 1. Eski dosyalardaki hatalı sıçrama kodunun çalışmasını tamamen engelle!
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        e.stopPropagation();
         
-        if (!menuKapaliMi) {
-            // Menü ekranda görünüyorsa kapat
-            if (typeof setActiveTool === 'function') setActiveTool('none');
-            if (sOptions) { sOptions.classList.add('hidden'); sOptions.style.display = 'none'; }
-        } else {
-            // Menü ekranda yoksa kesin olarak aç ve konumlandır
-            if (typeof setActiveTool === 'function') setActiveTool('snapshot');
-            if (sOptions) {
-                sOptions.classList.remove('hidden');
-                sOptions.style.display = 'flex';
-                sOptions.style.zIndex = '10000';
-                const buttonRect = animateButton.getBoundingClientRect();
-                const panelRect = animateButton.parentElement.getBoundingClientRect();
-                sOptions.style.top = `${buttonRect.top - panelRect.top}px`;
+        // 2. Yerinden oynatmadan uçları takas et
+        if (window.PergelTool && window.PergelTool.state) {
+            // Pergeli iğne ucu etrafında 180 derece döndürerek uçları kusursuzca eşler
+            window.PergelTool.state.rotation = (window.PergelTool.state.rotation || 0) + Math.PI;
+            
+            if (typeof window.PergelTool.updateTransform === 'function') {
+                window.PergelTool.updateTransform();
+            }
+            if (typeof window.araclariAgaGonder === 'function') {
+                window.araclariAgaGonder();
             }
         }
-    };
+    }
+}, true); // 'true' (capturing) sayesinde eski hatalı koddan ÖNCE devreye girer ve onu iptal eder!
 
-    // Senin orijinal ve çalışan tüm dinleyicilerin sırası ve parametreleriyle aynen korundu:
-    animateButton.addEventListener('click', toggleAnimate);
-    animateButton.addEventListener('pointerdown', toggleAnimate, { passive: false });
-} // <--- KOD DOSYASI TAM OLARAK BU PARANTEZLE BİTMELİDİR!
+// 👆👆👆 PERGEL KODU BURADA BİTİYOR 👆👆👆
 
+// --- app.js: Canlandır Butonu (TEK SEFERDE AÇILMA VE ARD ARDA SINIRSIZ KULLANIM GARANTİSİ) ---
+if (typeof animateButton !== 'undefined' && animateButton) {
+    animateButton.onclick = null;
+    animateButton.ontouchstart = null;
+    animateButton.addEventListener('pointerdown', toggleSnapshotMenu, { passive: false });
+}
+// <--- KOD DOSYASI TAM OLARAK BU PARANTEZLE BİTMELİDİR!
 
 canvas.addEventListener('pointerdown', (e) => {
     // 🚨 SİHİRLİ DOKUNUŞ 1: Ne olursa olsun ÖNCE tarayıcının yerleşik kaydırmasını (titremeyi) kilitliyoruz!
