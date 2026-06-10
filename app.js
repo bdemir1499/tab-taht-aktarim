@@ -2574,8 +2574,8 @@ function addToCanvasAsObject(img) {
             closePdfBtn.classList.add('hidden');
             closePdfBtn.style.display = 'none';
 
-            // Arka plan olan öğeleri kaldır
-            drawnStrokes = drawnStrokes.filter(s => !s.isBackground && !s.isPDFPage);
+            // Arka plan olan tüm öğeleri, lasso maskelerini ve yamaları kaldır
+drawnStrokes = drawnStrokes.filter(s => !s.isBackground && !s.isPDFPage && s.type !== 'lasso-mask' && !s.isPatch);
             window.drawnStrokes = drawnStrokes;
 
             // Değişkenleri sıfırla
@@ -3995,14 +3995,15 @@ document.addEventListener('click', function(e) {
         e.stopPropagation();
 
         // 🚨 2. SİHİRLİ ÇÖZÜM: filter yerine splice ile hafıza kopmadan temizlik yapıyoruz 🚨
-        if (window.drawnStrokes) {
-            for (let i = window.drawnStrokes.length - 1; i >= 0; i--) {
-                // PDF, Resim veya arka plan ne varsa koparmadan sil
-                if (window.drawnStrokes[i].isBackground === true) {
-                    window.drawnStrokes.splice(i, 1);
-                }
-            }
+if (window.drawnStrokes) {
+    for (let i = window.drawnStrokes.length - 1; i >= 0; i--) {
+        // PDF, Resim, arka plan, lasso maskesi ve yamaların hepsini temizle
+        const s = window.drawnStrokes[i];
+        if (s.isBackground === true || s.type === 'lasso-mask' || s.isPatch === true) {
+            window.drawnStrokes.splice(i, 1);
         }
+    }
+}
 
         // 3. Değişkenleri Sıfırla
         if (typeof currentPDF !== 'undefined') currentPDF = null;
@@ -5621,15 +5622,16 @@ function setupConnectionEvents() {
         }
 
 // 🚨 YENİ EKLENEN BÖLÜM: PC'NİN PDF KAPATMA EMRİNİ ALDIĞI YER 🚨
-        if (data.type === 'pdf_kapat') {
-            // 🚨 SİHİRLİ ÇÖZÜM: PC tarafında da filter yerine splice kullanıyoruz 🚨
-            if (window.drawnStrokes) {
-                for (let i = window.drawnStrokes.length - 1; i >= 0; i--) {
-                    if (window.drawnStrokes[i].isBackground === true) {
-                        window.drawnStrokes.splice(i, 1);
-                    }
-                }
+if (data.type === 'pdf_kapat') {
+    // 🚨 SİHİRLİ ÇÖZÜM: PC tarafında da filter yerine splice kullanıyoruz 🚨
+    if (window.drawnStrokes) {
+        for (let i = window.drawnStrokes.length - 1; i >= 0; i--) {
+            const s = window.drawnStrokes[i];
+            if (s.isBackground === true || s.type === 'lasso-mask' || s.isPatch === true) {
+                window.drawnStrokes.splice(i, 1);
             }
+        }
+    }
             window.currentPDF = null;
             window.pdfImageStroke = null;
             
