@@ -4146,11 +4146,21 @@ window.addEventListener('resize', resizeCanvas);
             deferredPrompt = null;
         }
         if (installPopup) installPopup.style.display = 'none';
+        
+        // 🚨 SİHİRLİ DOKUNUŞ: PC'deki yükleme penceresini de kapatması için komut gönder
+        if (typeof isConnected !== 'undefined' && isConnected && typeof sendNetworkData === 'function') {
+            sendNetworkData({ type: 'yukleme_penceresini_kapat' });
+        }
     });
 
     // B) Kapat (Hayır) Butonu
     activateButton(btnClose, async () => {
         if (installPopup) installPopup.style.display = 'none';
+        
+        // 🚨 SİHİRLİ DOKUNUŞ: PC'deki yükleme penceresini de kapatması için komut gönder
+        if (typeof isConnected !== 'undefined' && isConnected && typeof sendNetworkData === 'function') {
+            sendNetworkData({ type: 'yukleme_penceresini_kapat' });
+        }
     });
 }
 
@@ -4769,20 +4779,26 @@ function setLanguage(lang) {
     const overlay = document.getElementById('language-overlay');
     if (overlay) overlay.style.display = 'none';
 
-// --- RUSÇA VE DİĞER UZUN DİLLER İÇİN MENÜ SIFIRLAMA ---
-    // Dil değişimi sırasında butonların taşmasından kaynaklanan otomatik açılmaları kapatır
-    const allOptions = document.querySelectorAll('.tool-options, .tool-options-right');
-    allOptions.forEach(opt => {
-        opt.classList.add('hidden'); // Tüm alt menüleri (çizgi, çokgen vb.) gizle
-        opt.style.display = 'none';  // 🚨 EKLENDİ: Inline display engelini kaldır
+// --- TÜM SEÇENEK MENÜLERİNİ KESİN OLARAK KAPAT (TAŞMA VE SIZMA ENGELLEYİCİ) ---
+    const optionMenus = [
+        document.getElementById('line-options'),
+        document.getElementById('polygon-options'),
+        document.getElementById('fill-options'),
+        document.getElementById('snapshot-options'),
+        document.getElementById('pen-options'),
+        document.getElementById('oyunlar-options')
+    ];
+    optionMenus.forEach(menu => {
+        if (menu) {
+            menu.classList.add('hidden');
+            menu.style.display = 'none';
+        }
     });
-
-    // Çizgi menüsünü kesin olarak kapat
-    const lineOptions = document.getElementById('line-options') || document.querySelector('.line-options');
-    if (lineOptions) {
-        lineOptions.classList.add('hidden');
-        lineOptions.style.display = 'none';
-    }
+    
+    // Tüm ana butonların aktiflik (ışık) durumunu başlangıç için söndür
+    document.querySelectorAll('.tool-button, .tool-button-sub').forEach(btn => {
+        btn.classList.remove('active');
+    });
 
     // Eğer aktif bir araç seçili kalmışsa onu temizle (isteğe bağlı)
     // currentTool = null; 
