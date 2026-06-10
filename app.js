@@ -2168,8 +2168,11 @@ window.distance = distance;
 
 // --- ARAÇ SEÇİMİ (TAMAMEN DÜZELTİLMİŞ VERSİYON) ---
 function setActiveTool(tool) {
-    // Oyunlar menüsünü her araç değişiminde kapat
-    if (oyunlarOptions) oyunlarOptions.classList.add('hidden');
+    // Oyunlar menüsünü her araç değişiminde kapat ve inline olarak gizle
+    if (oyunlarOptions) {
+        oyunlarOptions.classList.add('hidden');
+        oyunlarOptions.style.display = 'none';
+    }
     if (oyunlarButton) oyunlarButton.classList.remove('active');
 
     // Mevcut butonların aktifliğini temizle
@@ -2206,23 +2209,36 @@ function setActiveTool(tool) {
         eraserButton.classList.add('active');
         body.classList.add('cursor-eraser');
     }
-    // ... (Kodun devamı senin dosyadakiyle aynı kalabilir, sadece baş kısmı böyle olsun)
-// --- BU SATIRI EKLE ---
-    if (eraserPreview) eraserPreview.style.display = 'none'; 
-    // ----------------------
 
-    // Menüleri gizle
-    if (polygonOptions) { polygonOptions.classList.add('hidden'); polygonOptions.style.display = ''; }
+    if (eraserPreview) eraserPreview.style.display = 'none'; 
+
+    // 🚨 KESİN ÇÖZÜM: CSS öncelik çelişkisini aşmak için gizlenen tüm menüleri inline (none) yapıyoruz
+    if (polygonOptions) { 
+        polygonOptions.classList.add('hidden'); 
+        polygonOptions.style.display = 'none'; 
+    }
     
-    // Çizgi menüsünü, SADECE yeni seçilen araç bir çizgi aracı DEĞİLSE gizle
-    // (Böylece alt araçlar arasında gezerken menü kapanmaz)
+    // Çizgi menüsünü, SADECE yeni seçilen araç bir çizgi aracı DEĞİLSE inline olarak mühürle
     const isLineTool = ['point', 'straightLine', 'line', 'segment', 'ray'].includes(tool);
     if (!isLineTool && lineOptions) { 
         lineOptions.classList.add('hidden'); 
-        lineOptions.style.display = ''; 
+        lineOptions.style.display = 'none'; 
     }
 
-        if (fillOptions) { fillOptions.classList.add('hidden'); fillOptions.style.display = ''; }
+    if (fillOptions) { 
+        fillOptions.classList.add('hidden'); 
+        fillOptions.style.display = 'none'; 
+    }
+    
+    if (penOptions) { 
+        penOptions.classList.add('hidden'); 
+        penOptions.style.display = 'none'; 
+    } 
+
+    if (typeof snapshotOptions !== 'undefined' && snapshotOptions) {
+        snapshotOptions.classList.add('hidden');
+        snapshotOptions.style.display = 'none';
+    }
     
     // 🚨 ÇÖZÜM 1: Kalem menüsünü kesin olarak gizle
     if (penOptions) { penOptions.classList.add('hidden'); penOptions.style.display = 'none'; } 
@@ -2300,15 +2316,18 @@ if (typeof snapshotOptions !== 'undefined' && snapshotOptions) {
     }
 
 
-    // --- ÇİZGİ ARAÇLARI GRUBU ---
-    else if (tool === 'point') {
+    // --- ÇİZGİ ARAÇLARI GRUBU (YÜKSEK CSS ÖNCELİKLİ GÖSTERİM) ---
+    if (isLineTool && lineOptions) {
+        lineOptions.classList.remove('hidden');
+        lineOptions.style.display = 'flex'; // 🚨 Çizgi aracı seçildiğinde görünürlüğü inline olarak zorla aç
+    }
+
+    if (tool === 'point') {
         lineButton.classList.add('active'); // Ana buton aktif
         pointButton.classList.add('active'); // Alt buton aktif
-        lineOptions.classList.remove('hidden'); 
     } else if (tool === 'straightLine') { 
         lineButton.classList.add('active');
         straightLineButton.classList.add('active');
-        lineOptions.classList.remove('hidden');
     } else if (tool === 'line') { 
         lineButton.classList.add('active');
         infinityLineButton.classList.add('active');
