@@ -1796,13 +1796,23 @@ function processLassoCut() {
     offCtx.clip();
     
     const bgLayer = document.getElementById('pdf-canvas') || document.querySelector('.pdf-page-canvas');
+    
+    // Yüksek kaliteli çizim ayarlarını etkinleştir
+    offCtx.imageSmoothingEnabled = true;
+    offCtx.imageSmoothingQuality = 'high';
+
     if (bgLayer) {
-        const sX = bgLayer.width / bgLayer.offsetWidth;
-        const sY = bgLayer.height / bgLayer.offsetHeight;
+        // Kanvasın HD çözünürlük oranını al (DPR)
+        const dprCanvasX = canvas.width / canvas.getBoundingClientRect().width;
+        const dprCanvasY = canvas.height / canvas.getBoundingClientRect().height;
+
+        // PDF koordinatlarını tabletin piksel yoğunluğuna göre kusursuz olarak eşitle
+        const sX = (bgLayer.width / bgLayer.offsetWidth) / dprCanvasX;
+        const sY = (bgLayer.height / bgLayer.offsetHeight) / dprCanvasY;
         offCtx.drawImage(bgLayer, minX * sX, minY * sY, width * sX, height * sY, 0, 0, width, height);
     }
     offCtx.drawImage(canvas, minX, minY, width, height, 0, 0, width, height);
-    const imgSrc = offCanvas.toDataURL('image/png');
+    const imgSrc = offCanvas.toDataURL('image/png', 1.0); // Kaliteyi en üste sabitle
 
     // =======================================================
     // 3. AKILLI RENK BULUCU
@@ -3368,6 +3378,11 @@ canvas.addEventListener('pointerup', (e) => {
             const tempCtx = tempCanvas.getContext('2d');
             
             tempCanvas.width = w; tempCanvas.height = h;
+            
+            // Görüntü netliğini en üst düzeye çıkar
+            tempCtx.imageSmoothingEnabled = true;
+            tempCtx.imageSmoothingQuality = 'high';
+
             tempCtx.drawImage(canvas, x, y, w, h, 0, 0, w, h);
             const finalImage = tempCanvas.toDataURL('image/png', 1.0);
             
@@ -3534,15 +3549,23 @@ canvas.addEventListener('pointerup', (e) => {
                 tempCtx.clip(); 
 
                 const bgLayer = document.getElementById('pdf-canvas') || document.querySelector('.pdf-page-canvas');
+                
+                // Kaliteyi artır
+                tempCtx.imageSmoothingEnabled = true;
+                tempCtx.imageSmoothingQuality = 'high';
+
                 if (bgLayer) {
-                    const sX = bgLayer.width / bgLayer.offsetWidth;
-                    const sY = bgLayer.height / bgLayer.offsetHeight;
+                    const dprCanvasX = canvas.width / canvas.getBoundingClientRect().width;
+                    const dprCanvasY = canvas.height / canvas.getBoundingClientRect().height;
+
+                    const sX = (bgLayer.width / bgLayer.offsetWidth) / dprCanvasX;
+                    const sY = (bgLayer.height / bgLayer.offsetHeight) / dprCanvasY;
                     tempCtx.drawImage(bgLayer, minX * sX, minY * sY, w * sX, h * sY, 0, 0, w, h);
                 }
                 tempCtx.drawImage(canvas, minX, minY, w, h, 0, 0, w, h);
                 tempCtx.restore();
 
-                const finalImage = tempCanvas.toDataURL('image/png');
+                const finalImage = tempCanvas.toDataURL('image/png', 1.0);
 
                 let cx = 0, cy = 0;
                 for (let p of lassoPoints) { cx += p.x; cy += p.y; }
@@ -4196,14 +4219,27 @@ window.addEventListener('orientationchange', () => {
 // CANLANDIR (SNAPSHOT) - TABLET/PC UYUMLU YÜZEN KOPYA
 // =======================================================
 function olusturYuzenKopya(imgSrc, startX, startY, width, height) {
+    // 🚨 SİHİRLİ DÜZELTME: HD piksel değerlerini DOM için CSS pikseline dönüştür
+    const canvasEl = document.getElementById('drawing-canvas');
+    const dpr = canvasEl ? (canvasEl.width / canvasEl.getBoundingClientRect().width) : (window.devicePixelRatio || 1);
+    
+    // Gelen koordinatların HD olup olmadığını kontrol et ve ölçekle
+    const isHD = width > (canvasEl ? canvasEl.getBoundingClientRect().width : window.innerWidth);
+    const scale = isHD ? dpr : 1;
+
+    const cssX = startX / scale;
+    const cssY = startY / scale;
+    const cssW = width / scale;
+    const cssH = height / scale;
+
     // 1. Ana Kapsayıcı Kutu
     const container = document.createElement('div');
-    container.className = 'yuzen-kopya-container'; // Global dokunma engelleri için sınıf
+    container.className = 'yuzen-kopya-container'; 
     container.style.position = 'absolute';
-    container.style.left = startX + 'px';
-    container.style.top = startY + 'px';
-    container.style.width = width + 'px';
-    container.style.height = height + 'px';
+    container.style.left = cssX + 'px';
+    container.style.top = cssY + 'px';
+    container.style.width = cssW + 'px';
+    container.style.height = cssH + 'px';
     container.style.border = '2px dashed #00ffcc';
     container.style.cursor = 'grab';
     container.style.zIndex = '9999';
@@ -4738,7 +4774,15 @@ function setLanguage(lang) {
     const allOptions = document.querySelectorAll('.tool-options, .tool-options-right');
     allOptions.forEach(opt => {
         opt.classList.add('hidden'); // Tüm alt menüleri (çizgi, çokgen vb.) gizle
+        opt.style.display = 'none';  // 🚨 EKLENDİ: Inline display engelini kaldır
     });
+
+    // Çizgi menüsünü kesin olarak kapat
+    const lineOptions = document.getElementById('line-options') || document.querySelector('.line-options');
+    if (lineOptions) {
+        lineOptions.classList.add('hidden');
+        lineOptions.style.display = 'none';
+    }
 
     // Eğer aktif bir araç seçili kalmışsa onu temizle (isteğe bağlı)
     // currentTool = null; 
@@ -4788,6 +4832,10 @@ function dilButonlariniHazirla() {
                 const disclaimer = document.getElementById('disclaimer-modal');
                 if (disclaimer) disclaimer.style.display = 'none';
                 window.acilisPenceresiKapatildi = true;
+
+                // Tablet yerel ekranındaki alt bilgi şeridini de kapat
+                const footer = document.getElementById('footer-container') || document.getElementById('disclaimer-container') || document.getElementById('kvkk-bilgi')?.parentElement;
+                if (footer) footer.style.display = 'none';
                 
                 // 2. Karşı cihaza (PC/Tahtaya) "Aynı dili seç ve ekranı aç" emri gönder!
                 if (typeof isConnected !== 'undefined' && isConnected && typeof sendNetworkData !== 'undefined') {
