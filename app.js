@@ -6595,8 +6595,8 @@ window.addEventListener('load', () => {
         // Şekil "Taşı" modunda seçiliyken algıla
         if (window.currentTool === 'move' && window.selectedItem && window.selectedItem.type === '3d_shape') {
             activeShape = window.selectedItem;
-        } else if (window.currentTool && window.currentTool.startsWith('draw_3d_')) {
-            // 3D çizim yapıldığında (veya araç seçiliyken) son çizilen 3D şekli sürgüye bağla
+        } else if (!window.currentTool || window.currentTool === 'none' || window.currentTool.startsWith('draw_3d_')) {
+            // "none" durumunda veya 3D çizim aracındayken son çizilen 3D şekli otomatik sürgüye bağla
             if (window.drawnStrokes) {
                 for (let i = window.drawnStrokes.length - 1; i >= 0; i--) {
                     if (window.drawnStrokes[i].type === '3d_shape') {
