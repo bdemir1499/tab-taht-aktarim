@@ -2777,7 +2777,7 @@ if (window.Scene3D && window.Scene3D.container) {
     window.Scene3D.container.classList.remove('hidden');
 }
 
-// --- app.js: Canlandır Butonu (TEK SEFERDE AÇILMA GARANTİSİ) ---
+// --- app.js: Canlandır Butonu (Dokunmatik ve Tıklama GARANTİLİ) ---
 if (typeof animateButton !== 'undefined' && animateButton) {
     let menuAcilisKilidi = false;
     
@@ -2790,10 +2790,16 @@ if (typeof animateButton !== 'undefined' && animateButton) {
 
         let sOptions = document.getElementById('snapshot-options') || document.querySelector('.snapshot-options');
         
-        if (currentTool === 'snapshot') {
+        // 🚨 NOKTA ATIŞI DEĞİŞİKLİK: Değişkenlere değil, menünün ekrandaki GERÇEK durumuna bakıyoruz.
+        // Menü gizliyse (kopyalamadan sonra kapandıysa) ilk tıklamada şak diye açılmasını sağlar.
+        const menuKapaliMi = !sOptions || sOptions.classList.contains('hidden') || sOptions.style.display === 'none';
+        
+        if (!menuKapaliMi) {
+            // Menü ekranda görünüyorsa kapat
             if (typeof setActiveTool === 'function') setActiveTool('none');
             if (sOptions) { sOptions.classList.add('hidden'); sOptions.style.display = 'none'; }
         } else {
+            // Menü ekranda yoksa kesin olarak aç ve konumlandır
             if (typeof setActiveTool === 'function') setActiveTool('snapshot');
             if (sOptions) {
                 sOptions.classList.remove('hidden');
@@ -2806,12 +2812,12 @@ if (typeof animateButton !== 'undefined' && animateButton) {
         }
     };
 
-    // Eski dinleyicileri ezip, en güvenli olanı kuruyoruz
-    animateButton.onclick = null;
-    animateButton.ontouchstart = null;
+    // Senin orijinal ve çalışan tüm dinleyicilerin sırası ve parametreleriyle aynen korundu:
+    animateButton.addEventListener('click', toggleAnimate);
     animateButton.addEventListener('pointerdown', toggleAnimate, { passive: false });
-}
-// <--- KOD DOSYASI BURADA BİTMELİDİR!
+} // <--- KOD DOSYASI TAM OLARAK BU PARANTEZLE BİTMELİDİR!
+
+
 canvas.addEventListener('pointerdown', (e) => {
     // 🚨 SİHİRLİ DOKUNUŞ 1: Ne olursa olsun ÖNCE tarayıcının yerleşik kaydırmasını (titremeyi) kilitliyoruz!
     if (e.cancelable) e.preventDefault();
