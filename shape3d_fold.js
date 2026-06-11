@@ -62,19 +62,19 @@ window.Foldable3D = {
                 const panelMesh = createFaceMesh(panelGeo);
                 hinge.add(panelMesh);
                 
-                // Kapakları ilk (sabit) yüzeye ekle (Küp için daha güzel bir açınım olsun diye 1. yüzeye (ortaya) da eklenebilir, ama şimdilik i===0)
+                // Kapakları simetrik açınım için orta panele ekle
                 const middleIndex = Math.floor((sides - 1) / 2);
                 if (i === middleIndex) {
                     // Üst kapak
                     const topHinge = new THREE.Group();
                     topHinge.position.set(actualSideWidth / 2, height / 2, 0);
                     hinge.add(topHinge);
-                    // KAPALI (0) -> yatay (0 açı), AÇIK (1) -> yukarı (-90 derece)
-                    group.userData.hinges.push({ obj: topHinge, maxAngle: -Math.PI / 2, initialAngle: 0, axis: 'x' });
+                    // KAPALI (0) -> yatay (0 açı), AÇIK (1) -> dışarı (+90 derece)
+                    group.userData.hinges.push({ obj: topHinge, maxAngle: Math.PI / 2, initialAngle: 0, axis: 'x' });
                     
                     let topGeo;
                     if (type === 'prism_cylinder') topGeo = new THREE.CircleGeometry(r, sides);
-                    else topGeo = new THREE.CircleGeometry(r, sides, Math.PI / sides); // Çokgen yaklaşımı
+                    else topGeo = new THREE.CircleGeometry(r, sides, Math.PI / sides); 
                     
                     topGeo.rotateX(-Math.PI / 2); // Geometriyi baştan yatay hale getir
                     topGeo.translate(0, 0, -apothem); // Pivot noktasını (menteşeyi) kenara oturt
@@ -85,8 +85,8 @@ window.Foldable3D = {
                     const bottomHinge = new THREE.Group();
                     bottomHinge.position.set(actualSideWidth / 2, -height / 2, 0);
                     hinge.add(bottomHinge);
-                    // KAPALI (0) -> yatay (0 açı), AÇIK (1) -> aşağı (+90 derece)
-                    group.userData.hinges.push({ obj: bottomHinge, maxAngle: Math.PI / 2, initialAngle: 0, axis: 'x' });
+                    // KAPALI (0) -> yatay (0 açı), AÇIK (1) -> dışarı (-90 derece)
+                    group.userData.hinges.push({ obj: bottomHinge, maxAngle: -Math.PI / 2, initialAngle: 0, axis: 'x' });
                     
                     let bottomGeo;
                     if (type === 'prism_cylinder') bottomGeo = new THREE.CircleGeometry(r, sides);
@@ -202,6 +202,7 @@ window.Foldable3D = {
         // Dış grup, rotationX işlemini sorunsuz yapmak için hala kullanılabilir.
         const outerGroup = new THREE.Group();
         outerGroup.userData = group.userData;
+        outerGroup.userData.innerGroup = group; // İç grubu sakla ki rotasyonu nötrleyebilelim
         outerGroup.add(group);
 
         return outerGroup;
@@ -215,5 +216,18 @@ window.Foldable3D = {
             const currentAngle = initial + (h.maxAngle - initial) * openRatio;
             h.obj.rotation[h.axis] = currentAngle;
         });
+
+        // Şekil açıldıkça tam karşıdan görünmesi için rotasyonu otomatik olarak düzelt
+        const inner = group.userData.innerGroup;
+        if (inner) {
+            const isPyramid = group.userData.shapeType.startsWith('pyramid_');
+            // Piramitlerin açınımı XZ düzleminde (yerde) olduğu için 90 derece dikleştiriyoruz.
+            // Prizmaların açınımı zaten XY düzleminde olduğu için sadece kullanıcı/sistem rotasyonunu sıfırlıyoruz.
+            const targetRotX = isPyramid ? (Math.PI / 2) : 0; 
+            
+            inner.rotation.x = (targetRotX - (group.rotation.x || 0)) * openRatio;
+            inner.rotation.y = -(group.rotation.y || 0) * openRatio;
+            inner.rotation.z = -(group.rotation.z || 0) * openRatio;
+        }
     }
 };
