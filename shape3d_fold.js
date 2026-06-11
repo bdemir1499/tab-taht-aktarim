@@ -69,14 +69,14 @@ window.Foldable3D = {
                 const hinge = new THREE.Group();
                 // İlk yüzey sabit, diğerleri birbirine ekleniyor
                 if (i === 0) {
-                    hinge.position.set(0, 0, apothem);
+                    hinge.position.set(0, 0, -apothem); // İlk yüzey arkada değil, önde başlasın (Kamera açısından arkada kalması için -Z)
                     root.add(hinge);
                 } else {
                     hinge.position.set(actualSideWidth, 0, 0); // Sağ kenardan bağlanır
                     currentParent.add(hinge);
-                    // Başlangıç (0) durumu KAPALI -> aradaki açı angleStep
+                    // Başlangıç (0) durumu KAPALI -> aradaki açı -angleStep (Önden arkaya doğru değil, arkadan öne sarsın)
                     // Bitiş (1) durumu AÇIK -> aradaki açı 0 (düz şerit)
-                    group.userData.hinges.push({ obj: hinge, maxAngle: 0, initialAngle: angleStep, axis: 'y' });
+                    group.userData.hinges.push({ obj: hinge, maxAngle: 0, initialAngle: -angleStep, axis: 'y' });
                 }
                 
                 // Panel geometrisi (merkezi hinge'in ortasında olacak şekilde ayarlanır)
@@ -297,10 +297,10 @@ window.Foldable3D = {
             const tiltOffset = 0.25; 
 
             if (group.userData.shapeType.startsWith('pyramid_')) {
-                // Piramitleri normal düzlemde tut (Z yukarı bakar), açıldığında çok hafif eğim ver
+                // Piramitleri normal düzlemde tut (Z yukarı bakar). Açıldığında arkaya değil ÖNE doğru eğilsin (Math.PI)
                 const qClosed = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
                 const qOuterInverse = group.quaternion.clone().invert();
-                const qOpenTarget = qOuterInverse.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -tiltOffset));
+                const qOpenTarget = qOuterInverse.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI - tiltOffset));
                 
                 // Quaternion slerp ile pürüzsüz geçiş
                 inner.quaternion.copy(qClosed).slerp(qOpenTarget, openRatio);
