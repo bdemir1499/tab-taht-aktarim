@@ -6218,6 +6218,15 @@ window.Scene3D = {
 
     animate: function() {
         requestAnimationFrame(() => window.Scene3D.animate());
+        
+        if (this.scene && window.Foldable3D) {
+            this.scene.children.forEach(mesh => {
+                if (mesh.userData && mesh.userData.strokeData) {
+                    window.Foldable3D.updateUnfold(mesh, mesh.userData.strokeData.openRatio || 0);
+                }
+            });
+        }
+        
         if (this.scene && this.renderer && this.camera) this.renderer.render(this.scene, this.camera);
     },
 
@@ -6397,15 +6406,22 @@ window.Scene3D = {
             const finalRadius = 0.1 * finalScale;
             this.scene.remove(this.previewMesh); this.previewMesh.geometry.dispose(); this.previewMesh = null;
             
-            const geometry = this.createGeometry(this.activeTool, finalRadius);
-            if(this.activeTool.startsWith('prism') || this.activeTool.startsWith('pyramid')) geometry.rotateX(Math.PI / 2);
-            
             const isSphere = this.activeTool === 'sphere';
-            const solidShape = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({ color: 0x00ffcc, shininess: 100, specular: 0x111111, transparent: !isSphere, opacity: isSphere ? 1.0 : 0.4, depthWrite: isSphere, side: THREE.DoubleSide }));
+            const mainMaterial = new THREE.MeshPhongMaterial({ color: 0x00ffcc, shininess: 100, specular: 0x111111, transparent: !isSphere, opacity: isSphere ? 1.0 : 0.4, depthWrite: isSphere, side: THREE.DoubleSide });
+            const edgeMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 });
+            
+            let solidShape;
+            if (window.Foldable3D) {
+                solidShape = window.Foldable3D.createFoldableGroup(this.activeTool, finalRadius, mainMaterial, edgeMaterial);
+            } else {
+                const geometry = this.createGeometry(this.activeTool, finalRadius);
+                if(this.activeTool.startsWith('prism') || this.activeTool.startsWith('pyramid')) geometry.rotateX(Math.PI / 2);
+                solidShape = new THREE.Mesh(geometry, mainMaterial);
+                solidShape.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edgeMaterial));
+            }
             
             // Şekli 3D uzaya tam senin bıraktığın yere yerleştir
             solidShape.position.copy(this.startPoint || new THREE.Vector3(0,0,0));
-            solidShape.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 })));
             
             this.scene.add(solidShape);
             this.currentMesh = solidShape;
@@ -6428,7 +6444,7 @@ window.Scene3D = {
                 pos3D: { x: solidShape.position.x, y: solidShape.position.y, z: solidShape.position.z },
                 rotation: 0, yaw: 0, pitch: 1, openRatio: 0, isPreview: false, color: '#00ffcc'
             };
-            solidShape.userData = { type: this.activeTool, baseSize: finalRadius, height: finalRadius * 2, strokeData: networkData };
+            Object.assign(solidShape.userData, { type: this.activeTool, baseSize: finalRadius, height: finalRadius * 2, strokeData: networkData });
             
             if(window.drawnStrokes) window.drawnStrokes.push(networkData);
             if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'yeni_cizim', stroke: networkData });
@@ -6493,18 +6509,24 @@ window.Scene3D = {
     // 🚨 KESİN ÇÖZÜM: PC'nin 3D Şekilleri Tabletinden Alıp Çizmesi İçin Ağ Alıcısı
     addShapeFromNetwork: function(strokeData) {
         if (!this.isInit) this.init();
-        const geometry = this.createGeometry(strokeData.shapeType, strokeData.width / 30);
-        if(strokeData.shapeType.startsWith('prism') || strokeData.shapeType.startsWith('pyramid')) geometry.rotateX(Math.PI / 2);
-        
         const isSphere = strokeData.shapeType === 'sphere';
-        const solidShape = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({ color: 0x00ffcc, shininess: 100, specular: 0x111111, transparent: !isSphere, opacity: isSphere ? 1.0 : 0.4, depthWrite: isSphere, side: THREE.DoubleSide }));
+        const mainMaterial = new THREE.MeshPhongMaterial({ color: 0x00ffcc, shininess: 100, specular: 0x111111, transparent: !isSphere, opacity: isSphere ? 1.0 : 0.4, depthWrite: isSphere, side: THREE.DoubleSide });
+        const edgeMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 });
+        
+        let solidShape;
+        if (window.Foldable3D) {
+            solidShape = window.Foldable3D.createFoldableGroup(strokeData.shapeType, strokeData.width / 30, mainMaterial, edgeMaterial);
+        } else {
+            const geometry = this.createGeometry(strokeData.shapeType, strokeData.width / 30);
+            if(strokeData.shapeType.startsWith('prism') || strokeData.shapeType.startsWith('pyramid')) geometry.rotateX(Math.PI / 2);
+            solidShape = new THREE.Mesh(geometry, mainMaterial);
+            solidShape.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edgeMaterial));
+        }
         
         if (strokeData.pos3D) solidShape.position.set(strokeData.pos3D.x, strokeData.pos3D.y, strokeData.pos3D.z);
         if (strokeData.rotationX !== undefined) solidShape.rotation.x = strokeData.rotationX;
         if (strokeData.rotationY !== undefined) solidShape.rotation.y = strokeData.rotationY;
-        
-        solidShape.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 })));
-        solidShape.userData = { type: strokeData.shapeType, baseSize: strokeData.width / 30, height: (strokeData.width / 30) * 2, strokeData: strokeData };
+        Object.assign(solidShape.userData, { type: strokeData.shapeType, baseSize: strokeData.width / 30, height: (strokeData.width / 30) * 2, strokeData: strokeData });
         this.scene.add(solidShape);
         if (typeof this.updateHandlePositions === 'function') this.updateHandlePositions();
     }
