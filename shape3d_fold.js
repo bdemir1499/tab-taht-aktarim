@@ -171,6 +171,7 @@ window.Foldable3D = {
             const baseLabel = createLabelMesh(faceCounter.toString() + " (ALT)", '#aaaaff', r*1.5, r*1.5);
             baseLabel.rotation.x = -Math.PI / 2;
             baseLabel.position.y = -height / 2;
+            baseLabel.material.side = THREE.FrontSide;
             group.add(baseLabel);
             faceCounter++;
 
@@ -203,6 +204,10 @@ window.Foldable3D = {
                 
                 const triLabel = createLabelMesh(faceCounter.toString(), '#ffaaaa', sideWidth, slantHeight*0.5);
                 triLabel.position.set(0, slantHeight*0.3, 0);
+                
+                // Arka yüzeyin ters görünmesini engellemek için metin materyalinin side ayarını düzelt
+                triLabel.material.side = THREE.FrontSide;
+                
                 hinge.add(triLabel);
                 faceCounter++;
                 
@@ -260,8 +265,10 @@ window.Foldable3D = {
             }
         }
 
-        // Şekil kapalıyken Z ekseni boyunca uzansın (böylece kamera açısından Ön yüz ve kapaklar tam ekrana hizalanır)
-        group.rotation.x = Math.PI / 2;
+        // Şekil kapalıyken Z ekseni boyunca uzansın (Prizmalar için)
+        if (!type.startsWith('pyramid_')) {
+            group.rotation.x = Math.PI / 2;
+        }
 
         const outerGroup = new THREE.Group();
         outerGroup.userData = group.userData;
@@ -290,8 +297,8 @@ window.Foldable3D = {
             const tiltOffset = 0.25; 
 
             if (group.userData.shapeType.startsWith('pyramid_')) {
-                // Piramitlerin tabanı başlangıçta kameraya dönük değildir. Açıldıkça kameraya bakması için X ekseninde 0'a döndür.
-                const qClosed = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+                // Piramitleri normal düzlemde tut, perspektif sapmasını azaltmak için çok hafif eğim ver
+                const qClosed = new THREE.Quaternion().identity();
                 const qOuterInverse = group.quaternion.clone().invert();
                 const qOpenTarget = qOuterInverse.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -tiltOffset));
                 
