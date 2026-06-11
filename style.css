@@ -1050,8 +1050,9 @@ canvas {
    ========================================= */
 #slider-container {
     position: fixed;
-    top: 20px;
-    right: 20px;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
     display: none;
     z-index: 10000;
     background: rgba(30, 30, 46, 0.85);
@@ -1086,8 +1087,9 @@ canvas {
 
 #info-tooltip {
     position: fixed;
-    top: 100px;
-    right: 20px;
+    bottom: 160px;
+    left: 50%;
+    transform: translateX(-50%);
     display: none;
     z-index: 9999;
     background: rgba(10, 10, 31, 0.95);

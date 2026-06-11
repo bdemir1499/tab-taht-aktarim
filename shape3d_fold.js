@@ -51,7 +51,9 @@ window.Foldable3D = {
                 } else {
                     hinge.position.set(actualSideWidth, 0, 0); // Sağ kenardan bağlanır
                     currentParent.add(hinge);
-                    group.userData.hinges.push({ obj: hinge, maxAngle: angleStep, axis: 'y' });
+                    // Başlangıç (0) durumu KAPALI -> aradaki açı angleStep
+                    // Bitiş (1) durumu AÇIK -> aradaki açı 0 (düz şerit)
+                    group.userData.hinges.push({ obj: hinge, maxAngle: 0, initialAngle: angleStep, axis: 'y' });
                 }
                 
                 // Panel geometrisi (merkezi hinge'in ortasında olacak şekilde ayarlanır)
@@ -60,20 +62,22 @@ window.Foldable3D = {
                 const panelMesh = createFaceMesh(panelGeo);
                 hinge.add(panelMesh);
                 
-                // Kapakları ilk (sabit) yüzeye ekle
-                if (i === 0) {
+                // Kapakları ilk (sabit) yüzeye ekle (Küp için daha güzel bir açınım olsun diye 1. yüzeye (ortaya) da eklenebilir, ama şimdilik i===0)
+                const middleIndex = Math.floor((sides - 1) / 2);
+                if (i === middleIndex) {
                     // Üst kapak
                     const topHinge = new THREE.Group();
                     topHinge.position.set(actualSideWidth / 2, height / 2, 0);
                     hinge.add(topHinge);
-                    group.userData.hinges.push({ obj: topHinge, maxAngle: -Math.PI / 2, axis: 'x' });
+                    // KAPALI (0) -> yatay (0 açı), AÇIK (1) -> yukarı (-90 derece)
+                    group.userData.hinges.push({ obj: topHinge, maxAngle: -Math.PI / 2, initialAngle: 0, axis: 'x' });
                     
                     let topGeo;
                     if (type === 'prism_cylinder') topGeo = new THREE.CircleGeometry(r, sides);
                     else topGeo = new THREE.CircleGeometry(r, sides, Math.PI / sides); // Çokgen yaklaşımı
                     
-                    topGeo.rotateX(-Math.PI / 2);
-                    topGeo.translate(0, r, 0); // Pivot ayarı
+                    topGeo.rotateX(-Math.PI / 2); // Geometriyi baştan yatay hale getir
+                    topGeo.translate(0, r, 0); // Pivot noktasını (menteşeyi) ayarla
                     const topMesh = createFaceMesh(topGeo);
                     topHinge.add(topMesh);
 
@@ -81,7 +85,8 @@ window.Foldable3D = {
                     const bottomHinge = new THREE.Group();
                     bottomHinge.position.set(actualSideWidth / 2, -height / 2, 0);
                     hinge.add(bottomHinge);
-                    group.userData.hinges.push({ obj: bottomHinge, maxAngle: Math.PI / 2, axis: 'x' });
+                    // KAPALI (0) -> yatay (0 açı), AÇIK (1) -> aşağı (+90 derece)
+                    group.userData.hinges.push({ obj: bottomHinge, maxAngle: Math.PI / 2, initialAngle: 0, axis: 'x' });
                     
                     const bottomGeo = topGeo.clone();
                     bottomGeo.rotateX(Math.PI); // Ters çevir
