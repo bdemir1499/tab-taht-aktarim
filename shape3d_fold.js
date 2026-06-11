@@ -106,7 +106,7 @@ window.Foldable3D = {
                         topGeo = new THREE.CircleGeometry(r, sides, 0); 
                         topGeo.rotateZ(Math.PI / 2 - Math.PI / sides); // İlk kenarı yatay (X'e paralel) yap
                     }
-                    topGeo.translate(0, -apothem, 0); // Orijini bu kenarın ortasına al
+                    topGeo.translate(0, apothem, 0); // Orijini alt kenara al
                     topGeo.rotateX(-Math.PI / 2); // Yukarı baksın ve -Z'ye (içeri) uzansın
                     const topMesh = createFaceMesh(topGeo);
                     topHinge.add(topMesh);
@@ -130,7 +130,7 @@ window.Foldable3D = {
                         bottomGeo = new THREE.CircleGeometry(r, sides, 0);
                         bottomGeo.rotateZ(Math.PI / 2 - Math.PI / sides); // İlk kenarı yatay yap
                     }
-                    bottomGeo.translate(0, -apothem, 0); // Orijini kenarın ortasına al
+                    bottomGeo.translate(0, -apothem, 0); // Orijini üst kenara al
                     bottomGeo.rotateX(Math.PI / 2); // Aşağı baksın ve -Z'ye (içeri) uzansın
                     const bottomMesh = createFaceMesh(bottomGeo);
                     bottomHinge.add(bottomMesh);
