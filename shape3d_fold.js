@@ -109,7 +109,7 @@ window.Foldable3D = {
             const apothem = r * Math.cos(Math.PI / sides);
             const sideWidth = 2 * r * Math.sin(Math.PI / sides);
             const slantHeight = Math.sqrt(height * height + apothem * apothem);
-            const hingeAngle = Math.atan2(height, apothem); // Yere olan eğim açısı
+            const inwardAngle = Math.atan2(apothem, height); // İçeri doğru eğim açısı
 
             // Taban
             const baseGeo = new THREE.CircleGeometry(r, sides, Math.PI / sides);
@@ -129,7 +129,8 @@ window.Foldable3D = {
                     -height / 2,
                     -Math.sin(angle) * apothem
                 );
-                hinge.rotation.y = angle; // Kenara dik bakması için
+                // Kenara dik bakması için y ekseni etrafında döndür (+90 derece ile local Z içeri bakar)
+                hinge.rotation.y = angle + Math.PI / 2;
                 
                 const triGeo = new THREE.BufferGeometry();
                 const vertices = new Float32Array([
@@ -140,31 +141,24 @@ window.Foldable3D = {
                 triGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
                 triGeo.computeVertexNormals();
                 
-                // Başlangıçta piramit eğiminde duracak
-                hinge.rotation.x = -hingeAngle;
-                
                 const triMesh = createFaceMesh(triGeo);
                 hinge.add(triMesh);
                 group.add(hinge);
                 
-                // Açılma animasyonu (eğimden 0'a veya yere paralel olacak şekilde)
-                group.userData.hinges.push({ obj: hinge, maxAngle: -Math.PI / 2, initialAngle: -hingeAngle, axis: 'x' });
+                // Başlangıç (0) -> Kapalı (içeri eğik), Bitiş (1) -> Açık (dışarı yatay)
+                group.userData.hinges.push({ obj: hinge, maxAngle: -Math.PI / 2, initialAngle: inwardAngle, axis: 'x' });
             }
         }
         // KONİ (Daire dilimi şeklinde açılır)
         else if (type === 'pyramid_cone') {
             const r = size;
             const l = Math.sqrt(r * r + height * height); // Ana doğru
-            const theta = (r / l) * Math.PI * 2; // Dilim açısı
-
-            // Koni gövdesi (parametrik morph yerine basit taban menteşeli tek yüzey - gelişmiş morph eklenebilir)
-            // Performans ve uyumluluk için, şimdilik koniyi 32 parçalı bir piramit gibi çiçek şeklinde açıyoruz
-            // Gerçek rulo açınım (sektör) matematiksel morphing gerektirir.
+            
             const sides = 32;
             const apothem = r;
             const sideWidth = 2 * Math.PI * r / sides;
             const slantHeight = l;
-            const hingeAngle = Math.atan2(height, r);
+            const inwardAngle = Math.atan2(apothem, height);
 
             // Taban (Sabit değil, açıldığında yana kayacak)
             const baseHinge = new THREE.Group();
@@ -180,7 +174,7 @@ window.Foldable3D = {
                 const angle = (i * Math.PI * 2) / sides;
                 const hinge = new THREE.Group();
                 hinge.position.set(Math.cos(angle) * apothem, -height / 2, -Math.sin(angle) * apothem);
-                hinge.rotation.y = angle;
+                hinge.rotation.y = angle + Math.PI / 2; // İçeri bakması için yönlendirme
                 
                 const triGeo = new THREE.BufferGeometry();
                 const vertices = new Float32Array([
@@ -190,13 +184,13 @@ window.Foldable3D = {
                 ]);
                 triGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
                 triGeo.computeVertexNormals();
-                hinge.rotation.x = -hingeAngle;
                 
                 const triMesh = createFaceMesh(triGeo);
                 hinge.add(triMesh);
                 group.add(hinge);
                 
-                group.userData.hinges.push({ obj: hinge, maxAngle: -Math.PI / 2, initialAngle: -hingeAngle, axis: 'x' });
+                // Başlangıç (0) -> Kapalı (içeri eğik), Bitiş (1) -> Açık (dışarı yatay)
+                group.userData.hinges.push({ obj: hinge, maxAngle: -Math.PI / 2, initialAngle: inwardAngle, axis: 'x' });
             }
         }
 
