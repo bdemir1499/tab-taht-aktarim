@@ -1456,8 +1456,9 @@ function redrawAllStrokes() {
                     if (canvasElm) {
                         const cx = stroke.x + (stroke.width / 2);
                         const cy = stroke.y + (stroke.height / 2);
-                        const nx = (cx / canvasElm.width) * 2 - 1;
-                        const ny = -(cy / canvasElm.height) * 2 + 1;
+                        // KESİN ÇÖZÜM: canvasElm.width yerine window.innerWidth (CSS pikseli) kullanılmalı!
+                        const nx = (cx / window.innerWidth) * 2 - 1;
+                        const ny = -(cy / window.innerHeight) * 2 + 1;
                         
                         const raycaster = new THREE.Raycaster();
                         raycaster.setFromCamera(new THREE.Vector2(nx, ny), window.Scene3D.camera);
@@ -5473,7 +5474,9 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH) {
             }
 
             // 🚨 2. SİHİRLİ MATEMATİK: Cihazlar arası piksel yoğunluğu (DPR) farkını çözen motor!
-            // Tabletin yüksek kaliteli HD sinyallerini, Akıllı tahtanın CSS piksellerine mükemmel hizalar.
+            // CSS koordinatları ile çalıştığımız için, sx/sy ile ölçeklenen cizimlerin üzerine 
+            // ekstra DPR carpimi yapmaya gerek yoktur, aksi taktirde cizimler PC'de tasarip cikar!
+            // Bu kisimdaki eski d.stroke *= cssCarpan iptal edilmistir. Sadece fiziksel araclar scale edilir.
             if (d.cw && d.cssW) {
                 const canvasElm = document.getElementById('drawing-canvas');
                 const dpr_tablet = d.cw / d.cssW;
@@ -5546,11 +5549,16 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH) {
             if (data.isPDF && data.imgData === "SADECE_KOORDINAT") {
                 setTimeout(() => {
                     let zemin = window.drawnStrokes.find(s => s.isBackground === true);
-                    if (zemin) {
-                        zemin.x = data.kordinatlar.x;
-                        zemin.y = data.kordinatlar.y;
-                        zemin.width = data.kordinatlar.width;
-                        zemin.height = data.kordinatlar.height;
+                    if (zemin && data.kordinatlar) {
+                        let sx = 1, sy = 1;
+                        if (data.cssW && data.cssH && Math.abs(data.cssW - window.innerWidth) >= 5) {
+                            sx = window.innerWidth / data.cssW;
+                            sy = window.innerHeight / data.cssH;
+                        }
+                        zemin.x = data.kordinatlar.x * sx;
+                        zemin.y = data.kordinatlar.y * sy;
+                        zemin.width = data.kordinatlar.width * sx;
+                        zemin.height = data.kordinatlar.height * sy;
                         if (window.redrawAllStrokes) window.redrawAllStrokes();
                     }
                 }, 200); // PC'nin kendi PDF'ini çizmesi için mini bir an bekleyip koordinatları kitleriz
@@ -5561,7 +5569,18 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH) {
             const img = new Image();
             img.onload = () => { 
                 if (typeof addNewImageToCanvas === 'function') {
-                    addNewImageToCanvas(img, data.isPDF, data.kordinatlar); 
+                    let sonKoordinat = data.kordinatlar;
+                    if (sonKoordinat && data.cssW && data.cssH && Math.abs(data.cssW - window.innerWidth) >= 5) {
+                        const sx = window.innerWidth / data.cssW;
+                        const sy = window.innerHeight / data.cssH;
+                        sonKoordinat = {
+                            x: data.kordinatlar.x * sx,
+                            y: data.kordinatlar.y * sy,
+                            width: data.kordinatlar.width * sx,
+                            height: data.kordinatlar.height * sy
+                        };
+                    }
+                    addNewImageToCanvas(img, data.isPDF, sonKoordinat); 
                 }
             };
             img.src = data.imgData;
@@ -5795,7 +5814,19 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH) {
             img.onload = () => { 
                 if (typeof addNewImageToCanvas === 'function') {
                     // Resmi tabletin bize yolladığı KESİN koordinatlarla oluştur!
-                    addNewImageToCanvas(img, data.isPDF, data.kordinatlar); 
+                    let sonKoordinat = data.kordinatlar;
+                    // Eğer boyutlar geldiyse ve PC ekranı farklıysa, İLK ANDA BİLE orantıla!
+                    if (sonKoordinat && data.cssW && data.cssH && Math.abs(data.cssW - window.innerWidth) >= 5) {
+                        const sx = window.innerWidth / data.cssW;
+                        const sy = window.innerHeight / data.cssH;
+                        sonKoordinat = {
+                            x: data.kordinatlar.x * sx,
+                            y: data.kordinatlar.y * sy,
+                            width: data.kordinatlar.width * sx,
+                            height: data.kordinatlar.height * sy
+                        };
+                    }
+                    addNewImageToCanvas(img, data.isPDF, sonKoordinat); 
                 }
             };
             img.src = data.imgData;
@@ -6309,12 +6340,11 @@ window.Scene3D = {
 
    // 🚨 3D TABLET HATASI ÇÖZÜMÜ: Ekranın tamamı değil, çizim kutusunun gerçek sınırları baz alınır!
     getNormalizedCoords: function(clientX, clientY) {
-        if (!this.renderer || !this.renderer.domElement) return { x: 0, y: 0 };
-        
-        const rect = this.renderer.domElement.getBoundingClientRect();
+        // clientX ve clientY zaten canvas'a göre (rect.left çıkarılmış) gelir!
+        // O yüzden sadece CSS genişliğine (window.innerWidth) bölmek yeterlidir.
         return {
-            x: ((clientX - rect.left) / rect.width) * 2 - 1,
-            y: -((clientY - rect.top) / rect.height) * 2 + 1
+            x: (clientX / window.innerWidth) * 2 - 1,
+            y: -(clientY / window.innerHeight) * 2 + 1
         };
     },
 

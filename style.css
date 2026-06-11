@@ -1099,7 +1099,7 @@ canvas {
     border-radius: 0;
     font-family: 'Arial', sans-serif;
     font-size: 14px;
-    line-height: 1.4;
+    line-height: 1.15;
     pointer-events: none; /* Farenin/parmağın tıklamasını engellemesin */
     box-shadow: none;
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.9), -1px -1px 3px rgba(0, 0, 0, 0.9);
