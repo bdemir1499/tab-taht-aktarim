@@ -187,6 +187,7 @@ window.Foldable3D = {
                     -Math.sin(angle) * apothem
                 );
                 // Kenara dik bakması için y ekseni etrafında döndür (+90 derece ile local Z içeri bakar)
+                hinge.rotation.order = 'YXZ'; // Önce X (içeri eğilme), sonra Y (yönelme) uygulanmalı
                 hinge.rotation.y = angle + Math.PI / 2;
                 
                 const triGeo = new THREE.BufferGeometry();
@@ -245,6 +246,7 @@ window.Foldable3D = {
                 const angle = (i * Math.PI * 2) / sides;
                 const hinge = new THREE.Group();
                 hinge.position.set(Math.cos(angle) * apothem, -height / 2, -Math.sin(angle) * apothem);
+                hinge.rotation.order = 'YXZ'; // Önce X (içeri eğilme), sonra Y (yönelme) uygulanmalı
                 hinge.rotation.y = angle + Math.PI / 2; // İçeri bakması için yönlendirme
                 
                 const triGeo = new THREE.BufferGeometry();
