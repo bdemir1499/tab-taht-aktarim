@@ -5399,82 +5399,22 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH) {
 
     const sx = myW / senderW;
     const sy = myH / senderH;
-    const uniformScale = Math.min(sx, sy); 
 
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    
-    if (stroke.path && stroke.path.length > 0) {
-        stroke.path.forEach(p => {
-            if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
-            if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
-        });
-    } else if (stroke.points && stroke.points.length > 0) {
-        stroke.points.forEach(p => {
-            if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
-            if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
-        });
-    } else if (stroke.x !== undefined && stroke.width !== undefined) {
-        minX = stroke.x; maxX = stroke.x + stroke.width;
-        minY = stroke.y; maxY = stroke.y + stroke.height;
-    } else if (stroke.x !== undefined && stroke.y !== undefined) {
-        minX = stroke.x; maxX = stroke.x;
-        minY = stroke.y; maxY = stroke.y;
-    }
-
-    if (minX === Infinity) return stroke;
-
-    let cx = (minX + maxX) / 2;
-    let cy = (minY + maxY) / 2;
-    let w = maxX - minX;
-    let h = maxY - minY;
-
-    let L = minX;
-    let R = senderW - maxX;
-    let T = minY;
-    let B = senderH - maxY;
-
-    let pctX = (L + R) <= 0 ? 0.5 : L / (L + R);
-    let pctY = (T + B) <= 0 ? 0.5 : T / (T + B);
-
-    let new_w = w * uniformScale;
-    let new_h = h * uniformScale;
-
-    let totalEmptyX = myW - new_w;
-    let totalEmptyY = myH - new_h;
-
-    let newL = totalEmptyX * pctX;
-    let newT = totalEmptyY * pctY;
-
-    const newCx = newL + new_w / 2;
-    const newCy = newT + new_h / 2;
-
-    const transformPoint = (x, y) => {
-        return {
-            x: newCx + (x - cx) * uniformScale,
-            y: newCy + (y - cy) * uniformScale
-        };
-    };
-
+    // KESİN ÇÖZÜM: X eksenindeki her şey sx ile, Y eksenindeki her şey sy ile çarpılır.
+    // Bu sayede ekrana değme oranları ve ekranın boşluk oranları KUSURSUZ kopyalanır.
     if (stroke.path) {
-        stroke.path.forEach(p => {
-            const t = transformPoint(p.x, p.y);
-            p.x = t.x; p.y = t.y;
-        });
+        stroke.path.forEach(p => { p.x *= sx; p.y *= sy; });
     }
     if (stroke.points) {
-        stroke.points.forEach(p => {
-            const t = transformPoint(p.x, p.y);
-            p.x = t.x; p.y = t.y;
-        });
+        stroke.points.forEach(p => { p.x *= sx; p.y *= sy; });
     }
-    if (stroke.x !== undefined && stroke.y !== undefined) {
-        const t = transformPoint(stroke.x, stroke.y);
-        stroke.x = t.x; stroke.y = t.y;
-    }
-    if (stroke.width !== undefined) stroke.width *= uniformScale;
-    if (stroke.height !== undefined) stroke.height *= uniformScale;
+    if (stroke.x !== undefined) stroke.x *= sx;
+    if (stroke.y !== undefined) stroke.y *= sy;
+    if (stroke.width !== undefined) stroke.width *= sx;
+    if (stroke.height !== undefined) stroke.height *= sy;
     
-    if (stroke.type === 'text' && stroke.fontSize) stroke.fontSize *= uniformScale;
+    // Sadece metin font boyutu aşırı ezilmesin diye min alınır
+    if (stroke.type === 'text' && stroke.fontSize) stroke.fontSize *= Math.min(sx, sy);
     
     return stroke;
 };
