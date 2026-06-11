@@ -258,6 +258,9 @@ window.Foldable3D = {
             }
         }
 
+        // Şekil kapalıyken Z ekseni boyunca uzansın (böylece kamera açısından Ön yüz ve kapaklar tam ekrana hizalanır)
+        group.rotation.x = Math.PI / 2;
+
         const outerGroup = new THREE.Group();
         outerGroup.userData = group.userData;
         outerGroup.userData.innerGroup = group; // İç grubu sakla ki rotasyonu nötrleyebilelim
@@ -282,19 +285,19 @@ window.Foldable3D = {
         const inner = group.userData.innerGroup;
         if (inner) {
             if (group.userData.shapeType.startsWith('pyramid_')) {
-                // Piramitlerin tabanı XZ düzlemindedir. Ekrana (XY) bakması için açıldıkça dış rotasyonu sıfırlayıp X'te 90 derece döndürüyoruz.
-                const qClosed = new THREE.Quaternion(); // Başlangıçta dik (0,0,0)
+                // Piramitlerin tabanı başlangıçta kameraya dönük değildir. Açıldıkça kameraya bakması için X ekseninde 0'a döndür.
+                const qClosed = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
                 const qOuterInverse = group.quaternion.clone().invert();
-                const qPyramidFaceCamera = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
-                const qOpenTarget = qOuterInverse.multiply(qPyramidFaceCamera);
+                const qOpenTarget = qOuterInverse.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0));
                 
                 // Quaternion slerp ile pürüzsüz geçiş
                 inner.quaternion.copy(qClosed).slerp(qOpenTarget, openRatio);
             } else {
-                // Prizmalar (dik silindir, küp vb.) zaten XY düzleminde açılır.
-                // Kullanıcının "dik konumu koruyarak açılsın" isteği üzerine rotasyonlarına dokunmuyoruz.
-                // Sadece iç grubu başlangıç rotasyonunda (dik) bırakıyoruz.
-                inner.quaternion.identity();
+                // Prizmalar zaten Math.PI/2 rotasyonundayken açınımı tam karşıdan (kameraya doğru) görünür.
+                // Kullanıcının "dik konumu koruyarak açılsın" isteği üzerine sadece başlangıç rotasyonunu koruyoruz.
+                inner.rotation.x = Math.PI / 2;
+                inner.rotation.y = 0;
+                inner.rotation.z = 0;
             }
 
             // Prizmaların açınımı yana doğru uzadığı için, açıldıkça şekli ortala
