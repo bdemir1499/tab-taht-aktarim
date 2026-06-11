@@ -5638,6 +5638,15 @@ function setupConnectionEvents() {
                             sceneMesh.position.set(data.stroke.pos3D.x, data.stroke.pos3D.y, data.stroke.pos3D.z);
                         }
                         
+                        // Sürgü açınım bilgisini senkronize et
+                        if (data.stroke.openRatio !== undefined && window.Foldable3D) {
+                            hedef.openRatio = data.stroke.openRatio;
+                            if (sceneMesh.userData && sceneMesh.userData.strokeData) {
+                                sceneMesh.userData.strokeData.openRatio = data.stroke.openRatio;
+                            }
+                            window.Foldable3D.updateUnfold(sceneMesh, data.stroke.openRatio);
+                        }
+
                         if (window.Scene3D.currentMesh === sceneMesh) window.Scene3D.updateHandlePositions();
                     }
                 }
