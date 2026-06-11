@@ -5395,43 +5395,59 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH) {
     const myW = window.innerWidth;
     const myH = window.innerHeight;
     
-    // Eğer ekran boyutları çok yakınsa (5px tolerans) işlem yapma
     if (Math.abs(senderW - myW) < 5 && Math.abs(senderH - myH) < 5) return stroke;
 
     const sx = myW / senderW;
     const sy = myH / senderH;
     const uniformScale = Math.min(sx, sy); 
 
-    // Şeklin gönderici ekrandaki bounding box merkezini (cx, cy) bul
-    let cx = null, cy = null;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     
     if (stroke.path && stroke.path.length > 0) {
-        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
         stroke.path.forEach(p => {
             if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
             if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
         });
-        cx = (minX + maxX) / 2; cy = (minY + maxY) / 2;
     } else if (stroke.points && stroke.points.length > 0) {
-        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
         stroke.points.forEach(p => {
             if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
             if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
         });
-        cx = (minX + maxX) / 2; cy = (minY + maxY) / 2;
     } else if (stroke.x !== undefined && stroke.width !== undefined) {
-        cx = stroke.x + stroke.width / 2; cy = stroke.y + stroke.height / 2;
+        minX = stroke.x; maxX = stroke.x + stroke.width;
+        minY = stroke.y; maxY = stroke.y + stroke.height;
     } else if (stroke.x !== undefined && stroke.y !== undefined) {
-        cx = stroke.x; cy = stroke.y;
+        minX = stroke.x; maxX = stroke.x;
+        minY = stroke.y; maxY = stroke.y;
     }
 
-    if (cx === null || cy === null) return stroke;
+    if (minX === Infinity) return stroke;
 
-    // Alıcı ekrandaki orantısal yeni merkez (Yüzdelik oran korunarak taşındı)
-    const newCx = cx * sx;
-    const newCy = cy * sy;
+    let cx = (minX + maxX) / 2;
+    let cy = (minY + maxY) / 2;
+    let w = maxX - minX;
+    let h = maxY - minY;
 
-    // Noktaları dönüştürücü: Noktayı eski merkezden soyutla, uniformScale ile çarp, yeni merkeze ekle
+    let L = minX;
+    let R = senderW - maxX;
+    let T = minY;
+    let B = senderH - maxY;
+
+    let pctX = (L + R) <= 0 ? 0.5 : L / (L + R);
+    let pctY = (T + B) <= 0 ? 0.5 : T / (T + B);
+
+    let new_w = w * uniformScale;
+    let new_h = h * uniformScale;
+
+    let totalEmptyX = myW - new_w;
+    let totalEmptyY = myH - new_h;
+
+    let newL = totalEmptyX * pctX;
+    let newT = totalEmptyY * pctY;
+
+    const newCx = newL + new_w / 2;
+    const newCy = newT + new_h / 2;
+
     const transformPoint = (x, y) => {
         return {
             x: newCx + (x - cx) * uniformScale,
@@ -5484,26 +5500,36 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH) {
                     d.strokes.forEach(s => window.adaptStrokeToScreen(s, d.cssW, d.cssH));
                 }
                 
-                // Fiziki araçların (cetvel vb) orantısal taşınması
+                // Fiziki araçların (cetvel vb) uzaklık oranı korunarak taşınması
                 if (d.type === 'arac_senkron' && !d.ignoreAdapt) {
                     const sx = window.innerWidth / d.cssW;
                     const sy = window.innerHeight / d.cssH;
                     const uniformScale = Math.min(sx, sy);
-                    let x = d.left ? parseFloat(d.left) : 0;
-                    let y = d.top ? parseFloat(d.top) : 0;
+                    let left = d.left ? parseFloat(d.left) : 0;
+                    let top = d.top ? parseFloat(d.top) : 0;
                     let w = d.width ? parseFloat(d.width) : 0;
                     let h = d.height ? parseFloat(d.height) : 0;
                     
                     if (w > 0 && h > 0) {
-                        let cx = x + w/2;
-                        let cy = y + h/2;
-                        let newCx = cx * sx;
-                        let newCy = cy * sy;
+                        let R = d.cssW - (left + w);
+                        let B = d.cssH - (top + h);
                         
-                        if (d.left) d.left = (newCx - (w * uniformScale)/2) + 'px';
-                        if (d.top) d.top = (newCy - (h * uniformScale)/2) + 'px';
-                        if (d.width) d.width = (w * uniformScale) + 'px';
-                        if (d.height) d.height = (h * uniformScale) + 'px';
+                        let pctX = (left + R) <= 0 ? 0.5 : left / (left + R);
+                        let pctY = (top + B) <= 0 ? 0.5 : top / (top + B);
+                        
+                        let new_w = w * uniformScale;
+                        let new_h = h * uniformScale;
+                        
+                        let totalEmptyX = window.innerWidth - new_w;
+                        let totalEmptyY = window.innerHeight - new_h;
+                        
+                        let newL = totalEmptyX * pctX;
+                        let newT = totalEmptyY * pctY;
+                        
+                        if (d.left) d.left = newL + 'px';
+                        if (d.top) d.top = newT + 'px';
+                        if (d.width) d.width = new_w + 'px';
+                        if (d.height) d.height = new_h + 'px';
                     }
                     d.ignoreAdapt = true; // prevent double adapting
                 }
