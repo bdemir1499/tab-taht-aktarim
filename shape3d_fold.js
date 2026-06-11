@@ -206,11 +206,15 @@ window.Foldable3D = {
             }
         }
 
-        // Şekil dik dursun (taban altta, tepe üstte olacak şekilde)
-        // Dış grup, rotationX işlemini sorunsuz yapmak için hala kullanılabilir.
+        // Şekil kapalıyken Z ekseni boyunca uzansın (tabanlar önde-arkada)
+        group.rotation.x = Math.PI / 2;
+
         const outerGroup = new THREE.Group();
         outerGroup.userData = group.userData;
         outerGroup.userData.innerGroup = group; // İç grubu sakla ki rotasyonu nötrleyebilelim
+        if (type.startsWith('prism_')) {
+            outerGroup.userData.shiftX = group.userData.shiftX;
+        }
         outerGroup.add(group);
 
         return outerGroup;
@@ -229,11 +233,18 @@ window.Foldable3D = {
         const inner = group.userData.innerGroup;
         if (inner) {
             const isPyramid = group.userData.shapeType.startsWith('pyramid_');
-            // Piramitlerin açınımı XZ düzleminde (yerde) olduğu için 90 derece dikleştiriyoruz.
-            // Prizmaların açınımı zaten XY düzleminde olduğu için sadece kullanıcı/sistem rotasyonunu sıfırlıyoruz.
+            
+            // Kapalıyken (0) şekiller Z ekseninde uzanır (PI/2).
+            const initialRotX = Math.PI / 2;
+            
+            // Piramitlerin açınımı yer düzleminde (XZ) olduğu için 90 derece kalmalı.
+            // Prizmaların açınımı zaten XY düzleminde olduğu için 0'a inmeli.
             const targetRotX = isPyramid ? (Math.PI / 2) : 0; 
             
-            inner.rotation.x = (targetRotX - (group.rotation.x || 0)) * openRatio;
+            const baseRotX = initialRotX + (targetRotX - initialRotX) * openRatio;
+            
+            // Dış grubun (kullanıcı veya sistem) rotasyonunu tamamen sıfırlamak için tersine çeviriyoruz
+            inner.rotation.x = baseRotX - (group.rotation.x || 0) * openRatio;
             inner.rotation.y = -(group.rotation.y || 0) * openRatio;
             inner.rotation.z = -(group.rotation.z || 0) * openRatio;
 
