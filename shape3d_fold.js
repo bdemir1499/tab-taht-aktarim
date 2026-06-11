@@ -206,9 +206,6 @@ window.Foldable3D = {
             }
         }
 
-        // Şekil kapalıyken Z ekseni boyunca uzansın (tabanlar önde-arkada)
-        group.rotation.x = Math.PI / 2;
-
         const outerGroup = new THREE.Group();
         outerGroup.userData = group.userData;
         outerGroup.userData.innerGroup = group; // İç grubu sakla ki rotasyonu nötrleyebilelim
@@ -232,25 +229,21 @@ window.Foldable3D = {
         // Şekil açıldıkça tam karşıdan görünmesi için rotasyonu otomatik olarak düzelt
         const inner = group.userData.innerGroup;
         if (inner) {
-            // Kapalıyken (t=0) iç grubun hedefi (ilk kurulumdaki duruşu, Z eksenine uzanır)
-            const qClosed = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
-
-            // Açıkken (t=1) iç grubun hedefi: dış grubun rotasyonunu tamamen sıfırlamak
-            // Dış grubun şu anki quaternion'unun tersi
-            const qOuterInverse = group.quaternion.clone().invert();
-            
-            let qOpenTarget;
             if (group.userData.shapeType.startsWith('pyramid_')) {
-                // Piramitlerin tabanı XZ düzlemindedir. Ekrana (XY) bakması için X'te 90 derece dönük olmalı.
+                // Piramitlerin tabanı XZ düzlemindedir. Ekrana (XY) bakması için açıldıkça dış rotasyonu sıfırlayıp X'te 90 derece döndürüyoruz.
+                const qClosed = new THREE.Quaternion(); // Başlangıçta dik (0,0,0)
+                const qOuterInverse = group.quaternion.clone().invert();
                 const qPyramidFaceCamera = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
-                qOpenTarget = qOuterInverse.multiply(qPyramidFaceCamera);
+                const qOpenTarget = qOuterInverse.multiply(qPyramidFaceCamera);
+                
+                // Quaternion slerp ile pürüzsüz geçiş
+                inner.quaternion.copy(qClosed).slerp(qOpenTarget, openRatio);
             } else {
-                // Prizmaların açınımı zaten XY düzlemindedir. Ekrana bakması için dış grubun rotasyonunu tamamen sıfırlamak yeterlidir.
-                qOpenTarget = qOuterInverse;
+                // Prizmalar (dik silindir, küp vb.) zaten XY düzleminde açılır.
+                // Kullanıcının "dik konumu koruyarak açılsın" isteği üzerine rotasyonlarına dokunmuyoruz.
+                // Sadece iç grubu başlangıç rotasyonunda (dik) bırakıyoruz.
+                inner.quaternion.identity();
             }
-
-            // Quaternion slerp ile pürüzsüz geçiş (Euler hatalarını, çarpılmaları önler)
-            inner.quaternion.copy(qClosed).slerp(qOpenTarget, openRatio);
 
             // Prizmaların açınımı yana doğru uzadığı için, açıldıkça şekli ortala
             if (group.userData.shiftX) {
