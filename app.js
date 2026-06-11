@@ -1459,12 +1459,13 @@ function redrawAllStrokes() {
                         const nx = (cx / canvasElm.width) * 2 - 1;
                         const ny = -(cy / canvasElm.height) * 2 + 1;
                         
-                        const vec = new THREE.Vector3(nx, ny, 0.5);
-                        vec.unproject(window.Scene3D.camera);
-                        const dir = vec.sub(window.Scene3D.camera.position).normalize();
-                        const distance = -window.Scene3D.camera.position.z / dir.z;
-                        const targetPos = window.Scene3D.camera.position.clone().add(dir.multiplyScalar(distance));
-                        sceneMesh.position.copy(targetPos);
+                        const raycaster = new THREE.Raycaster();
+                        raycaster.setFromCamera(new THREE.Vector2(nx, ny), window.Scene3D.camera);
+                        const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+                        const intersection = new THREE.Vector3();
+                        if (raycaster.ray.intersectPlane(plane, intersection)) {
+                            sceneMesh.position.copy(intersection);
+                        }
                     }
                 }
             }
@@ -6440,10 +6441,11 @@ window.Scene3D = {
             const mainMaterial = new THREE.MeshPhongMaterial({ color: 0x00ffcc, shininess: 100, specular: 0x111111, transparent: !isSphere, opacity: isSphere ? 1.0 : 0.4, depthWrite: isSphere, side: THREE.DoubleSide });
             const edgeMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 });
             
-            let solidShape;
+            let solidShape = null;
             if (window.Foldable3D) {
                 solidShape = window.Foldable3D.createFoldableGroup(this.activeTool, finalRadius, mainMaterial, edgeMaterial);
-            } else {
+            }
+            if (!solidShape) {
                 const geometry = this.createGeometry(this.activeTool, finalRadius);
                 if(this.activeTool.startsWith('prism') || this.activeTool.startsWith('pyramid')) geometry.rotateX(Math.PI / 2);
                 solidShape = new THREE.Mesh(geometry, mainMaterial);
@@ -6543,10 +6545,11 @@ window.Scene3D = {
         const mainMaterial = new THREE.MeshPhongMaterial({ color: 0x00ffcc, shininess: 100, specular: 0x111111, transparent: !isSphere, opacity: isSphere ? 1.0 : 0.4, depthWrite: isSphere, side: THREE.DoubleSide });
         const edgeMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 });
         
-        let solidShape;
+        let solidShape = null;
         if (window.Foldable3D) {
             solidShape = window.Foldable3D.createFoldableGroup(strokeData.shapeType, strokeData.width / 30, mainMaterial, edgeMaterial);
-        } else {
+        }
+        if (!solidShape) {
             const geometry = this.createGeometry(strokeData.shapeType, strokeData.width / 30);
             if(strokeData.shapeType.startsWith('prism') || strokeData.shapeType.startsWith('pyramid')) geometry.rotateX(Math.PI / 2);
             solidShape = new THREE.Mesh(geometry, mainMaterial);
@@ -6678,19 +6681,19 @@ window.addEventListener('load', () => {
                 
                 // Formüller HTML destekli renkli ve kalın yazılarla şekillendiriliyor
                 if (activeShape.shapeType === 'sphere') {
-                    formulMetni = `<span style="color:#00ffcc; font-size:16px;">Küre</span><br>r = ${r} cm<br><br><span style="color:#ff00ff">Hacim = (4/3)·π·r³</span><br>= (4/3)·3·(${r})³ = <b>${(4*r_val*r_val*r_val).toFixed(1)} cm³</b><br><br><span style="color:#ff00ff">Alan = 4·π·r²</span><br>= 4·3·(${r})² = <b>${(12*r_val*r_val).toFixed(1)} cm²</b>`;
+                    formulMetni = `<span style="color:#00ffcc; font-size:16px;">Küre</span><br>r = ${r} cm<br><span style="color:#ff00ff">Hacim = (4/3)·π·r³</span><br>= (4/3)·3·(${r})³ = <b>${(4*r_val*r_val*r_val).toFixed(1)} cm³</b><br><span style="color:#ff00ff">Alan = 4·π·r²</span><br>= 4·3·(${r})² = <b>${(12*r_val*r_val).toFixed(1)} cm²</b>`;
                 } else if (activeShape.shapeType === 'prism_cube') {
-                    formulMetni = `<span style="color:#00ffcc; font-size:16px;">Küp</span><br>a = ${r} cm<br><br><span style="color:#ff00ff">Hacim = a³</span><br>= (${r})³ = <b>${(r_val*r_val*r_val).toFixed(1)} cm³</b><br><br><span style="color:#ff00ff">Alan = 6·a²</span><br>= 6·(${r})² = <b>${(6*r_val*r_val).toFixed(1)} cm²</b>`;
+                    formulMetni = `<span style="color:#00ffcc; font-size:16px;">Küp</span><br>a = ${r} cm<br><span style="color:#ff00ff">Hacim = a³</span><br>= (${r})³ = <b>${(r_val*r_val*r_val).toFixed(1)} cm³</b><br><span style="color:#ff00ff">Alan = 6·a²</span><br>= 6·(${r})² = <b>${(6*r_val*r_val).toFixed(1)} cm²</b>`;
                 } else if (activeShape.shapeType === 'prism_cylinder') {
-                    formulMetni = `<span style="color:#00ffcc; font-size:16px;">Silindir</span><br>r = ${r} cm, h = ${h} cm<br><br><span style="color:#ff00ff">Hacim = π·r²·h</span><br>= 3·(${r})²·${h} = <b>${(3*r_val*r_val*h_val).toFixed(1)} cm³</b><br><br><span style="color:#ff00ff">Yanal Alan = 2·π·r·h</span><br>= 2·3·${r}·${h} = <b>${(2*3*r_val*h_val).toFixed(1)} cm²</b>`;
+                    formulMetni = `<span style="color:#00ffcc; font-size:16px;">Silindir</span><br>r = ${r} cm, h = ${h} cm<br><span style="color:#ff00ff">Hacim = π·r²·h</span><br>= 3·(${r})²·${h} = <b>${(3*r_val*r_val*h_val).toFixed(1)} cm³</b><br><span style="color:#ff00ff">Yanal Alan = 2·π·r·h</span><br>= 2·3·${r}·${h} = <b>${(2*3*r_val*h_val).toFixed(1)} cm²</b>`;
                 } else if (activeShape.shapeType === 'pyramid_cone') {
-                    formulMetni = `<span style="color:#00ffcc; font-size:16px;">Koni</span><br>r = ${r} cm, h = ${h} cm<br><br><span style="color:#ff00ff">Hacim = (π·r²·h)/3</span><br>= (3·(${r})²·${h})/3 = <b>${(r_val*r_val*h_val).toFixed(1)} cm³</b>`;
+                    formulMetni = `<span style="color:#00ffcc; font-size:16px;">Koni</span><br>r = ${r} cm, h = ${h} cm<br><span style="color:#ff00ff">Hacim = (π·r²·h)/3</span><br>= (3·(${r})²·${h})/3 = <b>${(r_val*r_val*h_val).toFixed(1)} cm³</b>`;
                 } else if (activeShape.shapeType === 'prism_rect') {
                     let a = (r_val * 1.5).toFixed(1);
                     let b = r;
                     let taban = (a * b).toFixed(1);
                     let yanal = (2 * (parseFloat(a) + parseFloat(b)) * h_val).toFixed(1);
-                    formulMetni = `<span style="color:#00ffcc; font-size:16px;">Dikdörtgenler Prizması</span><br>a = ${a} cm, b = ${b} cm, h = ${h} cm<br><br><span style="color:#ff00ff">Hacim = a·b·h</span><br>= ${a}·${b}·${h} = <b>${(taban * h_val).toFixed(1)} cm³</b><br><br><span style="color:#ff00ff">Alan = 2·(a·b) + Yanal Alan</span><br>= 2·${taban} + ${yanal} = <b>${(2*taban + parseFloat(yanal)).toFixed(1)} cm²</b>`;
+                    formulMetni = `<span style="color:#00ffcc; font-size:16px;">Dikdörtgenler Prizması</span><br>a = ${a} cm, b = ${b} cm, h = ${h} cm<br><span style="color:#ff00ff">Hacim = a·b·h</span><br>= ${a}·${b}·${h} = <b>${(taban * h_val).toFixed(1)} cm³</b><br><span style="color:#ff00ff">Alan = 2·(a·b) + Yanal Alan</span><br>= 2·${taban} + ${yanal} = <b>${(2*taban + parseFloat(yanal)).toFixed(1)} cm²</b>`;
                 } else if (activeShape.shapeType.startsWith('prism_') || activeShape.shapeType.startsWith('pyramid_')) {
                     let isPrism = activeShape.shapeType.startsWith('prism_');
                     let sides = parseInt(activeShape.shapeType.split('_')[1]);
@@ -6707,15 +6710,30 @@ window.addEventListener('load', () => {
                     let hacimFormulStr = isPrism ? "Taban Alanı · h" : "(Taban Alanı · h) / 3";
                     let hacimDegerStr = isPrism ? `${tabanAlani} · ${h}` : `(${tabanAlani} · ${h}) / 3`;
                     
-                    formulMetni = `<span style="color:#00ffcc; font-size:16px;">${anaBaslik}</span><br>Taban Ayrıtı (a) ≈ ${a_val} cm<br>Yükseklik (h) ≈ ${h} cm<br><br><span style="color:#ff00ff">Taban Alanı ≈ ${tabanAlani} cm²</span><br><br><span style="color:#ff00ff">Hacim = ${hacimFormulStr}</span><br>= ${hacimDegerStr} = <b>${sonucHacim} cm³</b>`;
+                    formulMetni = `<span style="color:#00ffcc; font-size:16px;">${anaBaslik}</span><br>Taban Ayrıtı (a) ≈ ${a_val} cm, Yükseklik (h) ≈ ${h} cm<br><span style="color:#ff00ff">Taban Alanı ≈ ${tabanAlani} cm²</span><br><span style="color:#ff00ff">Hacim = ${hacimFormulStr}</span><br>= ${hacimDegerStr} = <b>${sonucHacim} cm³</b>`;
                     
                     if (isPrism) {
                         let yanalAlan = (cevre * h_val).toFixed(1);
-                        formulMetni += `<br><br><span style="color:#ff00ff">Yanal Alan = Çevre · h</span><br>= ${cevre} · ${h} = <b>${yanalAlan} cm²</b>`;
+                        formulMetni += `<br><span style="color:#ff00ff">Yanal Alan = Çevre · h</span><br>= ${cevre} · ${h} = <b>${yanalAlan} cm²</b>`;
                     }
                 }
                 
                 info.innerHTML = formulMetni;
+                
+                // Şeklin sağında pozisyonlama
+                const marginX = 20;
+                let posX = activeShape.x + activeShape.width + marginX;
+                let posY = activeShape.y;
+                
+                // Ekranın sağına taşıyorsa sola al
+                if (posX + 250 > window.innerWidth) {
+                    posX = activeShape.x - 250 - marginX;
+                }
+                
+                info.style.left = posX + "px";
+                info.style.top = posY + "px";
+                info.style.bottom = "auto";
+                info.style.transform = "none";
                 // Panel tasarımı artık tamamen style.css dosyasındaki #info-tooltip id'si ile yönetiliyor.
             }
             const sInput = document.getElementById('shape-slider');
