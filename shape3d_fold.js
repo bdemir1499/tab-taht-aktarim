@@ -14,6 +14,27 @@ window.Foldable3D = {
             return mesh;
         };
 
+        const createLabelMesh = (text, color, w, h) => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = color || '#ffffff';
+            ctx.fillRect(0, 0, 128, 128);
+            ctx.fillStyle = '#000000';
+            ctx.font = 'bold 50px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 64, 64);
+            const texture = new THREE.CanvasTexture(canvas);
+            const mat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+            const geo = new THREE.PlaneGeometry(w * 0.6, h * 0.6);
+            geo.translate(0, 0, 0.05); // Z-fighting engellemek için hafif öne al
+            return new THREE.Mesh(geo, mat);
+        };
+
+        let faceCounter = 1;
+
         const height = size * 2;
         
         // SİLİNDİR VE PRİZMALAR (Yan yüzeyler rulo gibi açılır)
@@ -62,6 +83,14 @@ window.Foldable3D = {
                 const panelMesh = createFaceMesh(panelGeo);
                 hinge.add(panelMesh);
                 
+                // Hata ayıklama etiketi ekle
+                const label = createLabelMesh(faceCounter.toString(), '#ffaaaa', actualSideWidth, Math.min(height, actualSideWidth));
+                label.position.set(actualSideWidth / 2, 0, 0);
+                hinge.add(label);
+                faceCounter++;
+
+                currentParent = hinge;
+
                 // Kapakları simetrik açınım için orta panele ekle
                 const middleIndex = Math.floor((sides - 1) / 2);
                 if (i === middleIndex) {
@@ -69,8 +98,6 @@ window.Foldable3D = {
                     const topHinge = new THREE.Group();
                     topHinge.position.set(actualSideWidth / 2, height / 2, 0);
                     hinge.add(topHinge);
-                    // KAPALI (0) -> yatay (0 açı), AÇIK (1) -> dışarı (+90 derece)
-                    group.userData.hinges.push({ obj: topHinge, maxAngle: Math.PI / 2, initialAngle: 0, axis: 'x' });
                     
                     let topGeo;
                     if (type === 'prism_cylinder') {
@@ -80,17 +107,21 @@ window.Foldable3D = {
                         topGeo.rotateZ(Math.PI / 2 - Math.PI / sides); // İlk kenarı yatay (X'e paralel) yap
                     }
                     topGeo.translate(0, -apothem, 0); // Orijini bu kenarın ortasına al
-                    topGeo.scale(1, -1, 1); // İçeri uzaması için Y'yi ters çevir
                     topGeo.rotateX(-Math.PI / 2); // Yukarı baksın ve -Z'ye (içeri) uzansın
                     const topMesh = createFaceMesh(topGeo);
                     topHinge.add(topMesh);
+                    group.userData.hinges.push({ obj: topHinge, maxAngle: Math.PI / 2, initialAngle: 0, axis: 'x' });
+                    
+                    const topLabel = createLabelMesh(faceCounter.toString() + " (ÜST)", '#aaffaa', r*1.5, r*1.5);
+                    topLabel.rotation.x = -Math.PI / 2;
+                    topLabel.position.set(0, 0, 0);
+                    topHinge.add(topLabel);
+                    faceCounter++;
 
                     // Alt kapak
                     const bottomHinge = new THREE.Group();
                     bottomHinge.position.set(actualSideWidth / 2, -height / 2, 0);
                     hinge.add(bottomHinge);
-                    // KAPALI (0) -> yatay (0 açı), AÇIK (1) -> dışarı (-90 derece)
-                    group.userData.hinges.push({ obj: bottomHinge, maxAngle: -Math.PI / 2, initialAngle: 0, axis: 'x' });
                     
                     let bottomGeo;
                     if (type === 'prism_cylinder') {
@@ -103,9 +134,14 @@ window.Foldable3D = {
                     bottomGeo.rotateX(Math.PI / 2); // Aşağı baksın ve -Z'ye (içeri) uzansın
                     const bottomMesh = createFaceMesh(bottomGeo);
                     bottomHinge.add(bottomMesh);
+                    group.userData.hinges.push({ obj: bottomHinge, maxAngle: -Math.PI / 2, initialAngle: 0, axis: 'x' });
+
+                    const bottomLabel = createLabelMesh(faceCounter.toString() + " (ALT)", '#aaaaff', r*1.5, r*1.5);
+                    bottomLabel.rotation.x = Math.PI / 2;
+                    bottomLabel.position.set(0, 0, 0);
+                    bottomHinge.add(bottomLabel);
+                    faceCounter++;
                 }
-                
-                currentParent = hinge;
             }
             group.userData.shiftX = (actualSideWidth / 2) * (1 - sides);
         } 
@@ -129,6 +165,12 @@ window.Foldable3D = {
             const baseMesh = createFaceMesh(baseGeo);
             baseMesh.position.y = -height / 2;
             group.add(baseMesh);
+
+            const baseLabel = createLabelMesh(faceCounter.toString() + " (ALT)", '#aaaaff', r*1.5, r*1.5);
+            baseLabel.rotation.x = -Math.PI / 2;
+            baseLabel.position.y = -height / 2;
+            group.add(baseLabel);
+            faceCounter++;
 
             // Yan üçgenler
             for (let i = 0; i < sides; i++) {
@@ -157,6 +199,11 @@ window.Foldable3D = {
                 hinge.add(triMesh);
                 group.add(hinge);
                 
+                const triLabel = createLabelMesh(faceCounter.toString(), '#ffaaaa', sideWidth, slantHeight*0.5);
+                triLabel.position.set(0, slantHeight*0.3, 0);
+                hinge.add(triLabel);
+                faceCounter++;
+                
                 // Başlangıç (0) -> Kapalı (içeri eğik), Bitiş (1) -> Açık (dışarı yatay)
                 group.userData.hinges.push({ obj: hinge, maxAngle: Math.PI / 2, initialAngle: -inwardAngle, axis: 'x' });
             }
@@ -180,6 +227,11 @@ window.Foldable3D = {
             baseGeo.rotateX(-Math.PI / 2);
             const baseMesh = createFaceMesh(baseGeo);
             baseHinge.add(baseMesh);
+
+            const baseLabel = createLabelMesh(faceCounter.toString() + " (ALT)", '#aaaaff', r*1.5, r*1.5);
+            baseLabel.rotation.x = -Math.PI / 2;
+            baseHinge.add(baseLabel);
+            faceCounter++;
 
             // Yan yüzeyler (çiçek gibi açılır)
             for (let i = 0; i < sides; i++) {
