@@ -5908,18 +5908,6 @@ if (data.type === 'pdf_kapat') {
             console.log("PC: Açılış penceresi KÖKÜNDEN silindi ve mühürlendi.");
         }
 
-        if (data.type === 'zoom_senkron') {
-            const bgStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
-            bgStrokes.forEach(bg => { 
-                // Hizalanmış kusursuz koordinatları doğrudan uygula
-                if (data.x !== undefined) bg.x = data.x;
-                if (data.y !== undefined) bg.y = data.y;
-                if (data.width !== undefined) bg.width = data.width; 
-                if (data.height !== undefined) bg.height = data.height; 
-            });
-            if (window.redrawAllStrokes) window.redrawAllStrokes();
-        }
-
 
 // 🚨 PC: UYGULAMAYI YÜKLE PENCERESİNİ KAPATMA SİNYALİ 🚨
         if (data.type === 'yukleme_penceresini_kapat') {
