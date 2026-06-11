@@ -5504,33 +5504,10 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH) {
                 if (d.type === 'arac_senkron' && !d.ignoreAdapt) {
                     const sx = window.innerWidth / d.cssW;
                     const sy = window.innerHeight / d.cssH;
-                    const uniformScale = Math.min(sx, sy);
-                    let left = d.left ? parseFloat(d.left) : 0;
-                    let top = d.top ? parseFloat(d.top) : 0;
-                    let w = d.width ? parseFloat(d.width) : 0;
-                    let h = d.height ? parseFloat(d.height) : 0;
-                    
-                    if (w > 0 && h > 0) {
-                        let R = d.cssW - (left + w);
-                        let B = d.cssH - (top + h);
-                        
-                        let pctX = (left + R) <= 0 ? 0.5 : left / (left + R);
-                        let pctY = (top + B) <= 0 ? 0.5 : top / (top + B);
-                        
-                        let new_w = w * uniformScale;
-                        let new_h = h * uniformScale;
-                        
-                        let totalEmptyX = window.innerWidth - new_w;
-                        let totalEmptyY = window.innerHeight - new_h;
-                        
-                        let newL = totalEmptyX * pctX;
-                        let newT = totalEmptyY * pctY;
-                        
-                        if (d.left) d.left = newL + 'px';
-                        if (d.top) d.top = newT + 'px';
-                        if (d.width) d.width = new_w + 'px';
-                        if (d.height) d.height = new_h + 'px';
-                    }
+                    if (d.left) d.left = (parseFloat(d.left) * sx) + 'px';
+                    if (d.top) d.top = (parseFloat(d.top) * sy) + 'px';
+                    if (d.width) d.width = (parseFloat(d.width) * sx) + 'px';
+                    if (d.height) d.height = (parseFloat(d.height) * sy) + 'px';
                     d.ignoreAdapt = true; // prevent double adapting
                 }
             }
