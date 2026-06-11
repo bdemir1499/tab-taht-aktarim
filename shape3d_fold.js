@@ -1,0 +1,210 @@
+// 3D Şekillerin Açınım (Katlama) Mantığı İçin Ek Modül
+window.Foldable3D = {
+    createFoldableGroup: function(type, size, mainMaterial, edgeMaterial) {
+        const group = new THREE.Group();
+        group.userData.isFoldable = true;
+        group.userData.shapeType = type;
+        group.userData.baseSize = size;
+        group.userData.hinges = []; // Katlanacak parçaların listesi
+
+        // Özel mesh oluşturucu (edge çizgileriyle birlikte)
+        const createFaceMesh = (geometry) => {
+            const mesh = new THREE.Mesh(geometry, mainMaterial);
+            mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edgeMaterial));
+            return mesh;
+        };
+
+        const height = size * 2;
+        
+        // SİLİNDİR VE PRİZMALAR (Yan yüzeyler rulo gibi açılır)
+        if (type.startsWith('prism_')) {
+            let sides = 4;
+            let r = size;
+            if (type === 'prism_cube') { sides = 4; r = size; }
+            if (type === 'prism_rect') { sides = 4; r = size * 1.5; }
+            if (type === 'prism_3') sides = 3;
+            if (type === 'prism_5') sides = 5;
+            if (type === 'prism_6') sides = 6;
+            if (type === 'prism_cylinder') sides = 32;
+
+            const angleStep = (Math.PI * 2) / sides;
+            // Düzgün çokgen tabanlı prizma için yan kenar uzunluğu:
+            const sideWidth = 2 * r * Math.sin(Math.PI / sides);
+            const apothem = r * Math.cos(Math.PI / sides);
+            
+            // Eğer rect prizma ise, kenarlar r ve size olarak değişir (şuan düz mantık gidiyoruz)
+            let actualSideWidth = sideWidth;
+            if (type === 'prism_rect') actualSideWidth = size; // Basit yaklaşım
+
+            // Ana kök (yan yüzlerin bağlandığı ilk yüz)
+            const root = new THREE.Group();
+            group.add(root);
+            
+            let currentParent = root;
+
+            for (let i = 0; i < sides; i++) {
+                const hinge = new THREE.Group();
+                // İlk yüzey sabit, diğerleri birbirine ekleniyor
+                if (i === 0) {
+                    hinge.position.set(0, 0, apothem);
+                    root.add(hinge);
+                } else {
+                    hinge.position.set(actualSideWidth, 0, 0); // Sağ kenardan bağlanır
+                    currentParent.add(hinge);
+                    group.userData.hinges.push({ obj: hinge, maxAngle: angleStep, axis: 'y' });
+                }
+                
+                // Panel geometrisi (merkezi hinge'in ortasında olacak şekilde ayarlanır)
+                const panelGeo = new THREE.PlaneGeometry(actualSideWidth, height);
+                panelGeo.translate(actualSideWidth / 2, 0, 0); // Pivot noktasını sol kenara al
+                const panelMesh = createFaceMesh(panelGeo);
+                hinge.add(panelMesh);
+                
+                // Kapakları ilk (sabit) yüzeye ekle
+                if (i === 0) {
+                    // Üst kapak
+                    const topHinge = new THREE.Group();
+                    topHinge.position.set(actualSideWidth / 2, height / 2, 0);
+                    hinge.add(topHinge);
+                    group.userData.hinges.push({ obj: topHinge, maxAngle: -Math.PI / 2, axis: 'x' });
+                    
+                    let topGeo;
+                    if (type === 'prism_cylinder') topGeo = new THREE.CircleGeometry(r, sides);
+                    else topGeo = new THREE.CircleGeometry(r, sides, Math.PI / sides); // Çokgen yaklaşımı
+                    
+                    topGeo.rotateX(-Math.PI / 2);
+                    topGeo.translate(0, r, 0); // Pivot ayarı
+                    const topMesh = createFaceMesh(topGeo);
+                    topHinge.add(topMesh);
+
+                    // Alt kapak
+                    const bottomHinge = new THREE.Group();
+                    bottomHinge.position.set(actualSideWidth / 2, -height / 2, 0);
+                    hinge.add(bottomHinge);
+                    group.userData.hinges.push({ obj: bottomHinge, maxAngle: Math.PI / 2, axis: 'x' });
+                    
+                    const bottomGeo = topGeo.clone();
+                    bottomGeo.rotateX(Math.PI); // Ters çevir
+                    const bottomMesh = createFaceMesh(bottomGeo);
+                    bottomHinge.add(bottomMesh);
+                }
+                
+                currentParent = hinge;
+            }
+        } 
+        // PİRAMİTLER (Yaprak gibi dışa doğru açılır)
+        else if (type.startsWith('pyramid_')) {
+            let sides = 4;
+            if (type === 'pyramid_3') sides = 3;
+            if (type === 'pyramid_4') sides = 4;
+            if (type === 'pyramid_5') sides = 5;
+            if (type === 'pyramid_6') sides = 6;
+            
+            const r = size;
+            const apothem = r * Math.cos(Math.PI / sides);
+            const sideWidth = 2 * r * Math.sin(Math.PI / sides);
+            const slantHeight = Math.sqrt(height * height + apothem * apothem);
+            const hingeAngle = Math.atan2(height, apothem); // Yere olan eğim açısı
+
+            // Taban
+            const baseGeo = new THREE.CircleGeometry(r, sides, Math.PI / sides);
+            baseGeo.rotateX(-Math.PI / 2);
+            const baseMesh = createFaceMesh(baseGeo);
+            baseMesh.position.y = -height / 2;
+            group.add(baseMesh);
+
+            // Yan üçgenler
+            for (let i = 0; i < sides; i++) {
+                const angle = (i * Math.PI * 2) / sides;
+                const hinge = new THREE.Group();
+                
+                // Menteşeyi taban kenarına yerleştir
+                hinge.position.set(
+                    Math.cos(angle) * apothem,
+                    -height / 2,
+                    -Math.sin(angle) * apothem
+                );
+                hinge.rotation.y = angle; // Kenara dik bakması için
+                
+                const triGeo = new THREE.BufferGeometry();
+                const vertices = new Float32Array([
+                    -sideWidth / 2, 0, 0,
+                    sideWidth / 2, 0, 0,
+                    0, slantHeight, 0
+                ]);
+                triGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+                triGeo.computeVertexNormals();
+                
+                // Başlangıçta piramit eğiminde duracak
+                hinge.rotation.x = -hingeAngle;
+                
+                const triMesh = createFaceMesh(triGeo);
+                hinge.add(triMesh);
+                group.add(hinge);
+                
+                // Açılma animasyonu (eğimden 0'a veya yere paralel olacak şekilde)
+                group.userData.hinges.push({ obj: hinge, maxAngle: -Math.PI / 2, initialAngle: -hingeAngle, axis: 'x' });
+            }
+        }
+        // KONİ (Daire dilimi şeklinde açılır)
+        else if (type === 'pyramid_cone') {
+            const r = size;
+            const l = Math.sqrt(r * r + height * height); // Ana doğru
+            const theta = (r / l) * Math.PI * 2; // Dilim açısı
+
+            // Koni gövdesi (parametrik morph yerine basit taban menteşeli tek yüzey - gelişmiş morph eklenebilir)
+            // Performans ve uyumluluk için, şimdilik koniyi 32 parçalı bir piramit gibi çiçek şeklinde açıyoruz
+            // Gerçek rulo açınım (sektör) matematiksel morphing gerektirir.
+            const sides = 32;
+            const apothem = r;
+            const sideWidth = 2 * Math.PI * r / sides;
+            const slantHeight = l;
+            const hingeAngle = Math.atan2(height, r);
+
+            // Taban (Sabit değil, açıldığında yana kayacak)
+            const baseHinge = new THREE.Group();
+            baseHinge.position.y = -height / 2;
+            group.add(baseHinge);
+            const baseGeo = new THREE.CircleGeometry(r, 32);
+            baseGeo.rotateX(-Math.PI / 2);
+            const baseMesh = createFaceMesh(baseGeo);
+            baseHinge.add(baseMesh);
+
+            // Yan yüzeyler (çiçek gibi açılır)
+            for (let i = 0; i < sides; i++) {
+                const angle = (i * Math.PI * 2) / sides;
+                const hinge = new THREE.Group();
+                hinge.position.set(Math.cos(angle) * apothem, -height / 2, -Math.sin(angle) * apothem);
+                hinge.rotation.y = angle;
+                
+                const triGeo = new THREE.BufferGeometry();
+                const vertices = new Float32Array([
+                    -sideWidth / 2, 0, 0,
+                    sideWidth / 2, 0, 0,
+                    0, slantHeight, 0
+                ]);
+                triGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+                triGeo.computeVertexNormals();
+                hinge.rotation.x = -hingeAngle;
+                
+                const triMesh = createFaceMesh(triGeo);
+                hinge.add(triMesh);
+                group.add(hinge);
+                
+                group.userData.hinges.push({ obj: hinge, maxAngle: -Math.PI / 2, initialAngle: -hingeAngle, axis: 'x' });
+            }
+        }
+
+        return group;
+    },
+
+    updateUnfold: function(group, openRatio) {
+        if (!group.userData.isFoldable || !group.userData.hinges) return;
+        
+        group.userData.hinges.forEach(h => {
+            const initial = h.initialAngle || 0;
+            const currentAngle = initial + (h.maxAngle - initial) * openRatio;
+            h.obj.rotation[h.axis] = currentAngle;
+        });
+    }
+};

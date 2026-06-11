@@ -6611,11 +6611,7 @@ window.addEventListener('load', () => {
             window.active3DSliderStroke = activeShape;
             if (slider) {
                 if (activeShape.shapeType === 'sphere') slider.style.display = 'none';
-                else {
-                    slider.style.display = 'flex'; let leftPosition = activeShape.x + 80;
-                    if (leftPosition + 220 > window.innerWidth) leftPosition = activeShape.x - 240; 
-                    slider.style.left = leftPosition + 'px'; slider.style.top = (activeShape.y + 120) + 'px';
-                }
+                else slider.style.display = 'flex';
             }
             if (info) {
                 info.style.display = 'block'; 
@@ -6638,28 +6634,8 @@ window.addEventListener('load', () => {
                     formulMetni = `<span style="color:#00ffcc; font-size:16px;">Prizma / Piramit</span><br>Taban Ayrıtı (a) ≈ ${r} cm<br>Yükseklik (h) ≈ ${h} cm`;
                 }
                 
-                info.innerHTML = formulMetni; // Satır atlamaları okunsun diye innerHTML kullanıyoruz
-                info.style.background = 'rgba(20, 20, 30, 0.9)'; 
-                info.style.border = '2px solid #00ffcc'; 
-                info.style.borderRadius = '10px'; 
-                info.style.padding = '12px'; 
-                info.style.boxShadow = '0px 4px 15px rgba(0,0,0,0.6)'; 
-                info.style.color = '#FFFFFF'; 
-                info.style.fontFamily = 'monospace';
-                info.style.fontSize = '14px';
-                info.style.lineHeight = '1.5';
-                info.style.position = 'absolute'; 
-                info.style.pointerEvents = 'none'; // Kutu tıklamaları engellemesin
-                
-                // 🚨 Kutu ekrandan dışarı (yukarı veya sağa) taşmasın diye zırh:
-                let targetLeft = activeShape.x + 80;
-                let targetTop = activeShape.y - 150;
-                if (targetTop < 10) targetTop = 10;
-                if (targetLeft + 200 > window.innerWidth) targetLeft = window.innerWidth - 220;
-                
-                info.style.left = targetLeft + 'px'; 
-                info.style.top = targetTop + 'px'; 
-                info.style.zIndex = '9999';
+                info.innerHTML = formulMetni;
+                // Panel tasarımı artık tamamen style.css dosyasındaki #info-tooltip id'si ile yönetiliyor.
             }
             const sInput = document.getElementById('shape-slider');
             if (sInput && document.activeElement !== sInput) sInput.value = (activeShape.openRatio || 0) * 100;
