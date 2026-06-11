@@ -5515,12 +5515,17 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH) {
             // 1. ZOOM VE PDF SENKRONİZASYONU
             if (d.type === 'zoom_senkron') {
                 if (window.drawnStrokes) {
+                    let sx = 1, sy = 1;
+                    if (d.cssW && d.cssH && Math.abs(d.cssW - window.innerWidth) >= 5) {
+                        sx = window.innerWidth / d.cssW;
+                        sy = window.innerHeight / d.cssH;
+                    }
                     const bgStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
                     bgStrokes.forEach(bg => { 
-                        if (d.x !== undefined) bg.x = d.x; 
-                        if (d.y !== undefined) bg.y = d.y;
-                        if (d.width !== undefined) bg.width = d.width; 
-                        if (d.height !== undefined) bg.height = d.height; 
+                        if (d.x !== undefined) bg.x = d.x * sx; 
+                        if (d.y !== undefined) bg.y = d.y * sy;
+                        if (d.width !== undefined) bg.width = d.width * sx; 
+                        if (d.height !== undefined) bg.height = d.height * sy; 
                     });
                     if (window.redrawAllStrokes) window.redrawAllStrokes();
                 }
