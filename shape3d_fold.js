@@ -104,7 +104,7 @@ window.Foldable3D = {
                         topGeo = new THREE.CircleGeometry(r, sides);
                     } else {
                         topGeo = new THREE.CircleGeometry(r, sides, 0); 
-                        topGeo.rotateZ(Math.PI / 2 - Math.PI / sides); // İlk kenarı yatay (X'e paralel) yap
+                        topGeo.rotateZ(-Math.PI / 2 - Math.PI / sides); // Alt kenarı yatay (X'e paralel) yap
                     }
                     topGeo.translate(0, apothem, 0); // Orijini alt kenara al
                     topGeo.rotateX(-Math.PI / 2); // Yukarı baksın ve -Z'ye (içeri) uzansın
@@ -284,18 +284,21 @@ window.Foldable3D = {
         // Şekil açıldıkça tam karşıdan görünmesi için rotasyonu otomatik olarak düzelt
         const inner = group.userData.innerGroup;
         if (inner) {
+            // Perspektif yanılgısını (kameranın aşağıdan bakması) önlemek için şekli hafif geriye (yukarı) yatırıyoruz: 0.25 radyan
+            const tiltOffset = 0.25; 
+
             if (group.userData.shapeType.startsWith('pyramid_')) {
                 // Piramitlerin tabanı başlangıçta kameraya dönük değildir. Açıldıkça kameraya bakması için X ekseninde 0'a döndür.
                 const qClosed = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
                 const qOuterInverse = group.quaternion.clone().invert();
-                const qOpenTarget = qOuterInverse.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0));
+                const qOpenTarget = qOuterInverse.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -tiltOffset));
                 
                 // Quaternion slerp ile pürüzsüz geçiş
                 inner.quaternion.copy(qClosed).slerp(qOpenTarget, openRatio);
             } else {
                 // Prizmalar zaten Math.PI/2 rotasyonundayken açınımı tam karşıdan (kameraya doğru) görünür.
-                // Kullanıcının "dik konumu koruyarak açılsın" isteği üzerine sadece başlangıç rotasyonunu koruyoruz.
-                inner.rotation.x = Math.PI / 2;
+                // "Öne eğik duruyor" yanılgısını kırmak için tam açıldığında hafifçe geriye (-0.25 radyan) yatırıyoruz.
+                inner.rotation.x = Math.PI / 2 - (tiltOffset * openRatio);
                 inner.rotation.y = 0;
                 inner.rotation.z = 0;
             }
