@@ -80,7 +80,8 @@ window.Foldable3D = {
                         topGeo.rotateZ(Math.PI / 2 - Math.PI / sides); // İlk kenarı yatay (X'e paralel) yap
                     }
                     topGeo.translate(0, -apothem, 0); // Orijini bu kenarın ortasına al
-                    topGeo.rotateX(-Math.PI / 2); // Geometriyi baştan yatay hale getir (Yukarı baksın)
+                    topGeo.scale(1, -1, 1); // İçeri uzaması için Y'yi ters çevir
+                    topGeo.rotateX(-Math.PI / 2); // Yukarı baksın ve -Z'ye (içeri) uzansın
                     const topMesh = createFaceMesh(topGeo);
                     topHinge.add(topMesh);
 
@@ -99,8 +100,7 @@ window.Foldable3D = {
                         bottomGeo.rotateZ(Math.PI / 2 - Math.PI / sides); // İlk kenarı yatay yap
                     }
                     bottomGeo.translate(0, -apothem, 0); // Orijini kenarın ortasına al
-                    bottomGeo.scale(1, -1, 1); // Aşağı uzaması için y'de ters çevir
-                    bottomGeo.rotateX(Math.PI / 2); // Yatay hale getir (Aşağı baksın)
+                    bottomGeo.rotateX(Math.PI / 2); // Aşağı baksın ve -Z'ye (içeri) uzansın
                     const bottomMesh = createFaceMesh(bottomGeo);
                     bottomHinge.add(bottomMesh);
                 }
