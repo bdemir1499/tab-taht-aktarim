@@ -77,7 +77,7 @@ window.Foldable3D = {
                     else topGeo = new THREE.CircleGeometry(r, sides, Math.PI / sides); // Çokgen yaklaşımı
                     
                     topGeo.rotateX(-Math.PI / 2); // Geometriyi baştan yatay hale getir
-                    topGeo.translate(0, r, 0); // Pivot noktasını (menteşeyi) ayarla
+                    topGeo.translate(0, 0, -apothem); // Pivot noktasını (menteşeyi) kenara oturt
                     const topMesh = createFaceMesh(topGeo);
                     topHinge.add(topMesh);
 
@@ -88,8 +88,12 @@ window.Foldable3D = {
                     // KAPALI (0) -> yatay (0 açı), AÇIK (1) -> aşağı (+90 derece)
                     group.userData.hinges.push({ obj: bottomHinge, maxAngle: Math.PI / 2, initialAngle: 0, axis: 'x' });
                     
-                    const bottomGeo = topGeo.clone();
-                    bottomGeo.rotateX(Math.PI); // Ters çevir
+                    let bottomGeo;
+                    if (type === 'prism_cylinder') bottomGeo = new THREE.CircleGeometry(r, sides);
+                    else bottomGeo = new THREE.CircleGeometry(r, sides, Math.PI / sides);
+                    
+                    bottomGeo.rotateX(Math.PI / 2); // Ters çevirerek yatay hale getir
+                    bottomGeo.translate(0, 0, -apothem); // Pivot noktasını (menteşeyi) kenara oturt
                     const bottomMesh = createFaceMesh(bottomGeo);
                     bottomHinge.add(bottomMesh);
                 }
@@ -194,7 +198,13 @@ window.Foldable3D = {
             }
         }
 
-        return group;
+        // Şekil dik dursun (taban altta, tepe üstte olacak şekilde)
+        // Dış grup, rotationX işlemini sorunsuz yapmak için hala kullanılabilir.
+        const outerGroup = new THREE.Group();
+        outerGroup.userData = group.userData;
+        outerGroup.add(group);
+
+        return outerGroup;
     },
 
     updateUnfold: function(group, openRatio) {
