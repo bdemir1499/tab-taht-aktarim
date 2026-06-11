@@ -107,6 +107,7 @@ window.Foldable3D = {
                 
                 currentParent = hinge;
             }
+            group.userData.shiftX = (actualSideWidth / 2) * (1 - sides);
         } 
         // PİRAMİTLER (Yaprak gibi dışa doğru açılır)
         else if (type.startsWith('pyramid_')) {
@@ -157,7 +158,7 @@ window.Foldable3D = {
                 group.add(hinge);
                 
                 // Başlangıç (0) -> Kapalı (içeri eğik), Bitiş (1) -> Açık (dışarı yatay)
-                group.userData.hinges.push({ obj: hinge, maxAngle: -Math.PI / 2, initialAngle: inwardAngle, axis: 'x' });
+                group.userData.hinges.push({ obj: hinge, maxAngle: Math.PI / 2, initialAngle: -inwardAngle, axis: 'x' });
             }
         }
         // KONİ (Daire dilimi şeklinde açılır)
@@ -201,7 +202,7 @@ window.Foldable3D = {
                 group.add(hinge);
                 
                 // Başlangıç (0) -> Kapalı (içeri eğik), Bitiş (1) -> Açık (dışarı yatay)
-                group.userData.hinges.push({ obj: hinge, maxAngle: -Math.PI / 2, initialAngle: inwardAngle, axis: 'x' });
+                group.userData.hinges.push({ obj: hinge, maxAngle: Math.PI / 2, initialAngle: -inwardAngle, axis: 'x' });
             }
         }
 
@@ -210,9 +211,6 @@ window.Foldable3D = {
         const outerGroup = new THREE.Group();
         outerGroup.userData = group.userData;
         outerGroup.userData.innerGroup = group; // İç grubu sakla ki rotasyonu nötrleyebilelim
-        if (type.startsWith('prism_')) {
-            outerGroup.userData.shiftX = (actualSideWidth / 2) * (1 - sides);
-        }
         outerGroup.add(group);
 
         return outerGroup;
