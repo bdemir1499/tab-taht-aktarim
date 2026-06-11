@@ -73,11 +73,14 @@ window.Foldable3D = {
                     group.userData.hinges.push({ obj: topHinge, maxAngle: Math.PI / 2, initialAngle: 0, axis: 'x' });
                     
                     let topGeo;
-                    if (type === 'prism_cylinder') topGeo = new THREE.CircleGeometry(r, sides);
-                    else topGeo = new THREE.CircleGeometry(r, sides, Math.PI / sides); 
-                    
-                    topGeo.rotateX(-Math.PI / 2); // Geometriyi baştan yatay hale getir
-                    topGeo.translate(0, 0, -apothem); // Pivot noktasını (menteşeyi) kenara oturt
+                    if (type === 'prism_cylinder') {
+                        topGeo = new THREE.CircleGeometry(r, sides);
+                    } else {
+                        topGeo = new THREE.CircleGeometry(r, sides, 0); 
+                        topGeo.rotateZ(Math.PI / 2 - Math.PI / sides); // İlk kenarı yatay (X'e paralel) yap
+                    }
+                    topGeo.translate(0, -apothem, 0); // Orijini bu kenarın ortasına al
+                    topGeo.rotateX(-Math.PI / 2); // Geometriyi baştan yatay hale getir (Yukarı baksın)
                     const topMesh = createFaceMesh(topGeo);
                     topHinge.add(topMesh);
 
@@ -89,11 +92,15 @@ window.Foldable3D = {
                     group.userData.hinges.push({ obj: bottomHinge, maxAngle: -Math.PI / 2, initialAngle: 0, axis: 'x' });
                     
                     let bottomGeo;
-                    if (type === 'prism_cylinder') bottomGeo = new THREE.CircleGeometry(r, sides);
-                    else bottomGeo = new THREE.CircleGeometry(r, sides, Math.PI / sides);
-                    
-                    bottomGeo.rotateX(Math.PI / 2); // Ters çevirerek yatay hale getir
-                    bottomGeo.translate(0, 0, -apothem); // Pivot noktasını (menteşeyi) kenara oturt
+                    if (type === 'prism_cylinder') {
+                        bottomGeo = new THREE.CircleGeometry(r, sides);
+                    } else {
+                        bottomGeo = new THREE.CircleGeometry(r, sides, 0);
+                        bottomGeo.rotateZ(Math.PI / 2 - Math.PI / sides); // İlk kenarı yatay yap
+                    }
+                    bottomGeo.translate(0, -apothem, 0); // Orijini kenarın ortasına al
+                    bottomGeo.scale(1, -1, 1); // Aşağı uzaması için y'de ters çevir
+                    bottomGeo.rotateX(Math.PI / 2); // Yatay hale getir (Aşağı baksın)
                     const bottomMesh = createFaceMesh(bottomGeo);
                     bottomHinge.add(bottomMesh);
                 }
@@ -203,6 +210,9 @@ window.Foldable3D = {
         const outerGroup = new THREE.Group();
         outerGroup.userData = group.userData;
         outerGroup.userData.innerGroup = group; // İç grubu sakla ki rotasyonu nötrleyebilelim
+        if (type.startsWith('prism_')) {
+            outerGroup.userData.shiftX = (actualSideWidth / 2) * (1 - sides);
+        }
         outerGroup.add(group);
 
         return outerGroup;
@@ -228,6 +238,11 @@ window.Foldable3D = {
             inner.rotation.x = (targetRotX - (group.rotation.x || 0)) * openRatio;
             inner.rotation.y = -(group.rotation.y || 0) * openRatio;
             inner.rotation.z = -(group.rotation.z || 0) * openRatio;
+
+            // Prizmaların açınımı yana doğru uzadığı için, açıldıkça şekli ortala
+            if (group.userData.shiftX) {
+                inner.position.x = group.userData.shiftX * openRatio;
+            }
         }
     }
 };
