@@ -75,8 +75,8 @@ window.Foldable3D = {
                 } else {
                     hinge.position.set(actualSideWidth, 0, 0); // Kenardan bağlanır
                     currentParent.add(hinge);
-                    // Başlangıç (0) durumu KAPALI -> aradaki açı angleStep
-                    group.userData.hinges.push({ obj: hinge, maxAngle: 0, initialAngle: angleStep, axis: 'y' });
+                    // Başlangıç (0) durumu KAPALI -> aradaki açı -angleStep (Önden yana doğru açılması için)
+                    group.userData.hinges.push({ obj: hinge, maxAngle: 0, initialAngle: -angleStep, axis: 'y' });
                 }
                 
                 // Panel geometrisi (merkezi hinge'in ortasında olacak şekilde ayarlanır)
@@ -116,6 +116,7 @@ window.Foldable3D = {
                     
                     const topLabel = createLabelMesh(faceCounter.toString() + " (ÜST)", '#aaffaa', r*1.5, r*1.5);
                     topLabel.rotation.x = -Math.PI / 2;
+                    topLabel.rotateZ(Math.PI); // Açıldığında düz görünmesi için yerel Z ekseninde çevir
                     topLabel.position.set(0, 0, 0);
                     topHinge.add(topLabel);
                     faceCounter++;
@@ -140,7 +141,7 @@ window.Foldable3D = {
 
                     const bottomLabel = createLabelMesh(faceCounter.toString() + " (ALT)", '#aaaaff', r*1.5, r*1.5);
                     bottomLabel.rotation.x = Math.PI / 2;
-                    bottomLabel.rotation.y = Math.PI; // Açıldığında düz (upright) görünmesi için 180 derece çevir
+                    bottomLabel.rotateZ(Math.PI); // Açıldığında düz görünmesi için yerel Z ekseninde çevir
                     bottomLabel.position.set(0, 0, 0);
                     bottomHinge.add(bottomLabel);
                     faceCounter++;
