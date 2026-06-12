@@ -69,14 +69,14 @@ window.Foldable3D = {
                 const hinge = new THREE.Group();
                 // İlk yüzey sabit, diğerleri birbirine ekleniyor
                 if (i === 0) {
-                    hinge.position.set(0, 0, -apothem); // İlk yüzey arkada değil, önde başlasın (Kamera açısından arkada kalması için -Z)
+                    hinge.position.set(0, 0, -apothem); // İlk yüzey arkada başlasın
+                    hinge.rotation.y = Math.PI; // Dışarı (arkaya) baksın
                     root.add(hinge);
                 } else {
-                    hinge.position.set(actualSideWidth, 0, 0); // Sağ kenardan bağlanır
+                    hinge.position.set(actualSideWidth, 0, 0); // Kenardan bağlanır
                     currentParent.add(hinge);
-                    // Başlangıç (0) durumu KAPALI -> aradaki açı -angleStep (Önden arkaya doğru değil, arkadan öne sarsın)
-                    // Bitiş (1) durumu AÇIK -> aradaki açı 0 (düz şerit)
-                    group.userData.hinges.push({ obj: hinge, maxAngle: 0, initialAngle: -angleStep, axis: 'y' });
+                    // Başlangıç (0) durumu KAPALI -> aradaki açı angleStep
+                    group.userData.hinges.push({ obj: hinge, maxAngle: 0, initialAngle: angleStep, axis: 'y' });
                 }
                 
                 // Panel geometrisi (merkezi hinge'in ortasında olacak şekilde ayarlanır)
@@ -112,7 +112,7 @@ window.Foldable3D = {
                     topGeo.rotateX(-Math.PI / 2); // Yukarı baksın ve -Z'ye (içeri) uzansın
                     const topMesh = createFaceMesh(topGeo);
                     topHinge.add(topMesh);
-                    group.userData.hinges.push({ obj: topHinge, maxAngle: Math.PI / 2, initialAngle: 0, axis: 'x' });
+                    group.userData.hinges.push({ obj: topHinge, maxAngle: -Math.PI / 2, initialAngle: 0, axis: 'x' }); // DIŞA ve YUKARI açılsın
                     
                     const topLabel = createLabelMesh(faceCounter.toString() + " (ÜST)", '#aaffaa', r*1.5, r*1.5);
                     topLabel.rotation.x = -Math.PI / 2;
@@ -136,10 +136,11 @@ window.Foldable3D = {
                     bottomGeo.rotateX(Math.PI / 2); // Aşağı baksın ve -Z'ye (içeri) uzansın
                     const bottomMesh = createFaceMesh(bottomGeo);
                     bottomHinge.add(bottomMesh);
-                    group.userData.hinges.push({ obj: bottomHinge, maxAngle: -Math.PI / 2, initialAngle: 0, axis: 'x' });
+                    group.userData.hinges.push({ obj: bottomHinge, maxAngle: Math.PI / 2, initialAngle: 0, axis: 'x' }); // DIŞA ve AŞAĞI açılsın
 
                     const bottomLabel = createLabelMesh(faceCounter.toString() + " (ALT)", '#aaaaff', r*1.5, r*1.5);
                     bottomLabel.rotation.x = Math.PI / 2;
+                    bottomLabel.rotation.y = Math.PI; // Açıldığında düz (upright) görünmesi için 180 derece çevir
                     bottomLabel.position.set(0, 0, 0);
                     bottomHinge.add(bottomLabel);
                     faceCounter++;
@@ -305,11 +306,16 @@ window.Foldable3D = {
                 // Quaternion slerp ile pürüzsüz geçiş
                 inner.quaternion.copy(qClosed).slerp(qOpenTarget, openRatio);
             } else {
-                // Prizmalar zaten Math.PI/2 rotasyonundayken açınımı tam karşıdan (kameraya doğru) görünür.
-                // "Öne eğik duruyor" yanılgısını kırmak için tam açıldığında hafifçe geriye (-0.25 radyan) yatırıyoruz.
-                inner.rotation.x = Math.PI / 2 - (tiltOffset * openRatio);
-                inner.rotation.y = 0;
-                inner.rotation.z = 0;
+                // Prizmalar vs için (Kamera açısından düz görünmesini sağla)
+                // İlk konum: sadece x etrafında Math.PI / 2 (group'un rotasyonunu kopyala)
+                const qClosed = new THREE.Quaternion().identity();
+                const qOuterInverse = group.quaternion.clone().invert();
+                
+                // Tam açıldığında 180 derece (Math.PI) Y ekseninde döndürerek şeridin ön yüzünü kameraya çevir
+                const qOpenTarget = qOuterInverse.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI));
+                
+                // Prizmaları da açıldıkça tam kameraya hizala ve döndür
+                inner.quaternion.copy(qClosed).slerp(qOpenTarget, openRatio);
             }
 
             // Prizmaların açınımı yana doğru uzadığı için, açıldıkça şekli ortala
