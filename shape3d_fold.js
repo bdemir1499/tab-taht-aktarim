@@ -108,14 +108,14 @@ window.Foldable3D = {
                         topGeo = new THREE.CircleGeometry(r, sides, 0); 
                         topGeo.rotateZ(-Math.PI / 2 - Math.PI / sides); // Alt kenarı yatay (X'e paralel) yap
                     }
-                    topGeo.translate(0, apothem, 0); // Orijini alt kenara al
-                    topGeo.rotateX(-Math.PI / 2); // Yukarı baksın ve -Z'ye (içeri) uzansın
+                    topGeo.translate(0, -apothem, 0); // Orijini üst kenara al (içeri uzansın)
+                    topGeo.rotateX(-Math.PI / 2); // Yukarı baksın ve +Z'ye (içeri) uzansın
                     const topMesh = createFaceMesh(topGeo);
                     topHinge.add(topMesh);
-                    group.userData.hinges.push({ obj: topHinge, maxAngle: Math.PI / 2, initialAngle: 0, axis: 'x' }); // DIŞA ve YUKARI açılsın
+                    group.userData.hinges.push({ obj: topHinge, maxAngle: -Math.PI / 2, initialAngle: 0, axis: 'x' }); // DIŞA ve YUKARI açılsın
                     
                     const topLabel = createLabelMesh(faceCounter.toString() + " (ÜST)", '#aaffaa', r*1.5, r*1.5);
-                    topLabel.rotation.x = -Math.PI / 2;
+                    topLabel.rotation.x = Math.PI / 2; // İçeri baksın, açılınca dışarı dönecek
                     topLabel.position.set(0, 0, 0);
                     topHinge.add(topLabel);
                     faceCounter++;
@@ -132,14 +132,15 @@ window.Foldable3D = {
                         bottomGeo = new THREE.CircleGeometry(r, sides, 0);
                         bottomGeo.rotateZ(Math.PI / 2 - Math.PI / sides); // İlk kenarı yatay yap
                     }
-                    bottomGeo.translate(0, -apothem, 0); // Orijini üst kenara al
-                    bottomGeo.rotateX(Math.PI / 2); // Aşağı baksın ve -Z'ye (içeri) uzansın
+                    bottomGeo.translate(0, apothem, 0); // Orijini alt kenara al (içeri uzansın)
+                    bottomGeo.rotateX(Math.PI / 2); // Aşağı baksın ve +Z'ye (içeri) uzansın
                     const bottomMesh = createFaceMesh(bottomGeo);
                     bottomHinge.add(bottomMesh);
-                    group.userData.hinges.push({ obj: bottomHinge, maxAngle: -Math.PI / 2, initialAngle: 0, axis: 'x' }); // DIŞA ve AŞAĞI açılsın
+                    group.userData.hinges.push({ obj: bottomHinge, maxAngle: Math.PI / 2, initialAngle: 0, axis: 'x' }); // DIŞA ve AŞAĞI açılsın
 
                     const bottomLabel = createLabelMesh(faceCounter.toString() + " (ALT)", '#aaaaff', r*1.5, r*1.5);
-                    bottomLabel.rotation.x = Math.PI / 2;
+                    bottomLabel.rotation.x = -Math.PI / 2; // İçeri baksın
+                    bottomLabel.rotation.y = Math.PI; // Açıldığında düz durması için Y'de çevir
                     bottomLabel.position.set(0, 0, 0);
                     bottomHinge.add(bottomLabel);
                     faceCounter++;
