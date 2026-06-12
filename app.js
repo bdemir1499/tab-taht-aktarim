@@ -1454,12 +1454,6 @@ function redrawAllStrokes() {
             if (window.Scene3D && window.Scene3D.scene) {
                 const sceneMesh = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === stroke.id);
                 if (sceneMesh) {
-                    let yeniScale = (stroke.width / 30) / sceneMesh.userData.baseSize;
-                    if (window.innerWidth && stroke.senderW && stroke.senderW > 0) {
-                        const sx = window.innerWidth / stroke.senderW;
-                        if (sx > 1.1 && Math.abs(yeniScale - sx) < 0.2) yeniScale = 1; // sx kadar büyümeyi iptal et!
-                    }
-                    sceneMesh.scale.set(yeniScale, yeniScale, yeniScale);
                     sceneMesh.rotation.z = -(stroke.rotation || 0) * Math.PI / 180;
                     
                     const canvasElm = document.getElementById('drawing-canvas');
@@ -5436,7 +5430,7 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
     // 3D şekiller WebGL (OrthographicCamera) içinde zaten normalize edilmiş koordinatlar (-1 ile 1 arası)
     // ve sabit frustumSize (30) kullanır. Bu yüzden 2D canvas/css ölçeklendirmesinden (sx, sy, dpr) TAMAMEN MUAF tutulmalıdır.
     // Aksi halde PC'ye geçerken çift ölçeklenerek devasa boyutlara ulaşırlar!
-    if (stroke.type === '3d_shape') return stroke;
+    if (stroke.type === '3d_shape' || stroke.shapeType) return stroke;
 
     const myW = window.innerWidth;
     const myH = window.innerHeight;
