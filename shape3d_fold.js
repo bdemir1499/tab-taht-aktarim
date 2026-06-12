@@ -159,7 +159,6 @@ window.Foldable3D = {
             const baseLabel = createLabelMesh(faceCounter.toString() + " (ALT)", '#aaaaff', r*1.5, r*1.5);
             baseLabel.rotation.x = -Math.PI / 2;
             baseLabel.position.y = -height / 2;
-            baseLabel.material.side = THREE.FrontSide;
             group.add(baseLabel);
             faceCounter++;
 
@@ -193,9 +192,6 @@ window.Foldable3D = {
                 
                 const triLabel = createLabelMesh(faceCounter.toString(), '#ffaaaa', sideWidth, slantHeight*0.5);
                 triLabel.position.set(0, slantHeight*0.3, 0);
-                
-                // Arka yüzeyin ters görünmesini engellemek için metin materyalinin side ayarını düzelt
-                triLabel.material.side = THREE.FrontSide;
                 
                 hinge.add(triLabel);
                 faceCounter++;
