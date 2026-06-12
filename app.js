@@ -6495,15 +6495,25 @@ window.Scene3D = {
         const intersects = this.raycaster.intersectObjects(this.scene.children, true);
         let foundMesh = intersects.find(h => h.object.type === 'Mesh' && h.object !== this.helperGroup);
         
+        // 🚨 EĞER BU BİR GRUPSA (Foldable3D) EN ÜST GRUBU BUL
+        if (foundMesh) {
+            let rootObj = foundMesh.object;
+            while(rootObj.parent && rootObj.parent !== this.scene && rootObj.parent.type === 'Group') {
+                rootObj = rootObj.parent;
+            }
+            foundMesh = { object: rootObj };
+        }
+        
         // 🚨 TABLET DOKUNMATİK ZIRHI: Parmakla basıldığında 3D Işın ıskalasa bile 2D Kutusundan Kesin Yakala!
         if (!foundMesh && window.drawnStrokes && window.currentTool === 'move') {
             const canvasEl = document.getElementById('drawing-canvas');
             if (canvasEl) {
                 const rect = canvasEl.getBoundingClientRect();
-                const canvasX = ((x - rect.left) * (canvasEl.width / rect.width));
-                const canvasY = ((y - rect.top) * (canvasEl.height / rect.height));
+                // DÜZELTME: Yüksek DPI (Retina) cihazlarda canvasX hatalı olur, CSS koordinatları (cssX, cssY) kullanılmalı!
+                const cssX = x - rect.left;
+                const cssY = y - rect.top;
                 
-                const hitStroke = window.drawnStrokes.find(s => s.type === '3d_shape' && Math.abs(canvasX - (s.x + s.width / 2)) < Math.max(40, s.width/2) && Math.abs(canvasY - (s.y + s.height / 2)) < Math.max(40, s.height/2));
+                const hitStroke = window.drawnStrokes.find(s => s.type === '3d_shape' && Math.abs(cssX - (s.x + s.width / 2)) < Math.max(40, s.width/2) && Math.abs(cssY - (s.y + s.height / 2)) < Math.max(40, s.height/2));
                 if (hitStroke) {
                     const sceneMesh = this.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === hitStroke.id);
                     if (sceneMesh) foundMesh = { object: sceneMesh };
