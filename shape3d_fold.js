@@ -306,13 +306,14 @@ window.Foldable3D = {
                 // Quaternion slerp ile pürüzsüz geçiş
                 inner.quaternion.copy(qClosed).slerp(qOpenTarget, openRatio);
             } else {
-                // Prizmalar vs için (Kamera açısından düz görünmesini sağla)
-                // İlk konum: sadece x etrafında Math.PI / 2 (group'un rotasyonunu kopyala)
-                const qClosed = new THREE.Quaternion().identity();
+                // Prizmalar vs için (Kamera açısından dik durmasını sağla)
+                const qClosed = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
                 const qOuterInverse = group.quaternion.clone().invert();
                 
-                // Tam açıldığında 180 derece (Math.PI) Y ekseninde döndürerek şeridin ön yüzünü kameraya çevir
-                const qOpenTarget = qOuterInverse.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI));
+                // Tam açıldığında kendi Y ekseni etrafında 180 derece (Math.PI) dönerek şeridin ön yüzünü kameraya çevirsin
+                const qSpin = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+                const targetWorld = qClosed.clone().multiply(qSpin);
+                const qOpenTarget = qOuterInverse.multiply(targetWorld);
                 
                 // Prizmaları da açıldıkça tam kameraya hizala ve döndür
                 inner.quaternion.copy(qClosed).slerp(qOpenTarget, openRatio);
