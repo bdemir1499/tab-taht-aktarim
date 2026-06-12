@@ -5259,7 +5259,17 @@ if (isTablet) {
 }
 // --- 3. BAĞLANTI İSTEK DİNLEYİCİSİ (KAPI ZİLİ) ---
 myPeer.on('connection', function(conn) {
-    console.log("Bir cihaz bağlanmak istiyor:", conn.peer);
+    // 🚨 KRİTİK GÜVENLİK YAMASI: ŞİFRE (PIN) KONTROLÜ ZORUNLULUĞU 🚨
+    // Eskiden şifre sadece tablet arayüzünde kozmetik olarak duruyordu, PC doğrulamıyordu.
+    // Artık metadata ile gelen şifre PC'nin şifresiyle %100 eşleşmek zorunda.
+    if (!conn.metadata || conn.metadata.password !== window.sessionPassword) {
+        console.warn("🔒 Güvenlik İhlali: Hatalı şifre denemesi reddedildi!", conn.peer);
+        // Karşı tarafa hemen red gönderip bağlantıyı kopartıyoruz
+        setTimeout(() => conn.close(), 500); 
+        return; // Modal penceresini bile gösterme (Öğretmeni rahatsız etme)
+    }
+
+    console.log("Bir cihaz bağlanmak istiyor (Şifre Doğrulandı):", conn.peer);
     
     const requestModal = document.getElementById('conn-request-modal');
     const requestText = document.getElementById('request-text');
@@ -5350,8 +5360,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.sessionPassword = passwordInput; 
                 document.getElementById('connection-status').innerText = "Bağlanıyor ⏳";
                 
-                // Bağlantıyı başlat
-                myConnection = myPeer.connect(targetCode);
+                // Bağlantıyı başlat (Şifreyi kriptografik metadata olarak gönderiyoruz)
+                myConnection = myPeer.connect(targetCode, {
+                    metadata: { password: window.sessionPassword }
+                });
                 
                 // --- BAĞLANTIYI GARANTİLEMEK İÇİN İKİLİ KONTROL ---
                 // --- BAĞLANTIYI GARANTİLEMEK İÇİN İKİLİ KONTROL ---
