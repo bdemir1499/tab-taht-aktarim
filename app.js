@@ -1454,7 +1454,11 @@ function redrawAllStrokes() {
             if (window.Scene3D && window.Scene3D.scene) {
                 const sceneMesh = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === stroke.id);
                 if (sceneMesh) {
-                    const yeniScale = (stroke.width / 30) / sceneMesh.userData.baseSize;
+                    let yeniScale = (stroke.width / 30) / sceneMesh.userData.baseSize;
+                    if (window.innerWidth && stroke.senderW && stroke.senderW > 0) {
+                        const sx = window.innerWidth / stroke.senderW;
+                        if (sx > 1.1 && Math.abs(yeniScale - sx) < 0.2) yeniScale = 1; // sx kadar büyümeyi iptal et!
+                    }
                     sceneMesh.scale.set(yeniScale, yeniScale, yeniScale);
                     sceneMesh.rotation.z = -(stroke.rotation || 0) * Math.PI / 180;
                     
@@ -5794,7 +5798,11 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
                 if (hedef.type === '3d_shape' && window.Scene3D && window.Scene3D.scene) {
                     const sceneMesh = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === hedef.id);
                     if (sceneMesh) {
-                        const yeniScale = (data.stroke.width / 30) / sceneMesh.userData.baseSize;
+                        let yeniScale = (data.stroke.width / 30) / sceneMesh.userData.baseSize;
+                        if (window.innerWidth && data.cssW && data.cssW > 0) {
+                            const sx = window.innerWidth / data.cssW;
+                            if (sx > 1.1 && Math.abs(yeniScale - sx) < 0.2) yeniScale = 1; // sx büyümesini engelle
+                        }
                         sceneMesh.scale.set(yeniScale, yeniScale, yeniScale);
                         
                         if (data.stroke.rotationX !== undefined) sceneMesh.rotation.x = data.stroke.rotationX;
