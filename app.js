@@ -5425,7 +5425,7 @@ function setupConnectionEvents() {
 // =========================================================
 // EKRANLAR ARASI ORANTISAL ADAPTASYON (ÇÖZÜNÜRLÜK SENKRONU)
 // =========================================================
-window.adaptStrokeToScreen = function(stroke, senderW, senderH) {
+window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
     if (!stroke || !senderW || !senderH) return stroke;
     const myW = window.innerWidth;
     const myH = window.innerHeight;
@@ -5445,7 +5445,37 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH) {
     }
     if (stroke.x !== undefined) stroke.x *= sx;
     if (stroke.y !== undefined) stroke.y *= sy;
-    if (stroke.width !== undefined) stroke.width *= sx;
+    
+    // 🚨 KALINLIK VS GENİŞLİK AYRIMI 🚨
+    // Resim, dikdörtgen, 3D şekil gibi objelerde "width" şeklin yatay genişliğidir (sx ile büyür).
+    // Ancak çizgi, kalem, çokgen, fiziksel araçlarda "width" çizgi kalınlığıdır!
+    const isLineType = ['pen', 'line', 'segment', 'ray', 'straightLine', 'polygon', 'point', 'arc'].includes(stroke.type);
+    
+    if (stroke.width !== undefined) {
+        if (isLineType) {
+            // Çizgi kalınlıklarını fiziksel (CSS) kalınlık hissi aynı kalacak şekilde orantıla!
+            const canvasElm = document.getElementById('drawing-canvas');
+            if (canvasElm && senderCw) {
+                const myDpr = canvasElm.width / myW;
+                const senderDpr = senderCw / senderW;
+                if (senderDpr > 0 && myDpr > 0) {
+                    stroke.width *= (myDpr / senderDpr);
+                }
+            }
+        } else {
+            stroke.width *= sx;
+        }
+    }
+    
+    if (stroke.baseWidth !== undefined) {
+        const canvasElm = document.getElementById('drawing-canvas');
+        if (canvasElm && senderCw) {
+            const myDpr = canvasElm.width / myW;
+            const senderDpr = senderCw / senderW;
+            if (senderDpr > 0 && myDpr > 0) stroke.baseWidth *= (myDpr / senderDpr);
+        }
+    }
+
     if (stroke.height !== undefined) stroke.height *= sy;
     
     // Sadece metin font boyutu aşırı ezilmesin diye min alınır
@@ -5469,10 +5499,10 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH) {
             // --- EKRANLAR ARASI ÇÖZÜNÜRLÜK ADAPTASYONU ---
             if (d.cssW && d.cssH && typeof window.adaptStrokeToScreen === 'function') {
                 if (d.stroke) {
-                    window.adaptStrokeToScreen(d.stroke, d.cssW, d.cssH);
+                    window.adaptStrokeToScreen(d.stroke, d.cssW, d.cssH, d.cw);
                 }
                 if (d.strokes && Array.isArray(d.strokes)) {
-                    d.strokes.forEach(s => window.adaptStrokeToScreen(s, d.cssW, d.cssH));
+                    d.strokes.forEach(s => window.adaptStrokeToScreen(s, d.cssW, d.cssH, d.cw));
                 }
                 
                 // Fiziki araçların (cetvel vb) uzaklık oranı korunarak taşınması
