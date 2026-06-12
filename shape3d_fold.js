@@ -69,8 +69,8 @@ window.Foldable3D = {
                 const hinge = new THREE.Group();
                 // İlk yüzey sabit, diğerleri birbirine ekleniyor
                 if (i === 0) {
-                    hinge.position.set(0, 0, -apothem); // İlk yüzey arkada başlasın
-                    hinge.rotation.y = Math.PI; // Dışarı (arkaya) baksın
+                    hinge.position.set(-actualSideWidth / 2, 0, apothem); // İlk yüzey ÖNDE ve ortalanmış başlasın
+                    hinge.rotation.y = 0; // Kameraya (dışa) baksın
                     root.add(hinge);
                 } else {
                     hinge.position.set(actualSideWidth, 0, 0); // Kenardan bağlanır
@@ -307,15 +307,9 @@ window.Foldable3D = {
             } else {
                 // Prizmalar vs için (Kamera açısından dik durmasını sağla)
                 const qClosed = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
-                const qOuterInverse = group.quaternion.clone().invert();
                 
-                // Tam açıldığında kendi Z ekseni (dik eksen) etrafında 180 derece (Math.PI) dönerek şeridin ön yüzünü kameraya çevirsin
-                const qSpin = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI);
-                const targetWorld = qClosed.clone().multiply(qSpin);
-                const qOpenTarget = qOuterInverse.multiply(targetWorld);
-                
-                // Prizmaları da açıldıkça tam kameraya hizala ve döndür
-                inner.quaternion.copy(qClosed).slerp(qOpenTarget, openRatio);
+                // Spin (takla atma) YOK! Sadece dik duracak ve önden yana doğru açılacak
+                inner.quaternion.copy(qClosed);
             }
 
             // Prizmaların açınımı yana doğru uzadığı için, açıldıkça şekli ortala
