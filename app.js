@@ -1927,11 +1927,15 @@ function undoLastStroke() {
         if (popped && popped.type === '3d_shape' && window.Scene3D && window.Scene3D.scene) {
             const meshToRemove = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === popped.id);
             if (meshToRemove) {
-                if (meshToRemove.geometry) meshToRemove.geometry.dispose();
-                if (meshToRemove.material) {
-                    if (Array.isArray(meshToRemove.material)) meshToRemove.material.forEach(mat => mat.dispose());
-                    else meshToRemove.material.dispose();
-                }
+                meshToRemove.traverse((child) => {
+                    if (child.isMesh || child.isLineSegments) {
+                        if (child.geometry) child.geometry.dispose();
+                        if (child.material) {
+                            if (Array.isArray(child.material)) child.material.forEach(mat => mat.dispose());
+                            else child.material.dispose();
+                        }
+                    }
+                });
                 window.Scene3D.scene.remove(meshToRemove);
                 if (window.Scene3D.currentMesh === meshToRemove) window.Scene3D.currentMesh = null;
                 window.Scene3D.updateHandlePositions();
@@ -5807,11 +5811,15 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH) {
             if (popped && popped.type === '3d_shape' && window.Scene3D && window.Scene3D.scene) {
                 const meshToRemove = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === popped.id);
                 if (meshToRemove) {
-                    if (meshToRemove.geometry) meshToRemove.geometry.dispose();
-                    if (meshToRemove.material) {
-                        if (Array.isArray(meshToRemove.material)) meshToRemove.material.forEach(mat => mat.dispose());
-                        else meshToRemove.material.dispose();
-                    }
+                    meshToRemove.traverse((child) => {
+                        if (child.isMesh || child.isLineSegments) {
+                            if (child.geometry) child.geometry.dispose();
+                            if (child.material) {
+                                if (Array.isArray(child.material)) child.material.forEach(mat => mat.dispose());
+                                else child.material.dispose();
+                            }
+                        }
+                    });
                     window.Scene3D.scene.remove(meshToRemove);
                     if (window.Scene3D.currentMesh === meshToRemove) window.Scene3D.currentMesh = null;
                     window.Scene3D.updateHandlePositions();
@@ -5830,11 +5838,15 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH) {
             if (window.Scene3D && window.Scene3D.scene) {
                 const toRemove = window.Scene3D.scene.children.filter(c => c.type === 'Mesh' || c.type === 'Group');
                 toRemove.forEach(m => {
-                    if (m.geometry) m.geometry.dispose();
-                    if (m.material) {
-                        if (Array.isArray(m.material)) m.material.forEach(mat => mat.dispose());
-                        else m.material.dispose();
-                    }
+                    m.traverse((child) => {
+                        if (child.isMesh || child.isLineSegments) {
+                            if (child.geometry) child.geometry.dispose();
+                            if (child.material) {
+                                if (Array.isArray(child.material)) child.material.forEach(mat => mat.dispose());
+                                else child.material.dispose();
+                            }
+                        }
+                    });
                     window.Scene3D.scene.remove(m);
                 });
                 window.Scene3D.currentMesh = null;
