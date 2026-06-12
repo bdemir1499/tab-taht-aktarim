@@ -812,9 +812,9 @@ sliderContainer.innerHTML = `
     <input type="range" id="shape-slider" min="0" max="100" value="0">
 `;
 const leftPanel = document.querySelector('.left-panel');
-const oyunlarOptions = document.getElementById('oyunlar-options');
-if (leftPanel && oyunlarOptions) {
-    leftPanel.insertBefore(sliderContainer, oyunlarOptions.nextSibling);
+const btnOyunlarOptions = document.getElementById('oyunlar-options');
+if (leftPanel && btnOyunlarOptions) {
+    leftPanel.insertBefore(sliderContainer, btnOyunlarOptions.nextSibling);
 } else {
     document.body.appendChild(sliderContainer);
 }
