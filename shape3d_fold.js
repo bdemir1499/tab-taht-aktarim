@@ -112,11 +112,10 @@ window.Foldable3D = {
                     topGeo.rotateX(-Math.PI / 2); // Yukarı baksın ve -Z'ye (içeri) uzansın
                     const topMesh = createFaceMesh(topGeo);
                     topHinge.add(topMesh);
-                    group.userData.hinges.push({ obj: topHinge, maxAngle: -Math.PI / 2, initialAngle: 0, axis: 'x' }); // DIŞA ve YUKARI açılsın
+                    group.userData.hinges.push({ obj: topHinge, maxAngle: Math.PI / 2, initialAngle: 0, axis: 'x' }); // DIŞA ve YUKARI açılsın
                     
                     const topLabel = createLabelMesh(faceCounter.toString() + " (ÜST)", '#aaffaa', r*1.5, r*1.5);
                     topLabel.rotation.x = -Math.PI / 2;
-                    topLabel.rotateZ(Math.PI); // Açıldığında düz görünmesi için yerel Z ekseninde çevir
                     topLabel.position.set(0, 0, 0);
                     topHinge.add(topLabel);
                     faceCounter++;
@@ -137,11 +136,10 @@ window.Foldable3D = {
                     bottomGeo.rotateX(Math.PI / 2); // Aşağı baksın ve -Z'ye (içeri) uzansın
                     const bottomMesh = createFaceMesh(bottomGeo);
                     bottomHinge.add(bottomMesh);
-                    group.userData.hinges.push({ obj: bottomHinge, maxAngle: Math.PI / 2, initialAngle: 0, axis: 'x' }); // DIŞA ve AŞAĞI açılsın
+                    group.userData.hinges.push({ obj: bottomHinge, maxAngle: -Math.PI / 2, initialAngle: 0, axis: 'x' }); // DIŞA ve AŞAĞI açılsın
 
                     const bottomLabel = createLabelMesh(faceCounter.toString() + " (ALT)", '#aaaaff', r*1.5, r*1.5);
                     bottomLabel.rotation.x = Math.PI / 2;
-                    bottomLabel.rotateZ(Math.PI); // Açıldığında düz görünmesi için yerel Z ekseninde çevir
                     bottomLabel.position.set(0, 0, 0);
                     bottomHinge.add(bottomLabel);
                     faceCounter++;
@@ -311,8 +309,8 @@ window.Foldable3D = {
                 const qClosed = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
                 const qOuterInverse = group.quaternion.clone().invert();
                 
-                // Tam açıldığında kendi Y ekseni etrafında 180 derece (Math.PI) dönerek şeridin ön yüzünü kameraya çevirsin
-                const qSpin = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+                // Tam açıldığında kendi Z ekseni (dik eksen) etrafında 180 derece (Math.PI) dönerek şeridin ön yüzünü kameraya çevirsin
+                const qSpin = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI);
                 const targetWorld = qClosed.clone().multiply(qSpin);
                 const qOpenTarget = qOuterInverse.multiply(targetWorld);
                 
