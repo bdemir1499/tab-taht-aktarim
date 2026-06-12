@@ -1927,8 +1927,13 @@ function undoLastStroke() {
         if (popped && popped.type === '3d_shape' && window.Scene3D && window.Scene3D.scene) {
             const meshToRemove = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === popped.id);
             if (meshToRemove) {
+                if (meshToRemove.geometry) meshToRemove.geometry.dispose();
+                if (meshToRemove.material) {
+                    if (Array.isArray(meshToRemove.material)) meshToRemove.material.forEach(mat => mat.dispose());
+                    else meshToRemove.material.dispose();
+                }
                 window.Scene3D.scene.remove(meshToRemove);
-                window.Scene3D.currentMesh = null;
+                if (window.Scene3D.currentMesh === meshToRemove) window.Scene3D.currentMesh = null;
                 window.Scene3D.updateHandlePositions();
             }
         }
@@ -1954,10 +1959,18 @@ function clearAllStrokes() {
     window.drawnStrokes = drawnStrokes; 
     
     // 🚨 HEPSİNİ SİLERKEN 3D SAHNEYİ TAMAMEN SIFIRLA
-    if (window.Scene3D && window.Scene3D.currentMesh) {
-        window.Scene3D.scene.remove(window.Scene3D.currentMesh);
+    if (window.Scene3D && window.Scene3D.scene) {
+        const toRemove = window.Scene3D.scene.children.filter(c => c.type === 'Mesh' || c.type === 'Group');
+        toRemove.forEach(m => {
+            if (m.geometry) m.geometry.dispose();
+            if (m.material) {
+                if (Array.isArray(m.material)) m.material.forEach(mat => mat.dispose());
+                else m.material.dispose();
+            }
+            window.Scene3D.scene.remove(m);
+        });
         window.Scene3D.currentMesh = null;
-        window.Scene3D.updateHandlePositions();
+        if (typeof window.Scene3D.updateHandlePositions === 'function') window.Scene3D.updateHandlePositions();
     }
 
     // 3. Tarayıcıdaki eski kayıtları temizle (Eğer PC veya Tablette localStorage kullanıyorsan)
@@ -5788,7 +5801,24 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH) {
             if (window.redrawAllStrokes) window.redrawAllStrokes();
         }
 
-        if (data.type === 'geri_al') { window.drawnStrokes.pop(); if (window.redrawAllStrokes) window.redrawAllStrokes(); }
+        if (data.type === 'geri_al') { 
+            const popped = window.drawnStrokes.pop(); 
+            // 🚨 3D ŞEKİLSE GERİ ALIRKEN PC SAHNESİNDEN DE KALDIR
+            if (popped && popped.type === '3d_shape' && window.Scene3D && window.Scene3D.scene) {
+                const meshToRemove = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === popped.id);
+                if (meshToRemove) {
+                    if (meshToRemove.geometry) meshToRemove.geometry.dispose();
+                    if (meshToRemove.material) {
+                        if (Array.isArray(meshToRemove.material)) meshToRemove.material.forEach(mat => mat.dispose());
+                        else meshToRemove.material.dispose();
+                    }
+                    window.Scene3D.scene.remove(meshToRemove);
+                    if (window.Scene3D.currentMesh === meshToRemove) window.Scene3D.currentMesh = null;
+                    window.Scene3D.updateHandlePositions();
+                }
+            }
+            if (window.redrawAllStrokes) window.redrawAllStrokes(); 
+        }
         else if (data.type === 'hepsini_sil') { 
             // PC İÇİN KESİN ÇÖZÜM: Hafıza bağlantısını koparmadan filtreleme yapıyoruz!
             const korunacakZeminler = window.drawnStrokes.filter(stroke => stroke.isBackground === true);
@@ -5796,6 +5826,21 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH) {
             window.drawnStrokes.length = 0; // 1. Orijinal hafızanın içini tamamen boşalt
             window.drawnStrokes.push(...korunacakZeminler); // 2. Sadece PDF ve arka planları geri koy
             
+            // 🚨 PC'NİN 3D UZAYINI TAMAMEN TEMİZLE 🚨
+            if (window.Scene3D && window.Scene3D.scene) {
+                const toRemove = window.Scene3D.scene.children.filter(c => c.type === 'Mesh' || c.type === 'Group');
+                toRemove.forEach(m => {
+                    if (m.geometry) m.geometry.dispose();
+                    if (m.material) {
+                        if (Array.isArray(m.material)) m.material.forEach(mat => mat.dispose());
+                        else m.material.dispose();
+                    }
+                    window.Scene3D.scene.remove(m);
+                });
+                window.Scene3D.currentMesh = null;
+                if (typeof window.Scene3D.updateHandlePositions === 'function') window.Scene3D.updateHandlePositions();
+            }
+
             // PC tarafındaki kayıtlı veriyi de temizle (LocalStorage)
             if (window.localStorage) {
                 window.localStorage.removeItem('drawnStrokes'); 
