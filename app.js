@@ -5427,6 +5427,13 @@ function setupConnectionEvents() {
 // =========================================================
 window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
     if (!stroke || !senderW || !senderH) return stroke;
+    
+    // 🚨 3D ŞEKİL KORUMASI 🚨
+    // 3D şekiller WebGL (OrthographicCamera) içinde zaten normalize edilmiş koordinatlar (-1 ile 1 arası)
+    // ve sabit frustumSize (30) kullanır. Bu yüzden 2D canvas/css ölçeklendirmesinden (sx, sy, dpr) TAMAMEN MUAF tutulmalıdır.
+    // Aksi halde PC'ye geçerken çift ölçeklenerek devasa boyutlara ulaşırlar!
+    if (stroke.type === '3d_shape') return stroke;
+
     const myW = window.innerWidth;
     const myH = window.innerHeight;
     
