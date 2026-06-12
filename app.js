@@ -811,7 +811,13 @@ sliderContainer.innerHTML = `
     <label>Açınım (Katlama)</label>
     <input type="range" id="shape-slider" min="0" max="100" value="0">
 `;
-document.body.appendChild(sliderContainer);
+const leftPanel = document.querySelector('.left-panel');
+const oyunlarOptions = document.getElementById('oyunlar-options');
+if (leftPanel && oyunlarOptions) {
+    leftPanel.insertBefore(sliderContainer, oyunlarOptions.nextSibling);
+} else {
+    document.body.appendChild(sliderContainer);
+}
 const shapeSlider = document.getElementById('shape-slider');
 
 // Alan / Hacim Gösterge Kutusunu HTML'e Otomatik Ekle
@@ -1948,9 +1954,8 @@ function clearAllStrokes() {
     window.drawnStrokes = drawnStrokes; 
     
     // 🚨 HEPSİNİ SİLERKEN 3D SAHNEYİ TAMAMEN SIFIRLA
-    if (window.Scene3D && window.Scene3D.scene) {
-        const toRemove = window.Scene3D.scene.children.filter(c => c.type === 'Mesh' && c !== window.Scene3D.helperGroup);
-        toRemove.forEach(m => window.Scene3D.scene.remove(m));
+    if (window.Scene3D && window.Scene3D.currentMesh) {
+        window.Scene3D.scene.remove(window.Scene3D.currentMesh);
         window.Scene3D.currentMesh = null;
         window.Scene3D.updateHandlePositions();
     }

@@ -17,22 +17,7 @@ window.Foldable3D = {
         };
 
         const createLabelMesh = (text, color, w, h) => {
-            const canvas = document.createElement('canvas');
-            canvas.width = 128;
-            canvas.height = 128;
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = color || '#ffffff';
-            ctx.fillRect(0, 0, 128, 128);
-            ctx.fillStyle = '#000000';
-            ctx.font = 'bold 50px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(text, 64, 64);
-            const texture = new THREE.CanvasTexture(canvas);
-            const mat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
-            const geo = new THREE.PlaneGeometry(w * 0.6, h * 0.6);
-            geo.translate(0, 0, 0.05); // Z-fighting engellemek için hafif öne al
-            return new THREE.Mesh(geo, mat);
+            return new THREE.Group(); // İsteğiniz üzerine etiketler kaldırıldı
         };
 
         let faceCounter = 1;
