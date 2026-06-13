@@ -3082,8 +3082,8 @@ canvas.addEventListener('pointermove', (e) => {
     if (e.pointerType === 'mouse') { let hasTouch = false; for (let p of pointers.values()) if (p.pointerType === 'touch' || p.pointerType === 'pen') hasTouch = true; if (hasTouch) return; }
     pointers.set(e.pointerId, e); 
 
-    // --- TABLET/PARDUS: İKİ PARMAK ZOOM ---
-    if (pointers.size === 2 || (e.touches && e.touches.length === 2)) {
+    // --- TABLET/PARDUS: İKİ PARMAK ZOOM (SADECE TAŞI ARACI SEÇİLİYKEN ÇALIŞSIN) ---
+    if ((pointers.size === 2 || (e.touches && e.touches.length === 2)) && currentTool === 'move') {
         let p1x, p1y, p2x, p2y;
         if (e.touches && e.touches.length === 2) { p1x = e.touches[0].clientX; p1y = e.touches[0].clientY; p2x = e.touches[1].clientX; p2y = e.touches[1].clientY; } 
         else { const p = Array.from(pointers.values()); p1x = p[0].clientX; p1y = p[0].clientY; p2x = p[1].clientX; p2y = p[1].clientY; }
@@ -6848,12 +6848,12 @@ window.addEventListener('load', () => {
         const menuPrizmalar = document.createElement('div'); menuPrizmalar.id = 'options-prizmalar'; menuPrizmalar.className = 'tool-options hidden';
         menuPrizmalar.style.cssText = `position: absolute; left: 100%; margin-left: 10px; top: 0; z-index: 21; background-color: rgba(30, 30, 46, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 15px 35px rgba(0,0,0,0.4); padding: 15px; border-radius: 15px; display: flex; flex-direction: column; gap: 8px; width: 180px;`;
         menuPrizmalar.innerHTML = `<button class="tool-button-sub" data-3d="3d_kup">Küp</button><button class="tool-button-sub" data-3d="3d_silindir">Silindir</button><button class="tool-button-sub" data-3d="3d_ucgen_prizma">Üçgen Prizma</button><button class="tool-button-sub" data-3d="3d_dortgen_prizma">Dörtgen Prizma</button><button class="tool-button-sub" data-3d="3d_besgen_prizma">Beşgen Prizma</button><button class="tool-button-sub" data-3d="3d_altigen_prizma">Altıgen Prizma</button>`;
-        menu3D.appendChild(menuPrizmalar);
+        document.body.appendChild(menuPrizmalar); // viewport'a göre pozisyonlamak için body'ye eklendi
 
         const menuPiramitler = document.createElement('div'); menuPiramitler.id = 'options-piramitler'; menuPiramitler.className = 'tool-options hidden';
         menuPiramitler.style.cssText = `position: absolute; left: 100%; margin-left: 10px; top: 40px; z-index: 21; background-color: rgba(30, 30, 46, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 15px 35px rgba(0,0,0,0.4); padding: 15px; border-radius: 15px; display: flex; flex-direction: column; gap: 8px; width: 180px;`;
         menuPiramitler.innerHTML = `<button class="tool-button-sub" data-3d="3d_koni">Koni</button><button class="tool-button-sub" data-3d="3d_ucgen_piramit">Üçgen Piramit</button><button class="tool-button-sub" data-3d="3d_kare_piramit">Kare Piramit</button><button class="tool-button-sub" data-3d="3d_besgen_piramit">Beşgen Piramit</button><button class="tool-button-sub" data-3d="3d_altigen_piramit">Altıgen Piramit</button>`;
-        menu3D.appendChild(menuPiramitler);
+        document.body.appendChild(menuPiramitler); // viewport'a göre pozisyonlamak için body'ye eklendi
 
         btn3D.addEventListener('click', (e) => {
             e.stopPropagation(); document.querySelectorAll('.tool-options').forEach(m => { if(m !== menu3D && m !== menuPrizmalar && m !== menuPiramitler) { m.classList.add('hidden'); m.style.display = 'none'; } });
