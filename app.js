@@ -6461,8 +6461,9 @@ window.Scene3D = {
         }
         const vec = this.currentMesh.position.clone();
         vec.project(this.camera);
-        const w = window.innerWidth / 2, h = window.innerHeight / 2;
-        const px = (vec.x * w) + w, py = -(vec.y * h) + h;
+        const rect = (this.renderer && this.renderer.domElement) ? this.renderer.domElement.getBoundingClientRect() : {width: window.innerWidth, height: window.innerHeight, left: 0, top: 0};
+        const w = rect.width / 2, h = rect.height / 2;
+        const px = (vec.x * w) + w + rect.left, py = -(vec.y * h) + h + rect.top;
         
         this.handles.center = { x: px, y: py };
         
@@ -6491,11 +6492,13 @@ window.Scene3D = {
 
    // 🚨 3D TABLET HATASI ÇÖZÜMÜ: Ekranın tamamı değil, çizim kutusunun gerçek sınırları baz alınır!
     getNormalizedCoords: function(clientX, clientY) {
-        // clientX ve clientY zaten canvas'a göre (rect.left çıkarılmış) gelir!
-        // O yüzden sadece CSS genişliğine (window.innerWidth) bölmek yeterlidir.
+        if (!this.renderer || !this.renderer.domElement) {
+            return { x: (clientX / window.innerWidth) * 2 - 1, y: -(clientY / window.innerHeight) * 2 + 1 };
+        }
+        const rect = this.renderer.domElement.getBoundingClientRect();
         return {
-            x: (clientX / window.innerWidth) * 2 - 1,
-            y: -(clientY / window.innerHeight) * 2 + 1
+            x: ((clientX - rect.left) / rect.width) * 2 - 1,
+            y: -((clientY - rect.top) / rect.height) * 2 + 1
         };
     },
 
@@ -6650,9 +6653,10 @@ window.Scene3D = {
                     // 2D Merkez noktasını (x,y) Formül kutusu için de güncelle
                     const vec = this.currentMesh.position.clone();
                     vec.project(this.camera);
-                    const w = window.innerWidth / 2, h = window.innerHeight / 2;
-                    sd.x = ((vec.x * w) + w) - (sd.width / 2);
-                    sd.y = (-(vec.y * h) + h) - (sd.height / 2);
+                    const rect = (this.renderer && this.renderer.domElement) ? this.renderer.domElement.getBoundingClientRect() : {width: window.innerWidth, height: window.innerHeight, left: 0, top: 0};
+                    const w = rect.width / 2, h = rect.height / 2;
+                    sd.x = ((vec.x * w) + w + rect.left) - (sd.width / 2);
+                    sd.y = (-(vec.y * h) + h + rect.top) - (sd.height / 2);
                     
                     window.selectedItem = sd;
 
@@ -6714,10 +6718,11 @@ window.Scene3D = {
             // 🚨 SİHİRLİ DOKUNUŞ: 3D Şeklin 2D Çizim Noktasını Tam İsabet Hesapla! (Ortaya kaçmaz)
             const vec = solidShape.position.clone();
             vec.project(this.camera);
-            const w = window.innerWidth / 2;
-            const h = window.innerHeight / 2;
-            const screenX = (vec.x * w) + w;
-            const screenY = -(vec.y * h) + h;
+            const rect = (this.renderer && this.renderer.domElement) ? this.renderer.domElement.getBoundingClientRect() : {width: window.innerWidth, height: window.innerHeight, left: 0, top: 0};
+            const w = rect.width / 2;
+            const h = rect.height / 2;
+            const screenX = (vec.x * w) + w + rect.left;
+            const screenY = -(vec.y * h) + h + rect.top;
 
             const networkData = {
                 type: '3d_shape', id: Date.now().toString() + Math.random(), shapeType: this.activeTool,
