@@ -2940,6 +2940,17 @@ canvas.addEventListener('pointerdown', (e) => {
     // 🚨 SİHİRLİ DOKUNUŞ 1: Ne olursa olsun ÖNCE tarayıcının yerleşik kaydırmasını (titremeyi) kilitliyoruz!
     if (e.cancelable) e.preventDefault();
 
+    // Tablet dikey konumdayken (veya genel olarak) çizime başlandığında tüm açık menüleri kapat
+    if (window.innerWidth <= 768) {
+        document.querySelectorAll('.tool-options').forEach(m => {
+            m.classList.add('hidden');
+            m.style.display = 'none';
+        });
+        document.querySelectorAll('.tool-button.active, .tool-button-sub.active').forEach(b => {
+            if (b.id !== 'btn-3d-menu' && b.id !== 'btn-tool-color') b.classList.remove('active');
+        });
+    }
+
     // AKILLI TAHTA YAMASI:
     if (e.pointerType === 'pen') {
         isPenActive = true;
@@ -6848,12 +6859,12 @@ window.addEventListener('load', () => {
         const menuPrizmalar = document.createElement('div'); menuPrizmalar.id = 'options-prizmalar'; menuPrizmalar.className = 'tool-options hidden';
         menuPrizmalar.style.cssText = `position: absolute; left: 100%; margin-left: 10px; top: 0; z-index: 21; background-color: rgba(30, 30, 46, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 15px 35px rgba(0,0,0,0.4); padding: 15px; border-radius: 15px; display: flex; flex-direction: column; gap: 8px; width: 180px;`;
         menuPrizmalar.innerHTML = `<button class="tool-button-sub" data-3d="3d_kup">Küp</button><button class="tool-button-sub" data-3d="3d_silindir">Silindir</button><button class="tool-button-sub" data-3d="3d_ucgen_prizma">Üçgen Prizma</button><button class="tool-button-sub" data-3d="3d_dortgen_prizma">Dörtgen Prizma</button><button class="tool-button-sub" data-3d="3d_besgen_prizma">Beşgen Prizma</button><button class="tool-button-sub" data-3d="3d_altigen_prizma">Altıgen Prizma</button>`;
-        document.body.appendChild(menuPrizmalar); // viewport'a göre pozisyonlamak için body'ye eklendi
+        menu3D.appendChild(menuPrizmalar); // viewport hatası düzeltildi, tekrar menu3D'ye eklendi
 
         const menuPiramitler = document.createElement('div'); menuPiramitler.id = 'options-piramitler'; menuPiramitler.className = 'tool-options hidden';
         menuPiramitler.style.cssText = `position: absolute; left: 100%; margin-left: 10px; top: 40px; z-index: 21; background-color: rgba(30, 30, 46, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 15px 35px rgba(0,0,0,0.4); padding: 15px; border-radius: 15px; display: flex; flex-direction: column; gap: 8px; width: 180px;`;
         menuPiramitler.innerHTML = `<button class="tool-button-sub" data-3d="3d_koni">Koni</button><button class="tool-button-sub" data-3d="3d_ucgen_piramit">Üçgen Piramit</button><button class="tool-button-sub" data-3d="3d_kare_piramit">Kare Piramit</button><button class="tool-button-sub" data-3d="3d_besgen_piramit">Beşgen Piramit</button><button class="tool-button-sub" data-3d="3d_altigen_piramit">Altıgen Piramit</button>`;
-        document.body.appendChild(menuPiramitler); // viewport'a göre pozisyonlamak için body'ye eklendi
+        menu3D.appendChild(menuPiramitler); // viewport hatası düzeltildi, tekrar menu3D'ye eklendi
 
         btn3D.addEventListener('click', (e) => {
             e.stopPropagation(); document.querySelectorAll('.tool-options').forEach(m => { if(m !== menu3D && m !== menuPrizmalar && m !== menuPiramitler) { m.classList.add('hidden'); m.style.display = 'none'; } });
@@ -6877,10 +6888,13 @@ window.addEventListener('load', () => {
                 if (typeof setActiveTool === 'function') setActiveTool('none');
                 
                 window.active3DShapeTool = 'draw_' + data3d; 
+                window.currentTool = 'draw_3d_' + data3d; // Çizim yapılabilmesi için currentTool da ayarlanmalı!
                 const btn3D = document.getElementById('btn-3d-menu');
                 if (btn3D) btn3D.classList.add('active'); 
                 const menu3D = document.getElementById('options-3d-main');
                 if (menu3D) { menu3D.classList.add('hidden'); menu3D.style.display = 'none'; }
+                if (menuPrizmalar) { menuPrizmalar.classList.add('hidden'); menuPrizmalar.style.display = 'none'; }
+                if (menuPiramitler) { menuPiramitler.classList.add('hidden'); menuPiramitler.style.display = 'none'; }
 
                 // 3D Motorunu Uyandır ve Aracı Ver
                 if (window.Scene3D) {

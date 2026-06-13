@@ -1191,10 +1191,18 @@ canvas {
     #btn-silgi::after { content: '🧽'; font-size: 16px; color: #fff; position: absolute; }
     #btn-kalem::after { content: '✏️'; font-size: 16px; color: #fff; position: absolute; }
     #btn-cizgi::after { content: '➖'; font-size: 16px; font-weight: bold; color: #fff; position: absolute; }
-    #btn-cetvel::after { content: '📐'; font-size: 16px; color: #fff; position: absolute; }
-    #btn-gonye::after { content: '🔺'; font-size: 16px; color: #fff; position: absolute; }
+    #btn-cetvel::after { content: '📏'; font-size: 16px; color: #fff; position: absolute; }
+    #btn-gonye::after { content: '📐'; font-size: 16px; color: #fff; position: absolute; }
     #btn-aciolcer::after { content: '🧭'; font-size: 16px; color: #fff; position: absolute; }
-    #btn-pergel::after { content: '📌'; font-size: 16px; color: #fff; position: absolute; }
+    
+    #btn-pergel::after { 
+        content: ''; 
+        position: absolute; 
+        width: 18px; 
+        height: 18px; 
+        background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="4" r="2" /><line x1="11" y1="5" x2="6" y2="20" /><line x1="13" y1="5" x2="18" y2="20" /><line x1="8" y1="13" x2="16" y2="13" /></svg>'); 
+        background-size: cover; 
+    }
     #btn-cokgenler::after { content: '⬟'; font-size: 16px; color: #fff; position: absolute; }
     
     /* 3D Cisimler butonu için özel yazı (simge yerine) */
@@ -1244,6 +1252,12 @@ canvas {
         left: 0;
         margin-left: 0;
         margin-top: 5px;
+    }
+    
+    #options-3d-main {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        background-color: rgba(30, 30, 46, 0.95) !important;
     }
     
     /* 3D Cisimlerin Alt Menüleri Ekranın En Sağında Açılsın ve Dikey Olsun */
