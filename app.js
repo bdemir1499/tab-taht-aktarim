@@ -3224,7 +3224,7 @@ canvas.addEventListener('pointermove', (e) => {
     if (['ruler', 'gonye', 'aciolcer', 'pergel', 'none'].includes(currentTool)) return;
     clearTimeout(snapHoverTimer);
     if (['point', 'straightLine', 'pen', 'segment'].includes(currentTool)) { const potentialSnap = findSnapPoint(pos); if (potentialSnap) { snapHoverTimer = setTimeout(() => { snapTarget = potentialSnap; snapIndicator.style.left = `${snapTarget.x}px`; snapIndicator.style.top = `${snapTarget.y}px`; snapIndicator.style.display = 'block'; }, 25); } else { snapTarget = null; snapIndicator.style.display = 'none'; } }
-    if (currentTool === 'eraser') { eraserPreview.style.left = `${pos.x}px`; eraserPreview.style.top = `${pos.y}px`; eraserPreview.style.display = 'block'; } else if (typeof eraserPreview !== 'undefined' && eraserPreview) eraserPreview.style.display = 'none';
+    if (currentTool === 'eraser') { eraserPreview.style.left = `${e.clientX}px`; eraserPreview.style.top = `${e.clientY}px`; eraserPreview.style.display = 'block'; } else if (typeof eraserPreview !== 'undefined' && eraserPreview) eraserPreview.style.display = 'none';
 
     let previewActive = false; const endPos = snapTarget || pos;
     const aktifCizimVarMi = isDrawingLine || isDrawingInfinityLine || isDrawingSegment || isDrawingRay || isDrawingRectangle || (window.tempPolygonData && window.tempPolygonData.center) || (currentTool === 'snapshot' && typeof snapshotStart !== 'undefined' && snapshotStart);
@@ -6614,7 +6614,8 @@ window.Scene3D = {
     onMove: function(x, y) {
         if (this.isRotatingHandle && this.currentMesh) {
             this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), (y - this.lastMousePos.y) * 0.01);
-            this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), (x - this.lastMousePos.x) * 0.01);
+            // Şeklin kendi ekseni etrafında (lokal Y) dönmesi için rotateY kullanıyoruz
+            this.currentMesh.rotateY((x - this.lastMousePos.x) * 0.01);
             this.lastMousePos = { x, y };
             this.updateHandlePositions();
             return;
@@ -7102,8 +7103,8 @@ canvasKatmanZirhi.innerHTML = `
     /* Çizim tahtasını 3D cisimlerin üstüne çıkarıyoruz */
     #drawing-canvas { position: relative !important; z-index: 50 !important; }
     
-    /* 3D uzay sahnesini çizimlerin arkasına itiyoruz */
-    #three-container { position: absolute !important; z-index: 10 !important; pointer-events: none !important; }
+    /* 3D uzay sahnesini PDF ve resimlerin üzerinde görebilmek için öne çıkarıyoruz */
+    #three-container { position: absolute !important; z-index: 60 !important; pointer-events: none !important; }
     
     /* 🔴 BUTONLARIN GERİ GELMESİNİ SAĞLAYAN EN ÜST KATMAN KORUMASI 🔴 */
     .panel, .panel *, button, .tool-button, .tool-button-sub, .tool-options, 

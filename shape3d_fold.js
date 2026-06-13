@@ -136,7 +136,7 @@ window.Foldable3D = {
             group.userData.shiftX = (actualSideWidth / 2) * (1 - sides);
         } 
         // PİRAMİTLER (Yaprak gibi dışa doğru açılır)
-        else if (type.startsWith('pyramid_')) {
+        else if (type.startsWith('pyramid_') && type !== 'pyramid_cone') {
             let sides = 4;
             if (type === 'pyramid_3') sides = 3;
             if (type === 'pyramid_4') sides = 4;
@@ -200,55 +200,85 @@ window.Foldable3D = {
                 group.userData.hinges.push({ obj: hinge, maxAngle: Math.PI / 2, initialAngle: -inwardAngle, axis: 'x' });
             }
         }
-        // KONİ (Daire dilimi şeklinde açılır)
+        // KONİ (Gerçek daire dilimi ve taban şeklinde açılır)
         else if (type === 'pyramid_cone') {
             const r = size;
-            const l = Math.sqrt(r * r + height * height); // Ana doğru
+            const h = height; 
+            const l = Math.sqrt(r * r + h * h); // Ana doğru (slant height)
+            const N = 32;
+            const Theta = (2 * Math.PI * r) / l; // Açınım sektör açısı
+
+            // 1. Yanal Yüzey (Kağıt Huni) - Özel Geometri
+            const geo = new THREE.BufferGeometry();
+            const vertices = new Float32Array((N + 2) * 3);
+            const indices = [];
+
+            // Tepe noktası (Apex) - Index 0
+            vertices[0] = 0; vertices[1] = h; vertices[2] = 0;
             
-            const sides = 32;
-            const apothem = r;
-            const sideWidth = 2 * Math.PI * r / sides;
-            const slantHeight = l;
-            const inwardAngle = Math.atan2(apothem, height);
-
-            // Taban (Sabit değil, açıldığında yana kayacak)
+            const initialVectors = [];
+            const targetVectors = [];
+            
+            for (let j = 0; j <= N; j++) {
+                // j = N/2 arka taraf (alpha = pi) olacak şekilde dağıt
+                const alpha_j = (j - N/2) * (Math.PI * 2 / N) + Math.PI;
+                const vx0 = r * Math.sin(alpha_j);
+                const vy0 = -h;
+                const vz0 = r * Math.cos(alpha_j);
+                initialVectors.push(new THREE.Vector3(vx0, vy0, vz0));
+                
+                // Açık Durum (Flat State)
+                const phi_j = (j - N/2) * (Theta / N);
+                const vx1 = l * Math.sin(phi_j);
+                const vy1 = -l * Math.cos(phi_j);
+                const vz1 = 0;
+                targetVectors.push(new THREE.Vector3(vx1, vy1, vz1));
+                
+                // İlk pozisyonları ayarla
+                vertices[(j+1)*3] = vx0;
+                vertices[(j+1)*3+1] = vy0 + h; // apex'e göre mutlak pozisyon
+                vertices[(j+1)*3+2] = vz0;
+                
+                if (j < N) {
+                    indices.push(0, j+1, j+2);
+                }
+            }
+            
+            geo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+            geo.setIndex(indices);
+            geo.computeVertexNormals();
+            
+            const lateralMesh = createFaceMesh(geo);
+            group.add(lateralMesh);
+            
+            group.userData.coneData = {
+                N: N,
+                h: h,
+                l: l,
+                initialVectors: initialVectors,
+                targetVectors: targetVectors,
+                mesh: lateralMesh
+            };
+            
+            // 2. Taban Dairesi ve Menteşe (Arka noktadan asılı)
             const baseHinge = new THREE.Group();
-            baseHinge.position.y = -height / 2;
+            baseHinge.position.set(0, 0, -r); // j=N/2 kapalı başlangıç konumu
             group.add(baseHinge);
+            
             const baseGeo = new THREE.CircleGeometry(r, 32);
-            baseGeo.rotateX(-Math.PI / 2);
+            baseGeo.rotateX(-Math.PI / 2); // XZ düzleminde yatay
             const baseMesh = createFaceMesh(baseGeo);
+            baseMesh.position.set(0, 0, r); // Merkeze göre offset
             baseHinge.add(baseMesh);
-
+            
             const baseLabel = createLabelMesh(faceCounter.toString() + " (ALT)", '#aaaaff', r*1.5, r*1.5);
             baseLabel.rotation.x = -Math.PI / 2;
+            baseLabel.position.set(0, 0, r);
             baseHinge.add(baseLabel);
-            faceCounter++;
-
-            // Yan yüzeyler (çiçek gibi açılır)
-            for (let i = 0; i < sides; i++) {
-                const angle = (i * Math.PI * 2) / sides;
-                const hinge = new THREE.Group();
-                hinge.position.set(Math.cos(angle) * apothem, -height / 2, -Math.sin(angle) * apothem);
-                hinge.rotation.order = 'YXZ'; // Önce X (içeri eğilme), sonra Y (yönelme) uygulanmalı
-                hinge.rotation.y = angle + Math.PI / 2; // İçeri bakması için yönlendirme
-                
-                const triGeo = new THREE.BufferGeometry();
-                const vertices = new Float32Array([
-                    -sideWidth / 2, 0, 0,
-                    sideWidth / 2, 0, 0,
-                    0, slantHeight, 0
-                ]);
-                triGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-                triGeo.computeVertexNormals();
-                
-                const triMesh = createFaceMesh(triGeo);
-                hinge.add(triMesh);
-                group.add(hinge);
-                
-                // Başlangıç (0) -> Kapalı (içeri eğik), Bitiş (1) -> Açık (dışarı yatay)
-                group.userData.hinges.push({ obj: hinge, maxAngle: Math.PI / 2, initialAngle: -inwardAngle, axis: 'x' });
-            }
+            
+            // Açıldığında -90 derecelik bir ek rotasyonla düzleme (XY) bakacak
+            group.userData.hinges.push({ obj: baseHinge, maxAngle: Math.PI / 2, initialAngle: 0, axis: 'x' });
+            group.userData.coneData.baseHinge = baseHinge;
         }
 
         // Şekil kapalıyken Z ekseni boyunca uzansın (böylece XY düzleminde dik durur)
@@ -266,13 +296,47 @@ window.Foldable3D = {
     },
 
     updateUnfold: function(group, openRatio) {
-        if (!group.userData.isFoldable || !group.userData.hinges) return;
+        if (!group.userData.isFoldable) return;
         
-        group.userData.hinges.forEach(h => {
-            const initial = h.initialAngle || 0;
-            const currentAngle = initial + (h.maxAngle - initial) * openRatio;
-            h.obj.rotation[h.axis] = currentAngle;
-        });
+        if (group.userData.hinges) {
+            group.userData.hinges.forEach(h => {
+                const initial = h.initialAngle || 0;
+                const currentAngle = initial + (h.maxAngle - initial) * openRatio;
+                h.obj.rotation[h.axis] = currentAngle;
+            });
+        }
+        
+        // Koni'nin özel matematiksel yüzey açınımı
+        if (group.userData.shapeType === 'pyramid_cone' && group.userData.coneData) {
+            const data = group.userData.coneData;
+            const positions = data.mesh.geometry.attributes.position.array;
+            
+            for (let j = 0; j <= data.N; j++) {
+                const v0 = data.initialVectors[j];
+                const v1 = data.targetVectors[j];
+                // SLERP yerine normalize edilmiş LERP kullanarak küresel interpole et
+                const current = new THREE.Vector3().lerpVectors(v0, v1, openRatio).normalize().multiplyScalar(data.l);
+                
+                positions[(j+1)*3] = current.x;
+                positions[(j+1)*3+1] = current.y + data.h;
+                positions[(j+1)*3+2] = current.z;
+                
+                // Menteşe pozisyonunu arka nokta (j = N/2) ile takip et
+                if (j === data.N / 2 && data.baseHinge) {
+                    data.baseHinge.position.set(current.x, current.y + data.h, current.z);
+                }
+            }
+            data.mesh.geometry.attributes.position.needsUpdate = true;
+            data.mesh.geometry.computeVertexNormals();
+            
+            // Wireframe çizgi ağını canlandır
+            data.mesh.children.forEach(child => {
+                if (child.isLineSegments) {
+                    child.geometry.dispose();
+                    child.geometry = new THREE.EdgesGeometry(data.mesh.geometry);
+                }
+            });
+        }
 
         // Şekil açıldıkça tam karşıdan görünmesi için rotasyonu otomatik olarak düzelt
         const inner = group.userData.innerGroup;
