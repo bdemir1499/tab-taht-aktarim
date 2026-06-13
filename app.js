@@ -2455,10 +2455,7 @@ undoButton.addEventListener('click', undoLastStroke);
 clearAllButton.addEventListener('click', clearAllStrokes);
 moveButton.addEventListener('click', () => setActiveTool(currentTool === 'move' ? 'none' : 'move'));
 
-// Sadece HTTP/HTTPS üzerinden çalışıyorsa worker yükle, aksi halde file:/// CORS hatası verir ve PDF hiç açılmaz!
-if (window.location.protocol !== 'file:') {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
-}
+// (İşçi Motor (Worker) artık index.html'den <script> olarak yükleniyor, CORS hatası önlendi)
 
 if (prevPageBtn && nextPageBtn) {
     
@@ -2525,10 +2522,8 @@ if (uploadButton && fileInput) {
                 // 1. AĞA GÖNDERMEK İÇİN (Base64 Metni Olarak)
                 const base64String = this.result; 
 
-                // 🚨 KESİN ÇÖZÜM: Koca PDF dosyasını PC'nin kendi okuması için ağa fırlat!
-                if (typeof isConnected !== 'undefined' && isConnected) {
-                    window.sendNetworkData({ type: 'pdf_yukle', pdfData: base64String });
-                }
+                // PC'nin PDF'i kendisinin okuması sistemi (CORS sorunları nedeniyle) iptal edildi.
+                // Artık tablet PDF sayfasını resim (Canvas) olarak çizip PC'ye o anki sayfayı resim olarak aktaracak.
                 
                 // 2. TABLET EKRANI İÇİN (PDF.js'in anladığı formata geri çeviriyoruz)
                 const base64Data = base64String.split(',')[1];
@@ -3907,11 +3902,12 @@ function addNewImageToCanvas(img, isPDF = false, pcKordinatlari = null) {
 
     redrawAllStrokes();
 
-    // 🚨 NİHAİ ÇÖZÜM: PC zaten PDF'i kendi çiziyor, 20MB resmi yollama! Sadece koordinatları yolla!
+    // 🚨 NİHAİ ÇÖZÜM: Tablet PDF sayfasını veya resmi yüklediğinde,
+    // o anki sayfanın yüksek çözünürlüklü halini doğrudan resim olarak PC'ye fırlatır!
     if (!pcKordinatlari && typeof isConnected !== 'undefined' && isConnected) {
         window.sendNetworkData({
             type: 'arka_plan_resmi_aktar', 
-            imgData: isPDF ? "SADECE_KOORDINAT" : img.src,
+            imgData: img.src, // Artık SADECE_KOORDINAT yok, resmi veriyoruz!
             isPDF: isPDF,
             kordinatlar: { x: newStroke.x, y: newStroke.y, width: newStroke.width, height: newStroke.height }
         });
@@ -5689,39 +5685,7 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
 
 // 🚨 YENİ ALICI: TABLETTEN GELEN KUSURSUZ RESMİ VE PDF'İ EKRANA ÇİZER
         if (data.type === 'arka_plan_resmi_aktar') {
-            // PDF sayfaları için devasa resim gelmez, sadece hizalama koordinatları gelir!
-            if (data.isPDF && data.imgData === "SADECE_KOORDINAT") {
-                setTimeout(() => {
-                    let zemin = window.drawnStrokes.find(s => s.isBackground === true);
-                    if (zemin && data.kordinatlar) {
-                        let sx = 1, sy = 1;
-                        if (data.cssW && data.cssH && Math.abs(data.cssW - window.innerWidth) >= 5) {
-                            sx = window.innerWidth / data.cssW;
-                            sy = window.innerHeight / data.cssH;
-                        }
-                        
-                        // 🚨 KESİN ÇÖZÜM: Resmin sündürülmesini engelle ve ekranın tam merkezine orantılı oturt!
-                        const scale = Math.min(sx, sy);
-                        const cx_tab = (data.cssW || window.innerWidth) / 2;
-                        const cy_tab = (data.cssH || window.innerHeight) / 2;
-                        const cx_pc = window.innerWidth / 2;
-                        const cy_pc = window.innerHeight / 2;
-
-                        const img_cx_tab = data.kordinatlar.x + (data.kordinatlar.width / 2);
-                        const img_cy_tab = data.kordinatlar.y + (data.kordinatlar.height / 2);
-                        const dx = (img_cx_tab - cx_tab) * scale;
-                        const dy = (img_cy_tab - cy_tab) * scale;
-
-                        zemin.width = data.kordinatlar.width * scale;
-                        zemin.height = data.kordinatlar.height * scale;
-                        zemin.x = (cx_pc + dx) - (zemin.width / 2);
-                        zemin.y = (cy_pc + dy) - (zemin.height / 2);
-                        
-                        if (window.redrawAllStrokes) window.redrawAllStrokes();
-                    }
-                }, 200); // PC'nin kendi PDF'ini çizmesi için mini bir an bekleyip koordinatları kitleriz
-                return;
-            }
+            // (SADECE_KOORDINAT bypass iptal edildi. Artık PDF sayfası her değiştiğinde resim olarak gelecek)
 
             // Normal JPG/PNG resimler aynen aktarılır
             const img = new Image();
@@ -5991,26 +5955,8 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
             console.log("PC: Silme komutu alındı. Çizimler ve kopyalar uçuruldu, sadece zemin korundu.");
         }
         
-        if (data.type === 'pdf_yukle') { 
-            try {
-                const base64Data = data.pdfData.split(',')[1];
-                const binaryString = window.atob(base64Data);
-                const len = binaryString.length;
-                const bytes = new Uint8Array(len);
-                for (let i = 0; i < len; i++) { bytes[i] = binaryString.charCodeAt(i); }
-                if (typeof pdfjsLib !== 'undefined') {
-                    pdfjsLib.getDocument(bytes).promise.then(pdf => {
-                        window.currentPDF = pdf; window.totalPDFPages = pdf.numPages; window.currentPDFPage = 1;
-                        if (document.getElementById('pdf-controls')) document.getElementById('pdf-controls').classList.remove('hidden');
-                        if (typeof renderPDFPage === 'function') renderPDFPage(1);
-                    }).catch(e => {
-                        console.error("PC PDF Yükleme Hatası (Worker veya Parse):", e);
-                    });
-                }
-            } catch (e) { console.error("PDF Hatası:", e); }
-        }
-
-        if (data.type === 'pdf_sayfa_degis') { window.currentPDFPage = data.sayfa; if (typeof renderPDFPage === 'function') renderPDFPage(window.currentPDFPage); }
+        // (pdf_yukle ve pdf_sayfa_degis alıcıları iptal edildi. 
+        // Çünkü PC artık PDF'i kendi okumaya çalışmıyor, tablet ona hazır çizilmiş resmini atıyor)
         
         // 🚨 NİHAİ ÇÖZÜM: Yeni Sayfa veya Resim geldiğinde PC ekranına KUSURSUZ yansıt 🚨
         if (data.type === 'arka_plan_resmi_aktar') {
