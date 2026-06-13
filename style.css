@@ -1151,6 +1151,12 @@ canvas {
         z-index: 20000;
     }
     
+    #slider-container {
+        width: 170px !important;
+        flex: 0 0 170px !important;
+        margin-top: 5px !important;
+    }
+    
     /* Sağ panel ekranın üst-sağ köşesine, yan yana dizilim */
     .right-panel {
         top: 5px;

@@ -1291,7 +1291,7 @@ function redrawAllStrokes() {
 
             // 2. EĞER BU KESTİĞİMİZ BİR YÜZEN KOPYAYSA (CANLANDIR) EKRANA ÇİZ VE ÇERÇEVE EKLE
             let imgToDraw = null;
-            if (stroke.img && stroke.img instanceof HTMLImageElement) {
+            if (stroke.img && (stroke.img instanceof HTMLImageElement || stroke.img instanceof HTMLCanvasElement)) {
                 imgToDraw = stroke.img; 
             } else if (stroke.imgData) {
                 if (!stroke.imgObj) {
@@ -1302,7 +1302,7 @@ function redrawAllStrokes() {
                 imgToDraw = stroke.imgObj; 
             }
 
-            if (imgToDraw && (imgToDraw.complete || imgToDraw.readyState >= 2)) {
+            if (imgToDraw && (imgToDraw instanceof HTMLCanvasElement || imgToDraw.complete || imgToDraw.readyState >= 2)) {
                 ctx.save();
                 const centerX = stroke.x + (stroke.width / 2);
                 const centerY = stroke.y + (stroke.height / 2);
@@ -1629,13 +1629,13 @@ else if (stroke.type === 'rectangle') {
     for (const stroke of drawnStrokes) {
     if (stroke.type === 'image' && stroke.isBackground !== false) {
             let imgToDraw = null;
-            if (stroke.img && stroke.img instanceof HTMLImageElement) {
+            if (stroke.img && (stroke.img instanceof HTMLImageElement || stroke.img instanceof HTMLCanvasElement)) {
                 imgToDraw = stroke.img; 
             } else if (stroke.imgObj) {
                 imgToDraw = stroke.imgObj; 
             }
 
-            if (imgToDraw && (imgToDraw.complete || imgToDraw.readyState >= 2)) {
+            if (imgToDraw && (imgToDraw instanceof HTMLCanvasElement || imgToDraw.complete || imgToDraw.readyState >= 2)) {
                 ctx.save();
                 const centerX = stroke.x + (stroke.width / 2);
                 const centerY = stroke.y + (stroke.height / 2);
@@ -6691,8 +6691,12 @@ window.Scene3D = {
             this.scene.remove(this.previewMesh); this.previewMesh.geometry.dispose(); this.previewMesh = null;
             
             const isSphere = this.activeTool === 'sphere';
-            const mainMaterial = new THREE.MeshPhongMaterial({ color: 0x00ffcc, shininess: 100, specular: 0x111111, transparent: !isSphere, opacity: isSphere ? 1.0 : 0.4, depthWrite: isSphere, side: THREE.DoubleSide });
-            const edgeMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 });
+            const hasBackground = window.drawnStrokes && window.drawnStrokes.some(s => s.isBackground === true);
+            const shapeColor = hasBackground ? 0x222222 : 0x00ffcc;
+            const edgeColor = hasBackground ? 0x000000 : 0xffffff;
+            
+            const mainMaterial = new THREE.MeshPhongMaterial({ color: shapeColor, shininess: 100, specular: 0x111111, transparent: !isSphere, opacity: isSphere ? 1.0 : 0.4, depthWrite: isSphere, side: THREE.DoubleSide });
+            const edgeMaterial = new THREE.LineBasicMaterial({ color: edgeColor, transparent: true, opacity: 1.0 });
             
             let solidShape = null;
             if (window.Foldable3D) {
@@ -6795,8 +6799,12 @@ window.Scene3D = {
     addShapeFromNetwork: function(strokeData) {
         if (!this.isInit) this.init();
         const isSphere = strokeData.shapeType === 'sphere';
-        const mainMaterial = new THREE.MeshPhongMaterial({ color: 0x00ffcc, shininess: 100, specular: 0x111111, transparent: !isSphere, opacity: isSphere ? 1.0 : 0.4, depthWrite: isSphere, side: THREE.DoubleSide });
-        const edgeMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 });
+        const hasBackground = window.drawnStrokes && window.drawnStrokes.some(s => s.isBackground === true);
+        const shapeColor = hasBackground ? 0x222222 : 0x00ffcc;
+        const edgeColor = hasBackground ? 0x000000 : 0xffffff;
+        
+        const mainMaterial = new THREE.MeshPhongMaterial({ color: shapeColor, shininess: 100, specular: 0x111111, transparent: !isSphere, opacity: isSphere ? 1.0 : 0.4, depthWrite: isSphere, side: THREE.DoubleSide });
+        const edgeMaterial = new THREE.LineBasicMaterial({ color: edgeColor, transparent: true, opacity: 1.0 });
         
         let solidShape = null;
         if (window.Foldable3D) {

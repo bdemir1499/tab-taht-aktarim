@@ -227,8 +227,8 @@ window.Foldable3D = {
                 const vz0 = r * Math.cos(alpha_j);
                 initialVectors.push(new THREE.Vector3(vx0, vy0, vz0));
                 
-                // Açık Durum (Flat State)
-                const phi_j = (j - N/2) * (Theta / N);
+                // Açık Durum (Flat State) - Yönü ters çeviriyoruz ki çaprazlama olmasın
+                const phi_j = -(j - N/2) * (Theta / N);
                 const vx1 = l * Math.sin(phi_j);
                 const vy1 = -l * Math.cos(phi_j);
                 const vz1 = 0;
@@ -276,8 +276,8 @@ window.Foldable3D = {
             baseLabel.position.set(0, 0, r);
             baseHinge.add(baseLabel);
             
-            // Açıldığında -90 derecelik bir ek rotasyonla düzleme (XY) bakacak
-            group.userData.hinges.push({ obj: baseHinge, maxAngle: Math.PI / 2, initialAngle: 0, axis: 'x' });
+            // Açıldığında öne doğru sallanması için -90 derece rotasyon
+            group.userData.hinges.push({ obj: baseHinge, maxAngle: -Math.PI / 2, initialAngle: 0, axis: 'x' });
             group.userData.coneData.baseHinge = baseHinge;
         }
 
@@ -345,10 +345,10 @@ window.Foldable3D = {
             const tiltOffset = 0.25; 
 
             if (group.userData.shapeType.startsWith('pyramid_')) {
-                // Piramitleri normal düzlemde tut (Z yukarı bakar). Açıldığında arkaya değil ÖNE doğru eğilsin (Math.PI)
+                // Piramitleri normal düzlemde tut (Z yukarı bakar). Açıldığında arkaya yatmasın, dik dursun (Math.PI / 2)
                 const qClosed = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
                 const qOuterInverse = group.quaternion.clone().invert();
-                const qOpenTarget = qOuterInverse.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI - tiltOffset));
+                const qOpenTarget = qOuterInverse.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2));
                 
                 // Quaternion slerp ile pürüzsüz geçiş
                 inner.quaternion.copy(qClosed).slerp(qOpenTarget, openRatio);
