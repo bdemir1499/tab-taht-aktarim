@@ -5969,11 +5969,27 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
                     if (sonKoordinat && data.cssW && data.cssH && Math.abs(data.cssW - window.innerWidth) >= 5) {
                         const sx = window.innerWidth / data.cssW;
                         const sy = window.innerHeight / data.cssH;
+                        
+                        // 🚨 KESİN ÇÖZÜM: Resmin sündürülmesini engelle ve ekranın tam merkezine orantılı oturt!
+                        const scale = Math.min(sx, sy);
+                        const cx_tab = data.cssW / 2;
+                        const cy_tab = data.cssH / 2;
+                        const cx_pc = window.innerWidth / 2;
+                        const cy_pc = window.innerHeight / 2;
+
+                        const img_cx_tab = data.kordinatlar.x + (data.kordinatlar.width / 2);
+                        const img_cy_tab = data.kordinatlar.y + (data.kordinatlar.height / 2);
+                        const dx = (img_cx_tab - cx_tab) * scale;
+                        const dy = (img_cy_tab - cy_tab) * scale;
+                        
+                        const newWidth = data.kordinatlar.width * scale;
+                        const newHeight = data.kordinatlar.height * scale;
+
                         sonKoordinat = {
-                            x: data.kordinatlar.x * sx,
-                            y: data.kordinatlar.y * sy,
-                            width: data.kordinatlar.width * sx,
-                            height: data.kordinatlar.height * sy
+                            width: newWidth,
+                            height: newHeight,
+                            x: (cx_pc + dx) - (newWidth / 2),
+                            y: (cy_pc + dy) - (newHeight / 2)
                         };
                     }
                     addNewImageToCanvas(img, data.isPDF, sonKoordinat); 
