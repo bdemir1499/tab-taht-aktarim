@@ -1050,16 +1050,22 @@ canvas {
    ========================================= */
 #slider-container {
     display: none;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    position: fixed;
+    bottom: 20px;
+    left: 15px;
+    z-index: 20000;
+    width: 200px;
+    background: rgba(30, 30, 46, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 12px;
     padding: 10px;
-    margin-top: 5px;
     flex-direction: column;
     align-items: center;
     gap: 8px;
     box-sizing: border-box;
-    width: 100%;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
 }
 
 #slider-container label {
@@ -1152,9 +1158,11 @@ canvas {
     }
     
     #slider-container {
+        top: 55px !important;
+        bottom: auto !important;
+        left: 5px !important;
         width: 170px !important;
-        flex: 0 0 170px !important;
-        margin-top: 5px !important;
+        margin-top: 0 !important;
     }
     
     /* Sağ panel ekranın üst-sağ köşesine, yan yana dizilim */

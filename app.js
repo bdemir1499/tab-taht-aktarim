@@ -811,13 +811,8 @@ sliderContainer.innerHTML = `
     <label>Açınım (Katlama)</label>
     <input type="range" id="shape-slider" min="0" max="100" value="0">
 `;
-const leftPanel = document.querySelector('.left-panel');
-const btnOyunlarOptions = document.getElementById('oyunlar-options');
-if (leftPanel && btnOyunlarOptions) {
-    leftPanel.insertBefore(sliderContainer, btnOyunlarOptions.nextSibling);
-} else {
-    document.body.appendChild(sliderContainer);
-}
+// Sürgüyü her zaman dökümana bağla (sol panelden bağımsız, mutlak konumla yöneteceğiz)
+document.body.appendChild(sliderContainer);
 const shapeSlider = document.getElementById('shape-slider');
 
 // Alan / Hacim Gösterge Kutusunu HTML'e Otomatik Ekle
@@ -2941,7 +2936,7 @@ canvas.addEventListener('pointerdown', (e) => {
     if (e.cancelable) e.preventDefault();
 
     // Tablet dikey konumdayken (veya genel olarak) çizime başlandığında tüm açık menüleri kapat
-    if (window.innerWidth <= 768) {
+    if (window.innerWidth <= 1024 || window.innerHeight > window.innerWidth) {
         document.querySelectorAll('.tool-options').forEach(m => {
             m.classList.add('hidden');
             m.style.display = 'none';

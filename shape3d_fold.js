@@ -276,8 +276,8 @@ window.Foldable3D = {
             baseLabel.position.set(0, 0, r);
             baseHinge.add(baseLabel);
             
-            // Açıldığında öne doğru sallanması için -90 derece rotasyon
-            group.userData.hinges.push({ obj: baseHinge, maxAngle: -Math.PI / 2, initialAngle: 0, axis: 'x' });
+            // Açıldığında 180 derece ters yöne açılması istendi
+            group.userData.hinges.push({ obj: baseHinge, maxAngle: Math.PI / 2, initialAngle: 0, axis: 'x' });
             group.userData.coneData.baseHinge = baseHinge;
         }
 
