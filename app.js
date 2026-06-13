@@ -4273,6 +4273,11 @@ function lockScreenSize() {
     document.body.style.height = h + 'px';
     document.documentElement.style.width = w + 'px';
     document.documentElement.style.height = h + 'px';
+    
+    // 🚨 KESİN ÇÖZÜM: Kanvas boyutu değiştiğinde silinen çizimleri ve arka planı geri getir!
+    if (typeof window.redrawAllStrokes === 'function') {
+        window.redrawAllStrokes();
+    }
 }
 
 // 1. Sayfa yüklendiğinde boyutları kilitle
@@ -5531,12 +5536,28 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
                         sx = window.innerWidth / d.cssW;
                         sy = window.innerHeight / d.cssH;
                     }
+                    
+                    // 🚨 KESİN ÇÖZÜM: Tablet yan çevrildiğinde veya oranlar farklıysa, şekli uzatıp sündürme!
+                    // Oranları koruyarak (Math.min) merkeze göre hizala.
+                    const scale = Math.min(sx, sy);
+                    const cx_tab = (d.cssW || window.innerWidth) / 2;
+                    const cy_tab = (d.cssH || window.innerHeight) / 2;
+                    const cx_pc = window.innerWidth / 2;
+                    const cy_pc = window.innerHeight / 2;
+
                     const bgStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
                     bgStrokes.forEach(bg => { 
-                        if (d.x !== undefined) bg.x = d.x * sx; 
-                        if (d.y !== undefined) bg.y = d.y * sy;
-                        if (d.width !== undefined) bg.width = d.width * sx; 
-                        if (d.height !== undefined) bg.height = d.height * sy; 
+                        if (d.width !== undefined && d.height !== undefined && d.x !== undefined && d.y !== undefined) {
+                            const img_cx_tab = d.x + (d.width / 2);
+                            const img_cy_tab = d.y + (d.height / 2);
+                            const dx = (img_cx_tab - cx_tab) * scale;
+                            const dy = (img_cy_tab - cy_tab) * scale;
+                            
+                            bg.width = d.width * scale;
+                            bg.height = d.height * scale;
+                            bg.x = (cx_pc + dx) - (bg.width / 2);
+                            bg.y = (cy_pc + dy) - (bg.height / 2);
+                        }
                     });
                     if (window.redrawAllStrokes) window.redrawAllStrokes();
                 }
@@ -5625,10 +5646,24 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
                             sx = window.innerWidth / data.cssW;
                             sy = window.innerHeight / data.cssH;
                         }
-                        zemin.x = data.kordinatlar.x * sx;
-                        zemin.y = data.kordinatlar.y * sy;
-                        zemin.width = data.kordinatlar.width * sx;
-                        zemin.height = data.kordinatlar.height * sy;
+                        
+                        // 🚨 KESİN ÇÖZÜM: Resmin sündürülmesini engelle ve ekranın tam merkezine orantılı oturt!
+                        const scale = Math.min(sx, sy);
+                        const cx_tab = (data.cssW || window.innerWidth) / 2;
+                        const cy_tab = (data.cssH || window.innerHeight) / 2;
+                        const cx_pc = window.innerWidth / 2;
+                        const cy_pc = window.innerHeight / 2;
+
+                        const img_cx_tab = data.kordinatlar.x + (data.kordinatlar.width / 2);
+                        const img_cy_tab = data.kordinatlar.y + (data.kordinatlar.height / 2);
+                        const dx = (img_cx_tab - cx_tab) * scale;
+                        const dy = (img_cy_tab - cy_tab) * scale;
+
+                        zemin.width = data.kordinatlar.width * scale;
+                        zemin.height = data.kordinatlar.height * scale;
+                        zemin.x = (cx_pc + dx) - (zemin.width / 2);
+                        zemin.y = (cy_pc + dy) - (zemin.height / 2);
+                        
                         if (window.redrawAllStrokes) window.redrawAllStrokes();
                     }
                 }, 200); // PC'nin kendi PDF'ini çizmesi için mini bir an bekleyip koordinatları kitleriz
