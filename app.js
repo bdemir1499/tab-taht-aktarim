@@ -2455,7 +2455,10 @@ undoButton.addEventListener('click', undoLastStroke);
 clearAllButton.addEventListener('click', clearAllStrokes);
 moveButton.addEventListener('click', () => setActiveTool(currentTool === 'move' ? 'none' : 'move'));
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
+// Sadece HTTP/HTTPS üzerinden çalışıyorsa worker yükle, aksi halde file:/// CORS hatası verir ve PDF hiç açılmaz!
+if (window.location.protocol !== 'file:') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
+}
 
 if (prevPageBtn && nextPageBtn) {
     
@@ -5667,7 +5670,11 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
             if (!window.chunkBuffers[id]) window.chunkBuffers[id] = "";
             window.chunkBuffers[id] += data.data;
             if (data.isLast) {
-                try { veriyiIsle(JSON.parse(window.chunkBuffers[id])); } catch (e) {}
+                try { 
+                    veriyiIsle(JSON.parse(window.chunkBuffers[id])); 
+                } catch (e) {
+                    console.error("Parçalanmış veri birleştirme (Chunk Parse) hatası:", e);
+                }
                 delete window.chunkBuffers[id]; 
             }
             return;
@@ -5996,6 +6003,8 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
                         window.currentPDF = pdf; window.totalPDFPages = pdf.numPages; window.currentPDFPage = 1;
                         if (document.getElementById('pdf-controls')) document.getElementById('pdf-controls').classList.remove('hidden');
                         if (typeof renderPDFPage === 'function') renderPDFPage(1);
+                    }).catch(e => {
+                        console.error("PC PDF Yükleme Hatası (Worker veya Parse):", e);
                     });
                 }
             } catch (e) { console.error("PDF Hatası:", e); }
