@@ -1142,11 +1142,12 @@ canvas {
         left: 5px;
         transform: none;
         flex-direction: row;
-        flex-wrap: wrap;
+        flex-wrap: wrap !important; /* Eski haline getirildi, alt satıra inebilir */
+        overflow-x: visible; 
         width: auto;
-        max-width: 60vw; /* Tek satıra sığması için daha fazla alan */
+        max-width: 48vw; /* Eski haline getirildi */
         padding: 5px;
-        gap: 2px; /* Butonlar arası boşluğu kıstık */
+        gap: 5px;
         z-index: 20000;
     }
     
@@ -1156,15 +1157,18 @@ canvas {
         right: 5px;
         left: auto;
         transform: none;
-        flex-direction: row;
-        flex-wrap: wrap;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important; /* KESİNLİKLE alt satıra inme */
+        overflow-x: auto; /* Sığmazsa yatay kaydır */
         width: auto;
-        max-width: 40vw;
+        max-width: 65vw; /* Sağ panel biraz daha uzatıldı */
         padding: 5px;
         gap: 2px;
-        justify-content: flex-start; /* Sağ paneldeki butonları sola (panel içine) yasla */
+        justify-content: flex-end; /* Sola yaslamayı iptal et, normal sağda kalsın */
         z-index: 20000;
+        scrollbar-width: none;
     }
+    .right-panel::-webkit-scrollbar { display: none; }
     
     /* Buton boyutlarını küçült ve yazıları ikonlara dönüştür */
     .tool-button, .right-panel .tool-button {
@@ -1242,6 +1246,17 @@ canvas {
         margin-top: 5px;
     }
     
+    /* 3D Cisimlerin Alt Menüleri Ekranın En Sağında Açılsın ve Dikey Olsun */
+    #options-prizmalar, #options-piramitler {
+        position: fixed !important;
+        top: 50px !important; /* Üst menünün hemen altı */
+        right: 0 !important; /* Ekranın sağına yapışık */
+        left: auto !important;
+        margin-left: 0 !important;
+        flex-direction: column !important;
+        z-index: 25000 !important;
+    }
+    
     #snapshot-options {
         top: 100%;
         left: auto;
@@ -1250,13 +1265,26 @@ canvas {
         margin-top: 5px;
     }
     
-    /* PDF kapatma butonunu sağ panelin hemen altına al, hizalı olsun */
+    /* PDF kapatma butonu sol panelde tek satıra dahil edildi */
     .pdf-close-btn { 
-        top: 45px !important; 
-        right: 5px !important; 
+        position: relative !important;
+        top: auto !important; 
+        right: auto !important; 
         width: 32px !important; 
         height: 32px !important; 
         border-radius: 6px !important;
-        font-size: 8px !important;
+        padding: 0 !important;
+        font-size: 0 !important;
+        color: transparent !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .pdf-close-btn::after {
+        content: '✖';
+        font-size: 16px;
+        color: #fff;
+        position: absolute;
     }
 }
