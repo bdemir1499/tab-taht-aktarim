@@ -1144,9 +1144,9 @@ canvas {
         flex-direction: row;
         flex-wrap: wrap;
         width: auto;
-        max-width: 48vw;
+        max-width: 60vw; /* Tek satıra sığması için daha fazla alan */
         padding: 5px;
-        gap: 5px;
+        gap: 2px; /* Butonlar arası boşluğu kıstık */
         z-index: 20000;
     }
     
@@ -1159,51 +1159,53 @@ canvas {
         flex-direction: row;
         flex-wrap: wrap;
         width: auto;
-        max-width: 48vw;
+        max-width: 40vw;
         padding: 5px;
-        gap: 5px;
-        justify-content: flex-end;
+        gap: 2px;
+        justify-content: flex-start; /* Sağ paneldeki butonları sola (panel içine) yasla */
         z-index: 20000;
     }
     
     /* Buton boyutlarını küçült ve yazıları ikonlara dönüştür */
     .tool-button, .right-panel .tool-button {
-        width: 35px !important;
-        height: 35px !important;
+        width: 32px !important; /* Daha da küçültüldü ki tek satıra sığsın */
+        height: 32px !important;
         min-width: 0 !important;
         min-height: 0 !important;
         padding: 0 !important;
-        font-size: 0 !important; /* Mevcut yazıyı tamamen gizle */
-        color: transparent !important; /* Garanti gizleme */
+        font-size: 0 !important; 
+        color: transparent !important; 
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 8px;
+        border-radius: 6px;
         line-height: 0 !important;
         position: relative;
     }
 
     /* İkonları ekle */
-    #btn-silgi::after { content: '🧽'; font-size: 18px; color: #fff; position: absolute; }
-    #btn-kalem::after { content: '✏️'; font-size: 18px; color: #fff; position: absolute; }
-    #btn-cizgi::after { content: '📏'; font-size: 18px; color: #fff; position: absolute; }
-    #btn-cetvel::after { content: '📐'; font-size: 18px; color: #fff; position: absolute; }
-    #btn-gonye::after { content: '🔺'; font-size: 18px; color: #fff; position: absolute; }
-    #btn-aciolcer::after { content: '🧭'; font-size: 18px; color: #fff; position: absolute; }
-    #btn-pergel::after { content: '📌'; font-size: 18px; color: #fff; position: absolute; }
-    #btn-cokgenler::after { content: '⬟'; font-size: 18px; color: #fff; position: absolute; }
-    #btn-3d::after { content: '🧊'; font-size: 18px; color: #fff; position: absolute; }
-    #btn-oyunlar::after { content: '🎮'; font-size: 18px; color: #fff; position: absolute; }
+    #btn-silgi::after { content: '🧽'; font-size: 16px; color: #fff; position: absolute; }
+    #btn-kalem::after { content: '✏️'; font-size: 16px; color: #fff; position: absolute; }
+    #btn-cizgi::after { content: '📏'; font-size: 16px; color: #fff; position: absolute; }
+    #btn-cetvel::after { content: '📐'; font-size: 16px; color: #fff; position: absolute; }
+    #btn-gonye::after { content: '🔺'; font-size: 16px; color: #fff; position: absolute; }
+    #btn-aciolcer::after { content: '🧭'; font-size: 16px; color: #fff; position: absolute; }
+    #btn-pergel::after { content: '📌'; font-size: 16px; color: #fff; position: absolute; }
+    #btn-cokgenler::after { content: '⬟'; font-size: 16px; color: #fff; position: absolute; }
     
-    #btn-tool-color::after { content: '🎨'; font-size: 18px; color: #fff; position: absolute; }
-    #btn-undo::after { content: '↩️'; font-size: 18px; color: #fff; position: absolute; }
-    #btn-clear-all::after { content: '🗑️'; font-size: 18px; color: #fff; position: absolute; }
-    #btn-move::after { content: '🖐️'; font-size: 18px; color: #fff; position: absolute; }
+    /* 3D Cisimler butonu için özel yazı (simge yerine) */
+    #btn-3d-menu::after { content: '3D'; font-size: 14px !important; font-weight: bold; color: #fff; position: absolute; }
     
-    /* Resim yükle butonundaki satır atlama kodunu da yok ediyoruz */
+    #btn-oyunlar::after { content: '🎮'; font-size: 16px; color: #fff; position: absolute; }
+    
+    #btn-tool-color::after { content: '🎨'; font-size: 16px; color: #fff; position: absolute; }
+    #btn-undo::after { content: '↩️'; font-size: 16px; color: #fff; position: absolute; }
+    #btn-clear-all::after { content: '🗑️'; font-size: 16px; color: #fff; position: absolute; }
+    #btn-move::after { content: '🖐️'; font-size: 16px; color: #fff; position: absolute; }
+    
     #btn-upload::after { 
         content: '📄' !important; 
-        font-size: 18px !important; 
+        font-size: 16px !important; 
         color: #fff !important; 
         white-space: normal !important;
         position: absolute !important;
@@ -1211,7 +1213,26 @@ canvas {
         top: auto !important; left: auto !important;
     }
     
-    #btn-snapshot-main::after { content: '✂️'; font-size: 18px; color: #fff; position: absolute; }
+    #btn-snapshot-main::after { content: '✂️'; font-size: 16px; color: #fff; position: absolute; }
+
+    /* PDF İleri/Geri butonlarını aynı satıra sığdırmak için yatay yap */
+    #pdf-controls {
+        flex-direction: row !important;
+        width: auto !important;
+        align-items: center !important;
+        margin-top: 0 !important;
+        gap: 5px !important;
+    }
+    #page-count-label {
+        margin-bottom: 0 !important;
+        font-size: 10px !important;
+        white-space: nowrap;
+    }
+    #prev-page, #next-page {
+        width: 25px !important;
+        height: 25px !important;
+        padding: 0 !important;
+    }
 
     /* Alt menüleri (fly-out) aşağıya doğru açılacak şekilde ayarla */
     #pen-options, #line-options, #polygon-options, #oyunlar-options, #options-3d-main {
@@ -1221,8 +1242,7 @@ canvas {
         margin-top: 5px;
     }
     
-    /* Sağ paneldeki açılır menüler sağa hizalı olsun */
-    #snapshot-options, #pdf-controls {
+    #snapshot-options {
         top: 100%;
         left: auto;
         right: 0;
@@ -1230,11 +1250,13 @@ canvas {
         margin-top: 5px;
     }
     
-    /* PDF kapatma butonunu panelin altına indir */
+    /* PDF kapatma butonunu sağ panelin hemen altına al, hizalı olsun */
     .pdf-close-btn { 
-        top: 60px !important; 
-        right: 15px !important; 
-        width: 35px; 
-        height: 35px; 
+        top: 45px !important; 
+        right: 5px !important; 
+        width: 32px !important; 
+        height: 32px !important; 
+        border-radius: 6px !important;
+        font-size: 8px !important;
     }
 }
