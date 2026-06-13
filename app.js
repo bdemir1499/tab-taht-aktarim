@@ -5694,31 +5694,7 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
     // --- VERİ İŞLEME MERKEZİ ---
     function processData(data) {
 
-// 🚨 YENİ ALICI: TABLETTEN GELEN KUSURSUZ RESMİ VE PDF'İ EKRANA ÇİZER
-        if (data.type === 'arka_plan_resmi_aktar') {
-            // (SADECE_KOORDINAT bypass iptal edildi. Artık PDF sayfası her değiştiğinde resim olarak gelecek)
-
-            // Normal JPG/PNG resimler aynen aktarılır
-            const img = new Image();
-            img.onload = () => { 
-                if (typeof addNewImageToCanvas === 'function') {
-                    let sonKoordinat = data.kordinatlar;
-                    if (sonKoordinat && data.cssW && data.cssH && Math.abs(data.cssW - window.innerWidth) >= 5) {
-                        const sx = window.innerWidth / data.cssW;
-                        const sy = window.innerHeight / data.cssH;
-                        sonKoordinat = {
-                            x: data.kordinatlar.x * sx,
-                            y: data.kordinatlar.y * sy,
-                            width: data.kordinatlar.width * sx,
-                            height: data.kordinatlar.height * sy
-                        };
-                    }
-                    addNewImageToCanvas(img, data.isPDF, sonKoordinat); 
-                }
-            };
-            img.src = data.imgData;
-            return; // İşlemi bitir
-        }        if (!data || !data.type) return;
+        if (!data || !data.type) return;
         if (!window.drawnStrokes) window.drawnStrokes = [];
 
         // DİL SEÇİMİ HER ZAMAN GEÇSİN
