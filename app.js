@@ -3152,7 +3152,7 @@ canvas.addEventListener('pointermove', (e) => {
         else if (selectedPointKey === 'resize' || selectedPointKey === 'image_resize') {
             // 🚨 KESİN ÇÖZÜM: 3D Şekillere Özel Yumuşak Büyütme/Küçültme
             if (selectedItem.type === '3d_shape') {
-                const sW = initialWidth || 100;
+                const sW = initialWidth || selectedItem.width;
                 const startCX = (originalStartPos.x || 0) + (sW / 2);
                 const startCY = (originalStartPos.y || 0) + (sW / 2);
                 const startDist = Math.hypot(dragStartPos.x - startCX, dragStartPos.y - startCY) || 1;
@@ -3190,6 +3190,7 @@ canvas.addEventListener('pointermove', (e) => {
                 type: 'sekil_guncelle', 
                 stroke: { 
                     id: selectedItem.id, 
+                    type: selectedItem.type,
                     isBackground: selectedItem.isBackground === true, 
                     x: selectedItem.x, 
                     y: selectedItem.y, 
@@ -6581,6 +6582,11 @@ window.Scene3D = {
             const newScale = Math.max(0.1, this.startScale * (currentDist / this.startResizeDist));
             this.currentMesh.scale.set(newScale, newScale, newScale);
             this.updateHandlePositions();
+            if (this.currentMesh.userData && this.currentMesh.userData.strokeData) {
+                this.currentMesh.userData.strokeData.width = (this.currentMesh.userData.baseSize * newScale) * 30;
+                this.currentMesh.userData.strokeData.height = (this.currentMesh.userData.baseSize * newScale) * 30;
+                if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: this.currentMesh.userData.strokeData });
+            }
             return;
         }
         if (this.isDrawing && this.startPoint && this.previewMesh) {
@@ -6627,9 +6633,14 @@ window.Scene3D = {
     },
 
     onUp: function() {
+        const wasResizing = this.isResizingHandle;
         this.isRotatingHandle = this.isResizingHandle = this.isDragging = this.isRotatingShape = false; 
         const wasDrawing = this.isDrawing;
         this.isDrawing = false;
+        
+        if (wasResizing && this.currentMesh && this.currentMesh.userData && this.currentMesh.userData.strokeData) {
+            if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: this.currentMesh.userData.strokeData });
+        }
 
         if (wasDrawing && this.previewMesh) {
             const finalScale = this.previewMesh.scale.x || 1;
