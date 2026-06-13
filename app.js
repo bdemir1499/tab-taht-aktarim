@@ -6044,6 +6044,9 @@ if (data.type === 'pdf_kapat') {
                 if (typeof toolObj.updateTransform === 'function') toolObj.updateTransform();
                 if (typeof toolObj.updateMarkings === 'function') toolObj.updateMarkings();
                 if (typeof toolObj.createLabels === 'function') toolObj.createLabels();
+                
+                // 🚨 KESİN ÇÖZÜM: Yansıma (Titreme) Engelleme Kilidi
+                toolObj.lastNetworkReceiveTime = Date.now();
             } 
         } 
 
@@ -7014,6 +7017,11 @@ window.araclariAgaGonder = function() {
 
                 if (sonAracDurumlari[arac.id] !== durum) {
                     sonAracDurumlari[arac.id] = durum;
+
+                    // Eğer veri henüz ağdan geldiyse (son 500ms), geri yansıtıp yankı yapmasını engelle!
+                    if (arac.obj.lastNetworkReceiveTime && (Date.now() - arac.obj.lastNetworkReceiveTime) < 500) {
+                        return;
+                    }
 
                     // Değişiklik varsa PC'ye anında gönder
                     if (typeof window.sendNetworkData === 'function') {
