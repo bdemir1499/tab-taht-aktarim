@@ -1142,12 +1142,12 @@ canvas {
         left: 5px;
         transform: none;
         flex-direction: row;
-        flex-wrap: wrap !important; /* Eski haline getirildi, alt satıra inebilir */
+        flex-wrap: wrap !important; 
         overflow-x: visible; 
         width: auto;
-        max-width: 48vw; /* Eski haline getirildi */
+        max-width: 65vw; /* Sağa uzatıldı, böylece tek satıra rahat sığar ve kaymaz */
         padding: 5px;
-        gap: 5px;
+        gap: 2px;
         z-index: 20000;
     }
     
@@ -1190,7 +1190,7 @@ canvas {
     /* İkonları ekle */
     #btn-silgi::after { content: '🧽'; font-size: 16px; color: #fff; position: absolute; }
     #btn-kalem::after { content: '✏️'; font-size: 16px; color: #fff; position: absolute; }
-    #btn-cizgi::after { content: '📏'; font-size: 16px; color: #fff; position: absolute; }
+    #btn-cizgi::after { content: '➖'; font-size: 16px; font-weight: bold; color: #fff; position: absolute; }
     #btn-cetvel::after { content: '📐'; font-size: 16px; color: #fff; position: absolute; }
     #btn-gonye::after { content: '🔺'; font-size: 16px; color: #fff; position: absolute; }
     #btn-aciolcer::after { content: '🧭'; font-size: 16px; color: #fff; position: absolute; }
@@ -1265,11 +1265,12 @@ canvas {
         margin-top: 5px;
     }
     
-    /* PDF kapatma butonu sol panelde tek satıra dahil edildi */
+    /* PDF kapatma butonu sağ panelin dışında ve sağa yaslı */
     .pdf-close-btn { 
-        position: relative !important;
-        top: auto !important; 
-        right: auto !important; 
+        position: fixed !important;
+        top: 45px !important; /* Sağ panelin hemen altı */
+        right: 5px !important; 
+        left: auto !important;
         width: 32px !important; 
         height: 32px !important; 
         border-radius: 6px !important;
@@ -1279,6 +1280,7 @@ canvas {
         display: flex;
         align-items: center;
         justify-content: center;
+        z-index: 20000 !important;
     }
     
     .pdf-close-btn::after {
