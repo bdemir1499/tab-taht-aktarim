@@ -5446,35 +5446,86 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
     const sx = myW / senderW;
     const sy = myH / senderH;
 
-    // KESİN ÇÖZÜM: X eksenindeki her şey sx ile, Y eksenindeki her şey sy ile çarpılır.
-    // Bu sayede ekrana değme oranları ve ekranın boşluk oranları KUSURSUZ kopyalanır.
-    if (stroke.path) {
-        stroke.path.forEach(p => { p.x *= sx; p.y *= sy; });
-    }
-    if (stroke.points) {
-        stroke.points.forEach(p => { p.x *= sx; p.y *= sy; });
-    }
-    if (stroke.x !== undefined) stroke.x *= sx;
-    if (stroke.y !== undefined) stroke.y *= sy;
-    
-    // 🚨 KALINLIK VS GENİŞLİK AYRIMI 🚨
-    // Resim, dikdörtgen, 3D şekil gibi objelerde "width" şeklin yatay genişliğidir (sx ile büyür).
-    // Ancak çizgi, kalem, çokgen, fiziksel araçlarda "width" çizgi kalınlığıdır!
+    // 🚨 KESİN ÇÖZÜM: Arka plan varsa, tüm çizim evrenini "Orantılı Ölçekle" (Aspect Ratio Korunur)
+    const hasBackground = window.drawnStrokes && window.drawnStrokes.some(s => s.isBackground === true);
     const isLineType = ['pen', 'line', 'segment', 'ray', 'straightLine', 'polygon', 'point', 'arc'].includes(stroke.type);
+
+    if (stroke.isBackground === true || hasBackground) {
+        const scale = Math.min(sx, sy);
+        const cx_tab = senderW / 2;
+        const cy_tab = senderH / 2;
+        const cx_pc = myW / 2;
+        const cy_pc = myH / 2;
+
+        const mapX = (x) => cx_pc + ((x - cx_tab) * scale);
+        const mapY = (y) => cy_pc + ((y - cy_tab) * scale);
+
+        if (stroke.path) stroke.path.forEach(p => { p.x = mapX(p.x); p.y = mapY(p.y); });
+        if (stroke.points) stroke.points.forEach(p => { p.x = mapX(p.x); p.y = mapY(p.y); });
+
+        if (stroke.x !== undefined && stroke.width !== undefined && !isLineType) {
+            const center_x = mapX(stroke.x + stroke.width / 2);
+            stroke.width *= scale;
+            stroke.x = center_x - stroke.width / 2;
+        } else if (stroke.x !== undefined) {
+            stroke.x = mapX(stroke.x);
+            if (stroke.width !== undefined && !isLineType) stroke.width *= scale;
+        }
+
+        if (stroke.y !== undefined && stroke.height !== undefined && !isLineType) {
+            const center_y = mapY(stroke.y + stroke.height / 2);
+            stroke.height *= scale;
+            stroke.y = center_y - stroke.height / 2;
+        } else if (stroke.y !== undefined) {
+            stroke.y = mapY(stroke.y);
+            if (stroke.height !== undefined && !isLineType) stroke.height *= scale;
+        }
+        
+        if (stroke.cx !== undefined) stroke.cx = mapX(stroke.cx);
+        if (stroke.cy !== undefined) stroke.cy = mapY(stroke.cy);
+        if (stroke.center) {
+            if (stroke.center.x !== undefined) stroke.center.x = mapX(stroke.center.x);
+            if (stroke.center.y !== undefined) stroke.center.y = mapY(stroke.center.y);
+        }
+        if (stroke.radius !== undefined) stroke.radius *= scale;
+        if (stroke.p1) { stroke.p1.x = mapX(stroke.p1.x); stroke.p1.y = mapY(stroke.p1.y); }
+        if (stroke.p2) { stroke.p2.x = mapX(stroke.p2.x); stroke.p2.y = mapY(stroke.p2.y); }
+        if (stroke.p3) { stroke.p3.x = mapX(stroke.p3.x); stroke.p3.y = mapY(stroke.p3.y); }
+        
+        if (stroke.type === 'text' && stroke.fontSize) stroke.fontSize *= scale;
+
+    } else {
+        // ESKİ MANTIK: Arka plan yoksa (beyaz tahta), ekrana sündürerek yay (Kusursuz oran kopyalama)
+        if (stroke.path) stroke.path.forEach(p => { p.x *= sx; p.y *= sy; });
+        if (stroke.points) stroke.points.forEach(p => { p.x *= sx; p.y *= sy; });
+        
+        if (stroke.x !== undefined) stroke.x *= sx;
+        if (stroke.y !== undefined) stroke.y *= sy;
+        
+        if (stroke.width !== undefined && !isLineType) stroke.width *= sx;
+        if (stroke.height !== undefined && !isLineType) stroke.height *= sy;
+        
+        if (stroke.cx !== undefined) stroke.cx *= sx;
+        if (stroke.cy !== undefined) stroke.cy *= sy;
+        if (stroke.center) {
+            if (stroke.center.x !== undefined) stroke.center.x *= sx;
+            if (stroke.center.y !== undefined) stroke.center.y *= sy;
+        }
+        if (stroke.radius !== undefined) stroke.radius *= sx; 
+        if (stroke.p1) { stroke.p1.x *= sx; stroke.p1.y *= sy; }
+        if (stroke.p2) { stroke.p2.x *= sx; stroke.p2.y *= sy; }
+        if (stroke.p3) { stroke.p3.x *= sx; stroke.p3.y *= sy; }
+        
+        if (stroke.type === 'text' && stroke.fontSize) stroke.fontSize *= Math.min(sx, sy);
+    }
     
-    if (stroke.width !== undefined) {
-        if (isLineType) {
-            // Çizgi kalınlıklarını fiziksel (CSS) kalınlık hissi aynı kalacak şekilde orantıla!
-            const canvasElm = document.getElementById('drawing-canvas');
-            if (canvasElm && senderCw) {
-                const myDpr = canvasElm.width / myW;
-                const senderDpr = senderCw / senderW;
-                if (senderDpr > 0 && myDpr > 0) {
-                    stroke.width *= (myDpr / senderDpr);
-                }
-            }
-        } else {
-            stroke.width *= sx;
+    // Kalınlık hesaplaması (Çizgilerin çok ince veya çok kalın olmasını engeller)
+    if (stroke.width !== undefined && isLineType) {
+        const canvasElm = document.getElementById('drawing-canvas');
+        if (canvasElm && senderCw) {
+            const myDpr = canvasElm.width / myW;
+            const senderDpr = senderCw / senderW;
+            if (senderDpr > 0 && myDpr > 0) stroke.width *= (myDpr / senderDpr);
         }
     }
     
@@ -5487,11 +5538,6 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
         }
     }
 
-    if (stroke.height !== undefined) stroke.height *= sy;
-    
-    // Sadece metin font boyutu aşırı ezilmesin diye min alınır
-    if (stroke.type === 'text' && stroke.fontSize) stroke.fontSize *= Math.min(sx, sy);
-    
     return stroke;
 };
 
