@@ -1141,11 +1141,10 @@ function redrawAllStrokes() {
 
     // --- BÜYÜK ÇÖZÜM: KATMAN (Z-INDEX) KORUMASI ---
     // Arka planı (sayfayı veya pdf'i) her zaman zorla en alta gönderir.
-    // Böylece kopyalar, makaslar ve çizimler ASLA sayfanın altında kalmaz!
+    // 3D şekilleri orta katmanda, diğer her şeyi en üstte tutar.
     window.drawnStrokes.sort((a, b) => {
-        if (a.isBackground && !b.isBackground) return -1;
-        if (!a.isBackground && b.isBackground) return 1;
-        return 0;
+        const layer = s => s.isBackground ? 0 : (s.type === '3d_shape' ? 1 : 2);
+        return layer(a) - layer(b);
     });
 
     ctx.save();
@@ -1515,7 +1514,8 @@ function redrawAllStrokes() {
                 const rotY = -stroke.height / 2 - 40;
                 ctx.fillStyle = '#0F0'; ctx.beginPath(); ctx.arc(0, rotY, 15, 0, Math.PI * 2); ctx.fill();
                 ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
-                ctx.font = "bold 16px Arial"; ctx.fillStyle = "#FFF"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("↻", 0, rotY - 1);
+                ctx.font = "bold 16px Arial"; ctx.fillStyle = "#FFF"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                ctx.fillText("↻", 0, rotY - 1);
 
                 // Boyutlandırma (Pembe) Butonu
                 const resX = stroke.width / 2 + 20; const resY = stroke.height / 2 + 20;
@@ -3121,16 +3121,111 @@ canvas.addEventListener('pointermove', (e) => {
         if (e.touches && e.touches.length === 2) { p1x = e.touches[0].clientX; p1y = e.touches[0].clientY; p2x = e.touches[1].clientX; p2y = e.touches[1].clientY; } 
         else { const p = Array.from(pointers.values()); p1x = p[0].clientX; p1y = p[0].clientY; p2x = p[1].clientX; p2y = p[1].clientY; }
         const currentDist = Math.hypot(p1x - p2x, p1y - p2y);
+        
+        // Merkez noktası (yakınlaştırma merkezi)
+        const centerX = (p1x + p2x) / 2;
+        const centerY = (p1y + p2y) / 2;
+
         if (lastDist > 0) {
-            const delta = currentDist - lastDist; const zoomStep = 1 + (delta * 0.003);
-            const bgStrokes = drawnStrokes.filter(s => s.isBackground === true);
-            if (bgStrokes.length > 0) {
-                bgStrokes.forEach(bg => { const newW = bg.width * zoomStep; const newH = bg.height * zoomStep; bg.x -= (newW - bg.width) / 2; bg.y -= (newH - bg.height) / 2; bg.width = newW; bg.height = newH; });
+            const delta = currentDist - lastDist; 
+            const zoomStep = 1 + (delta * 0.003);
+            
+            // TÜM ÇİZİMLERE VE ŞEKİLLERE UYGULA (Sadece arka plana değil!)
+            if (drawnStrokes.length > 0) {
+                const rect = canvas.getBoundingClientRect();
+                const cvsCenterX = (centerX - rect.left) * (canvas.width / rect.width);
+                const cvsCenterY = (centerY - rect.top) * (canvas.height / rect.height);
+                
+                drawnStrokes.forEach(s => {
+                    // Zoom the coordinates relative to the center
+                    if (s.type === 'pen' && s.path) {
+                        s.path.forEach(pt => {
+                            pt.x = cvsCenterX + (pt.x - cvsCenterX) * zoomStep;
+                            pt.y = cvsCenterY + (pt.y - cvsCenterY) * zoomStep;
+                        });
+                    } else {
+                        // Resimler, çokgenler ve 3D şekillerin x/y değerlerini merkezi baz alarak kaydır
+                        if (s.x !== undefined) s.x = cvsCenterX + (s.x - cvsCenterX) * zoomStep;
+                        if (s.y !== undefined) s.y = cvsCenterY + (s.y - cvsCenterY) * zoomStep;
+                        if (s.cx !== undefined) s.cx = cvsCenterX + (s.cx - cvsCenterX) * zoomStep;
+                        if (s.cy !== undefined) s.cy = cvsCenterY + (s.cy - cvsCenterY) * zoomStep;
+                        
+                        // Genişlik ve yükseklikleri ölçekle
+                        if (s.width !== undefined) s.width *= zoomStep;
+                        if (s.height !== undefined) s.height *= zoomStep;
+                        if (s.radius !== undefined) s.radius *= zoomStep;
+                        
+                        // Çokgen köşeleri
+                        if (s.vertices && Array.isArray(s.vertices)) {
+                            s.vertices.forEach(v => {
+                                v.x = cvsCenterX + (v.x - cvsCenterX) * zoomStep;
+                                v.y = cvsCenterY + (v.y - cvsCenterY) * zoomStep;
+                            });
+                        }
+                        
+                        // Arka plana sabitlenmiş resimlerin koordinatlarını da güncelle
+                        if (s.kordinatlar) {
+                            s.kordinatlar.x = s.x;
+                            s.kordinatlar.y = s.y;
+                            s.kordinatlar.width = s.width;
+                            s.kordinatlar.height = s.height;
+                        }
+                    }
+                });
+                
                 redrawAllStrokes();
-                if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) window.sendNetworkData({ type: 'zoom_senkron', x: bgStrokes[0].x, y: bgStrokes[0].y, width: bgStrokes[0].width, height: bgStrokes[0].height });
+                
+                if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                    // PC'ye tüm strokes'ların son halini senkronize et
+                    window.sendNetworkData({ type: 'akilli_sekil_toplu', strokes: drawnStrokes });
+                }
             }
         }
         lastDist = currentDist; return; 
+    }
+
+    // --- TEK PARMAK PAN (KAYDIRMA) EKLENTİSİ ---
+    if ((pointers.size === 1 || (e.touches && e.touches.length === 1)) && currentTool === 'move') {
+        const bgStrokes = drawnStrokes.filter(s => s.isBackground === true);
+        // Eğer arka plan yüklüyse ve tek parmakla ekrana dokunulup sürükleniyorsa pan (kaydırma) yap
+        if (bgStrokes.length > 0 && isMoving === false && window.selectedItem === null) {
+            let pX, pY;
+            if (e.touches && e.touches.length === 1) { pX = e.touches[0].clientX; pY = e.touches[0].clientY; }
+            else { pX = e.clientX; pY = e.clientY; }
+            
+            if (typeof window.lastPanPos !== 'undefined' && window.lastPanPos) {
+                const dx = pX - window.lastPanPos.x;
+                const dy = pY - window.lastPanPos.y;
+                
+                // Canvas ölçeğine göre delta dönüşümü
+                const rect = canvas.getBoundingClientRect();
+                const cvsDx = dx * (canvas.width / rect.width);
+                const cvsDy = dy * (canvas.height / rect.height);
+
+                drawnStrokes.forEach(s => {
+                    if (s.type === 'pen' && s.path) {
+                        s.path.forEach(pt => { pt.x += cvsDx; pt.y += cvsDy; });
+                    } else {
+                        if (s.x !== undefined) s.x += cvsDx;
+                        if (s.y !== undefined) s.y += cvsDy;
+                        if (s.cx !== undefined) s.cx += cvsDx;
+                        if (s.cy !== undefined) s.cy += cvsDy;
+                        if (s.vertices && Array.isArray(s.vertices)) {
+                            s.vertices.forEach(v => { v.x += cvsDx; v.y += cvsDy; });
+                        }
+                    }
+                });
+                redrawAllStrokes();
+                
+                if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                    window.sendNetworkData({ type: 'akilli_sekil_toplu', strokes: drawnStrokes });
+                }
+            }
+            window.lastPanPos = { x: pX, y: pY };
+            return;
+        }
+    } else {
+        window.lastPanPos = null;
     }
 
     if (pointers.size > 1 && e.isPrimary === false) return; 
@@ -4143,13 +4238,47 @@ if (window.drawnStrokes) {
 // --- BAŞLANGIÇ ---
 // --- AKILLI EKRAN BOYUTLANDIRMA (ADRES ÇUBUĞU ZIPLAMASINI ENGELLER) ---
 let lastWindowWidth = window.innerWidth;
+let lastWindowHeight = window.innerHeight;
 
 function resizeCanvas() {
     const newWidth = window.innerWidth;
     const newHeight = window.innerHeight;
 
-    // Gerçekten ekran döndüyse veya boyut değiştiyse güncelle
+    // Eğer gerçekten döndürme veya boyut değişimi varsa
+    if (window.drawnStrokes && window.drawnStrokes.length > 0) {
+        const dpr = window.devicePixelRatio || 1;
+        const dx = (newWidth - lastWindowWidth) / 2;
+        const dy = (newHeight - lastWindowHeight) / 2;
+        
+        // Canvas ölçeğine göre delta dönüşümü
+        const cvsDx = dx * dpr;
+        const cvsDy = dy * dpr;
+
+        window.drawnStrokes.forEach(s => {
+            if (s.type === 'pen' && s.path) {
+                s.path.forEach(pt => { pt.x += cvsDx; pt.y += cvsDy; });
+            } else if (s.type !== '3d_shape') {
+                if (s.x !== undefined) s.x += cvsDx;
+                if (s.y !== undefined) s.y += cvsDy;
+                if (s.cx !== undefined) s.cx += cvsDx;
+                if (s.cy !== undefined) s.cy += cvsDy;
+                if (s.vertices && Array.isArray(s.vertices)) {
+                    s.vertices.forEach(v => { v.x += cvsDx; v.y += cvsDy; });
+                }
+                if (s.kordinatlar) {
+                    s.kordinatlar.x = s.x;
+                    s.kordinatlar.y = s.y;
+                }
+            }
+        });
+        
+        if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+            window.sendNetworkData({ type: 'akilli_sekil_toplu', strokes: window.drawnStrokes });
+        }
+    }
+
     lastWindowWidth = newWidth;
+    lastWindowHeight = newHeight;
     canvas.width = newWidth;
     canvas.height = newHeight;
     
@@ -6407,13 +6536,16 @@ window.Scene3D = {
         
         this.handles.center = { x: px, y: py };
         
+        // Z-Index Zırhından kaçmak için çok yüksek değer verdik!
         this.rotateHandleBtn.style.display = 'flex';
         this.rotateHandleBtn.style.left = (px + 30) + 'px';
         this.rotateHandleBtn.style.top = (py - 60) + 'px';
+        this.rotateHandleBtn.style.zIndex = '999999';
         
         this.resizeHandleBtn.style.display = 'flex';
         this.resizeHandleBtn.style.left = (px - 70) + 'px';
         this.resizeHandleBtn.style.top = (py + 30) + 'px';
+        this.resizeHandleBtn.style.zIndex = '999999';
     },
 
     animate: function() {
