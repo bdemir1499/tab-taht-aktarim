@@ -366,6 +366,12 @@ window.Foldable3D = {
             // Slerp ile izometrik -> düz geçişi
             inner.quaternion.copy(qClosed).slerp(qOpenTarget, openRatio);
 
+            // KULLANICI İSTEĞİ: Açılırken büyüyüp kaba görüntü oluşturmasını engellemek için,
+            // açılma oranına göre şekli orantılı olarak küçültüyoruz. (Örn: tam açıkken %60 boyutuna iner)
+            const targetScale = 0.55; 
+            const currentScale = 1 - (openRatio * (1 - targetScale));
+            inner.scale.set(currentScale, currentScale, currentScale);
+
             // Prizmaların açınımı yana doğru uzadığı için, açıldıkça şekli ortala
             if (group.userData.shiftX) {
                 inner.position.x = group.userData.shiftX * openRatio;
