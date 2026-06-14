@@ -1455,10 +1455,14 @@ function redrawAllStrokes() {
                     if (canvasElm) {
                         const cx = stroke.x + (stroke.width / 2);
                         const cy = stroke.y + (stroke.height / 2);
-                        // KESİN ÇÖZÜM: canvasElm.width yerine boundingClientRect() kullanılmalı!
+                        
                         const rect = canvasElm.getBoundingClientRect();
-                        const nx = (cx / rect.width) * 2 - 1;
-                        const ny = -(cy / rect.height) * 2 + 1;
+                        const screenX = cx + rect.left;
+                        const screenY = cy + rect.top;
+                        
+                        // 3D Camera is full-screen (window.innerWidth), so NDC must be relative to the window!
+                        const nx = (screenX / window.innerWidth) * 2 - 1;
+                        const ny = -(screenY / window.innerHeight) * 2 + 1;
                         
                         const raycaster = new THREE.Raycaster();
                         raycaster.setFromCamera(new THREE.Vector2(nx, ny), window.Scene3D.camera);
@@ -4152,8 +4156,13 @@ function resizeCanvas() {
                     if (mesh) {
                         const vec = mesh.position.clone();
                         vec.project(window.Scene3D.camera);
-                        s.x = ((vec.x * w) + w) - ((s.width||100) / 2);
-                        s.y = (-(vec.y * h) + h) - ((s.height||100) / 2);
+                        // Camera NDC to Screen coords
+                        const screenX = (vec.x * window.innerWidth / 2) + window.innerWidth / 2;
+                        const screenY = -(vec.y * window.innerHeight / 2) + window.innerHeight / 2;
+                        
+                        // Screen to Canvas coords
+                        s.x = (screenX - rect.left) - ((s.width||100) / 2);
+                        s.y = (screenY - rect.top) - ((s.height||100) / 2);
                     }
                 }
             });
@@ -6679,10 +6688,14 @@ window.Scene3D = {
                     // 2D Merkez noktasını (x,y) Formül kutusu için de güncelle
                     const vec = this.currentMesh.position.clone();
                     vec.project(this.camera);
-                    const rect = (this.renderer && this.renderer.domElement) ? this.renderer.domElement.getBoundingClientRect() : {width: window.innerWidth, height: window.innerHeight, left: 0, top: 0};
-                    const w = rect.width / 2, h = rect.height / 2;
-                    sd.x = ((vec.x * w) + w) - (sd.width / 2);
-                    sd.y = (-(vec.y * h) + h) - (sd.height / 2);
+                    const canvasElm = document.getElementById('drawing-canvas');
+                    const rect = canvasElm ? canvasElm.getBoundingClientRect() : {left: 0, top: 0};
+                    
+                    const screenX = (vec.x * window.innerWidth / 2) + window.innerWidth / 2;
+                    const screenY = -(vec.y * window.innerHeight / 2) + window.innerHeight / 2;
+                    
+                    sd.x = (screenX - rect.left) - (sd.width / 2);
+                    sd.y = (screenY - rect.top) - (sd.height / 2);
                     
                     window.selectedItem = sd;
 
@@ -6864,7 +6877,23 @@ window.Scene3D = {
         
         // 🚨 ÇÖZÜM: PC ve Tabletin 3D Dünyaları Zaten Ortak Merkezlidir!
         // Eğer pos3D varsa, doğrudan onu kullan. Böylece cihaz çözünürlüğünden bağımsız tam yerine oturur.
-        const pt = window.Scene3D && window.Scene3D.get3DPointOnFloor ? window.Scene3D.get3DPointOnFloor(strokeData.x + strokeData.width / 2, strokeData.y + strokeData.height / 2) : null;
+        let pt = null;
+        const canvasElm = document.getElementById('drawing-canvas');
+        if (canvasElm && window.Scene3D && window.Scene3D.camera) {
+            const rct = canvasElm.getBoundingClientRect();
+            const cx = strokeData.x + (strokeData.width / 2);
+            const cy = strokeData.y + (strokeData.height / 2);
+            const nx = (cx / rct.width) * 2 - 1;
+            const ny = -(cy / rct.height) * 2 + 1;
+            
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(new THREE.Vector2(nx, ny), window.Scene3D.camera);
+            const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+            const intersection = new THREE.Vector3();
+            if (raycaster.ray.intersectPlane(plane, intersection)) {
+                pt = intersection;
+            }
+        }
         if (pt) solidShape.position.copy(pt);
         if (strokeData.rotationX !== undefined) solidShape.rotation.x = strokeData.rotationX;
         if (strokeData.rotationY !== undefined) solidShape.rotation.y = strokeData.rotationY;
