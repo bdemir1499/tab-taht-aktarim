@@ -1455,9 +1455,10 @@ function redrawAllStrokes() {
                     if (canvasElm) {
                         const cx = stroke.x + (stroke.width / 2);
                         const cy = stroke.y + (stroke.height / 2);
-                        // KESİN ÇÖZÜM: canvasElm.width yerine window.innerWidth (CSS pikseli) kullanılmalı!
-                        const nx = (cx / window.innerWidth) * 2 - 1;
-                        const ny = -(cy / window.innerHeight) * 2 + 1;
+                        // KESİN ÇÖZÜM: canvasElm.width yerine boundingClientRect() kullanılmalı!
+                        const rect = canvasElm.getBoundingClientRect();
+                        const nx = (cx / rect.width) * 2 - 1;
+                        const ny = -(cy / rect.height) * 2 + 1;
                         
                         const raycaster = new THREE.Raycaster();
                         raycaster.setFromCamera(new THREE.Vector2(nx, ny), window.Scene3D.camera);
@@ -4143,7 +4144,8 @@ function resizeCanvas() {
         
         // 🚨 ÇÖZÜM: Ekran (tablet) döndürüldüğünde 3D şekillerin 2D tıklama alanlarını GÜNCELLE!
         if (window.drawnStrokes) {
-            const w = newWidth / 2, h = newHeight / 2;
+            const rect = canvas.getBoundingClientRect();
+            const w = rect.width / 2, h = rect.height / 2;
             window.drawnStrokes.forEach(s => {
                 if (s.type === '3d_shape' && window.Scene3D.scene) {
                     const mesh = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === s.id);
