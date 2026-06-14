@@ -44,7 +44,7 @@ input, textarea {
    2. TARAYICI ARAYÜZÜNÜ VE KAYDIRMAYI ÇİVİLEME
    ========================================= */
 html, body {
-    width: 100vw; height: 100dvh; margin: 0; padding: 0;
+    width: 100vw; height: 100vh; margin: 0; padding: 0;
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
     overflow: hidden !important; 
     overscroll-behavior: none !important; 
@@ -60,7 +60,7 @@ html, body {
    3. ANA ÇİZİM ALANI VE NOKTALI GEOMETRİ DEFTERİ SİHRİ
    ========================================= */
 #drawing-canvas {
-    display: block; width: 100vw; height: 100dvh;
+    display: block; width: 100vw; height: 100vh;
     
     /* Zemin Rengi */
     background-color: #1e1e2e; 
@@ -1050,22 +1050,16 @@ canvas {
    ========================================= */
 #slider-container {
     display: none;
-    position: fixed;
-    bottom: 20px;
-    left: 15px;
-    z-index: 20000;
-    width: 200px;
-    background: rgba(30, 30, 46, 0.85);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 12px;
     padding: 10px;
+    margin-top: 5px;
     flex-direction: column;
     align-items: center;
     gap: 8px;
     box-sizing: border-box;
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+    width: 100%;
 }
 
 #slider-container label {
@@ -1138,183 +1132,4 @@ canvas {
 #options-piramitler::-webkit-scrollbar-thumb {
     background: #89b4fa !important; /* Yeni temanın pastel mavisi */
     border-radius: 10px !important;
-}
-
-/* --- DIKEY MOD (PORTRAIT) DUZENLEMELERI --- */
-@media (orientation: portrait) {
-    /* Sol panel ekranın üst-sol köşesine, yan yana dizilim */
-    .left-panel {
-        top: 5px;
-        left: 5px;
-        transform: none;
-        flex-direction: row;
-        flex-wrap: wrap !important; 
-        overflow-x: visible; 
-        width: auto;
-        max-width: 65vw; /* Sağa uzatıldı, böylece tek satıra rahat sığar ve kaymaz */
-        padding: 5px;
-        gap: 2px;
-        z-index: 20000;
-    }
-    
-    #slider-container {
-        top: 55px !important;
-        bottom: auto !important;
-        left: 5px !important;
-        width: 170px !important;
-        margin-top: 0 !important;
-    }
-    
-    /* Sağ panel ekranın üst-sağ köşesine, yan yana dizilim */
-    .right-panel {
-        top: 5px;
-        right: 5px;
-        left: auto;
-        transform: none;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important; /* KESİNLİKLE alt satıra inme */
-        overflow-x: auto; /* Sığmazsa yatay kaydır */
-        width: auto;
-        max-width: 65vw; /* Sağ panel biraz daha uzatıldı */
-        padding: 5px;
-        gap: 2px;
-        justify-content: flex-end; /* Sola yaslamayı iptal et, normal sağda kalsın */
-        z-index: 20000;
-        scrollbar-width: none;
-    }
-    .right-panel::-webkit-scrollbar { display: none; }
-    
-    /* Buton boyutlarını küçült ve yazıları ikonlara dönüştür */
-    .tool-button, .right-panel .tool-button {
-        width: 32px !important; /* Daha da küçültüldü ki tek satıra sığsın */
-        height: 32px !important;
-        min-width: 0 !important;
-        min-height: 0 !important;
-        padding: 0 !important;
-        font-size: 0 !important; 
-        color: transparent !important; 
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 6px;
-        line-height: 0 !important;
-        position: relative;
-    }
-
-    /* İkonları ekle */
-    #btn-silgi::after { content: '🧽'; font-size: 16px; color: #fff; position: absolute; }
-    #btn-kalem::after { content: '✏️'; font-size: 16px; color: #fff; position: absolute; }
-    #btn-cizgi::after { content: '➖'; font-size: 16px; font-weight: bold; color: #fff; position: absolute; }
-    #btn-cetvel::after { content: '📏'; font-size: 16px; color: #fff; position: absolute; }
-    #btn-gonye::after { content: '📐'; font-size: 16px; color: #fff; position: absolute; }
-    #btn-aciolcer::after { content: '🧭'; font-size: 16px; color: #fff; position: absolute; }
-    
-    #btn-pergel::after { 
-        content: ''; 
-        position: absolute; 
-        width: 18px; 
-        height: 18px; 
-        background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="4" r="2" /><line x1="11" y1="5" x2="6" y2="20" /><line x1="13" y1="5" x2="18" y2="20" /><line x1="8" y1="13" x2="16" y2="13" /></svg>'); 
-        background-size: cover; 
-    }
-    #btn-cokgenler::after { content: '⬟'; font-size: 16px; color: #fff; position: absolute; }
-    
-    /* 3D Cisimler butonu için özel yazı (simge yerine) */
-    #btn-3d-menu::after { content: '3D'; font-size: 14px !important; font-weight: bold; color: #fff; position: absolute; }
-    
-    #btn-oyunlar::after { content: '🎮'; font-size: 16px; color: #fff; position: absolute; }
-    
-    #btn-tool-color::after { content: '🎨'; font-size: 16px; color: #fff; position: absolute; }
-    #btn-undo::after { content: '↩️'; font-size: 16px; color: #fff; position: absolute; }
-    #btn-clear-all::after { content: '🗑️'; font-size: 16px; color: #fff; position: absolute; }
-    #btn-move::after { content: '🖐️'; font-size: 16px; color: #fff; position: absolute; }
-    
-    #btn-upload::after { 
-        content: '📄' !important; 
-        font-size: 16px !important; 
-        color: #fff !important; 
-        white-space: normal !important;
-        position: absolute !important;
-        transform: none !important;
-        top: auto !important; left: auto !important;
-    }
-    
-    #btn-snapshot-main::after { content: '✂️'; font-size: 16px; color: #fff; position: absolute; }
-
-    /* PDF İleri/Geri butonlarını aynı satıra sığdırmak için yatay yap */
-    #pdf-controls {
-        flex-direction: row !important;
-        width: auto !important;
-        align-items: center !important;
-        margin-top: 0 !important;
-        gap: 5px !important;
-    }
-    #page-count-label {
-        margin-bottom: 0 !important;
-        font-size: 10px !important;
-        white-space: nowrap;
-    }
-    #prev-page, #next-page {
-        width: 25px !important;
-        height: 25px !important;
-        padding: 0 !important;
-    }
-
-    /* Alt menüleri (fly-out) aşağıya doğru açılacak şekilde ayarla */
-    #pen-options, #line-options, #polygon-options, #oyunlar-options, #options-3d-main {
-        top: 100%;
-        left: 0;
-        margin-left: 0;
-        margin-top: 5px;
-    }
-    
-    #options-3d-main {
-        backdrop-filter: none !important;
-        -webkit-backdrop-filter: none !important;
-        background-color: rgba(30, 30, 46, 0.95) !important;
-    }
-    
-    /* 3D Cisimlerin Alt Menüleri Ekranın En Sağında Açılsın ve Dikey Olsun */
-    #options-prizmalar, #options-piramitler {
-        position: fixed !important;
-        top: 50px !important; /* Üst menünün hemen altı */
-        right: 0 !important; /* Ekranın sağına yapışık */
-        left: auto !important;
-        margin-left: 0 !important;
-        flex-direction: column !important;
-        z-index: 25000 !important;
-    }
-    
-    #snapshot-options {
-        top: 100%;
-        left: auto;
-        right: 0;
-        margin-left: 0;
-        margin-top: 5px;
-    }
-    
-    /* PDF kapatma butonu sağ panelin dışında ve sağa yaslı */
-    .pdf-close-btn { 
-        position: fixed !important;
-        top: 45px !important; /* Sağ panelin hemen altı */
-        right: 5px !important; 
-        left: auto !important;
-        width: 32px !important; 
-        height: 32px !important; 
-        border-radius: 6px !important;
-        padding: 0 !important;
-        font-size: 0 !important;
-        color: transparent !important;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 20000 !important;
-    }
-    
-    .pdf-close-btn::after {
-        content: '✖';
-        font-size: 16px;
-        color: #fff;
-        position: absolute;
-    }
 }

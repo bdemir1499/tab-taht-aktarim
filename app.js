@@ -732,30 +732,13 @@ function getPointerInfo(e) {
 const canvas = document.getElementById('drawing-canvas');
 const ctx = canvas.getContext('2d');
 
-// --- YENİ: DUAL CANVAS (ARKA PLAN TUVALİ) ---
-let bgCanvas = document.getElementById('bg-canvas');
-if (!bgCanvas) {
-    bgCanvas = document.createElement('canvas');
-    bgCanvas.id = 'bg-canvas';
-    // Arka planı 3D'nin (40 veya 9995) ve ana tuvalin (50) altında tutuyoruz. Tıklanamaz.
-    bgCanvas.style.cssText = 'position: absolute !important; top: 0; left: 0; pointer-events: none !important; z-index: 10 !important; background-color: transparent !important;';
-    document.body.insertBefore(bgCanvas, document.getElementById('three-container') || canvas);
-}
-const bgCtx = bgCanvas.getContext('2d');
-
 function setupCanvasResolution() {
     const rect = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1; // 🚨 Cihazın HD piksel oranını (Retina Gücünü) al
     
-    // Ana tuval
+    // Kanvasın iç piksel sayısını, ekranın gerçek HD çözünürlüğü ile eşitle
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
-
-    // Arka plan tuvali
-    if (bgCanvas) {
-        bgCanvas.width = canvas.width;
-        bgCanvas.height = canvas.height;
-    }
     
     if (typeof redrawAllStrokes === 'function') {
         redrawAllStrokes();
@@ -766,7 +749,7 @@ function setupCanvasResolution() {
 setupCanvasResolution();
 
 // 2. Ekran boyutu her değiştiğinde (yükle butonu sonrası veya yan çevirince) çalıştır
-
+window.addEventListener('resize', setupCanvasResolution);
 
 // PARDUS KESİN ÇÖZÜM: Tarayıcının kaydırma ve yakınlaştırma yapmasını yasakla
 canvas.style.touchAction = 'none';
@@ -828,8 +811,13 @@ sliderContainer.innerHTML = `
     <label>Açınım (Katlama)</label>
     <input type="range" id="shape-slider" min="0" max="100" value="0">
 `;
-// Sürgüyü her zaman dökümana bağla (sol panelden bağımsız, mutlak konumla yöneteceğiz)
-document.body.appendChild(sliderContainer);
+const leftPanel = document.querySelector('.left-panel');
+const btnOyunlarOptions = document.getElementById('oyunlar-options');
+if (leftPanel && btnOyunlarOptions) {
+    leftPanel.insertBefore(sliderContainer, btnOyunlarOptions.nextSibling);
+} else {
+    document.body.appendChild(sliderContainer);
+}
 const shapeSlider = document.getElementById('shape-slider');
 
 // Alan / Hacim Gösterge Kutusunu HTML'e Otomatik Ekle
@@ -1131,20 +1119,17 @@ function redrawAllStrokes() {
     // 1. ÖNCE KOORDİNATLARI SIFIRLA VE TÜM EKRANI SİL
     ctx.setTransform(1, 0, 0, 1, 0, 0); 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (typeof bgCtx !== 'undefined' && bgCtx) {
-        bgCtx.setTransform(1, 0, 0, 1, 0, 0);
-        bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
-    }
     
     // GÜVENLİK KİLİDİ
     if (!window.drawnStrokes || window.drawnStrokes.length === 0) return;
 
     // --- BÜYÜK ÇÖZÜM: KATMAN (Z-INDEX) KORUMASI ---
     // Arka planı (sayfayı veya pdf'i) her zaman zorla en alta gönderir.
-    // 3D şekilleri orta katmanda, diğer her şeyi en üstte tutar.
+    // Böylece kopyalar, makaslar ve çizimler ASLA sayfanın altında kalmaz!
     window.drawnStrokes.sort((a, b) => {
-        const layer = s => s.isBackground ? 0 : (s.type === '3d_shape' ? 1 : 2);
-        return layer(a) - layer(b);
+        if (a.isBackground && !b.isBackground) return -1;
+        if (!a.isBackground && b.isBackground) return 1;
+        return 0;
     });
 
     ctx.save();
@@ -1306,7 +1291,7 @@ function redrawAllStrokes() {
 
             // 2. EĞER BU KESTİĞİMİZ BİR YÜZEN KOPYAYSA (CANLANDIR) EKRANA ÇİZ VE ÇERÇEVE EKLE
             let imgToDraw = null;
-            if (stroke.img && (stroke.img instanceof HTMLImageElement || stroke.img instanceof HTMLCanvasElement)) {
+            if (stroke.img && stroke.img instanceof HTMLImageElement) {
                 imgToDraw = stroke.img; 
             } else if (stroke.imgData) {
                 if (!stroke.imgObj) {
@@ -1317,7 +1302,7 @@ function redrawAllStrokes() {
                 imgToDraw = stroke.imgObj; 
             }
 
-            if (imgToDraw && (imgToDraw instanceof HTMLCanvasElement || imgToDraw.complete || imgToDraw.readyState >= 2)) {
+            if (imgToDraw && (imgToDraw.complete || imgToDraw.readyState >= 2)) {
                 ctx.save();
                 const centerX = stroke.x + (stroke.width / 2);
                 const centerY = stroke.y + (stroke.height / 2);
@@ -1475,14 +1460,9 @@ function redrawAllStrokes() {
                     if (canvasElm) {
                         const cx = stroke.x + (stroke.width / 2);
                         const cy = stroke.y + (stroke.height / 2);
-                        
-                        const rect = canvasElm.getBoundingClientRect();
-                        const screenX = cx + rect.left;
-                        const screenY = cy + rect.top;
-                        
-                        // 3D Camera is full-screen (window.innerWidth), so NDC must be relative to the window!
-                        const nx = (screenX / window.innerWidth) * 2 - 1;
-                        const ny = -(screenY / window.innerHeight) * 2 + 1;
+                        // KESİN ÇÖZÜM: canvasElm.width yerine window.innerWidth (CSS pikseli) kullanılmalı!
+                        const nx = (cx / window.innerWidth) * 2 - 1;
+                        const ny = -(cy / window.innerHeight) * 2 + 1;
                         
                         const raycaster = new THREE.Raycaster();
                         raycaster.setFromCamera(new THREE.Vector2(nx, ny), window.Scene3D.camera);
@@ -1514,8 +1494,7 @@ function redrawAllStrokes() {
                 const rotY = -stroke.height / 2 - 40;
                 ctx.fillStyle = '#0F0'; ctx.beginPath(); ctx.arc(0, rotY, 15, 0, Math.PI * 2); ctx.fill();
                 ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
-                ctx.font = "bold 16px Arial"; ctx.fillStyle = "#FFF"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-                ctx.fillText("↻", 0, rotY - 1);
+                ctx.font = "bold 16px Arial"; ctx.fillStyle = "#FFF"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("↻", 0, rotY - 1);
 
                 // Boyutlandırma (Pembe) Butonu
                 const resX = stroke.width / 2 + 20; const resY = stroke.height / 2 + 20;
@@ -1644,31 +1623,30 @@ else if (stroke.type === 'rectangle') {
     ctx.restore();
 
 // === EKLENECEK YENİ BÖLÜM: SAYFAYI EN ARKAYA ÇİZ ===
-    // Dual-Canvas Mimarisi: PDF ve arka plan resimleri ayrı bir tuvale (bgCanvas) çiziliyor.
-    const targetCtx = (typeof bgCtx !== 'undefined' && bgCtx) ? bgCtx : ctx;
-    targetCtx.save();
-    if (targetCtx === ctx) targetCtx.globalCompositeOperation = 'destination-over'; 
+    // Deliğin arkasından görünmesi için PDF'i her şeyin altına (destination-over) çiziyoruz
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-over'; 
     for (const stroke of drawnStrokes) {
-        if (stroke.type === 'image' && stroke.isBackground !== false) {
+    if (stroke.type === 'image' && stroke.isBackground !== false) {
             let imgToDraw = null;
-            if (stroke.img && (stroke.img instanceof HTMLImageElement || stroke.img instanceof HTMLCanvasElement)) {
+            if (stroke.img && stroke.img instanceof HTMLImageElement) {
                 imgToDraw = stroke.img; 
             } else if (stroke.imgObj) {
                 imgToDraw = stroke.imgObj; 
             }
 
-            if (imgToDraw && (imgToDraw instanceof HTMLCanvasElement || imgToDraw.complete || imgToDraw.readyState >= 2)) {
-                targetCtx.save();
+            if (imgToDraw && (imgToDraw.complete || imgToDraw.readyState >= 2)) {
+                ctx.save();
                 const centerX = stroke.x + (stroke.width / 2);
                 const centerY = stroke.y + (stroke.height / 2);
-                targetCtx.translate(centerX, centerY);
-                targetCtx.rotate((stroke.rotation || 0) * Math.PI / 180);
-                targetCtx.drawImage(imgToDraw, -stroke.width / 2, -stroke.height / 2, stroke.width, stroke.height);
-                targetCtx.restore();
+                ctx.translate(centerX, centerY);
+                ctx.rotate((stroke.rotation || 0) * Math.PI / 180);
+                ctx.drawImage(imgToDraw, -stroke.width / 2, -stroke.height / 2, stroke.width, stroke.height);
+                ctx.restore();
             }
         }
     }
-    targetCtx.restore();
+    ctx.restore();
     // ====================================================
 
     // --- YENİ EKLENEN KISIM: OTOMATİK HARF SENKRONİZASYONU ---
@@ -2477,7 +2455,7 @@ undoButton.addEventListener('click', undoLastStroke);
 clearAllButton.addEventListener('click', clearAllStrokes);
 moveButton.addEventListener('click', () => setActiveTool(currentTool === 'move' ? 'none' : 'move'));
 
-// (İşçi Motor (Worker) artık index.html'den <script> olarak yükleniyor, CORS hatası önlendi)
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 
 if (prevPageBtn && nextPageBtn) {
     
@@ -2544,8 +2522,10 @@ if (uploadButton && fileInput) {
                 // 1. AĞA GÖNDERMEK İÇİN (Base64 Metni Olarak)
                 const base64String = this.result; 
 
-                // PC'nin PDF'i kendisinin okuması sistemi (CORS sorunları nedeniyle) iptal edildi.
-                // Artık tablet PDF sayfasını resim (Canvas) olarak çizip PC'ye o anki sayfayı resim olarak aktaracak.
+                // 🚨 KESİN ÇÖZÜM: Koca PDF dosyasını PC'nin kendi okuması için ağa fırlat!
+                if (typeof isConnected !== 'undefined' && isConnected) {
+                    window.sendNetworkData({ type: 'pdf_yukle', pdfData: base64String });
+                }
                 
                 // 2. TABLET EKRANI İÇİN (PDF.js'in anladığı formata geri çeviriyoruz)
                 const base64Data = base64String.split(',')[1];
@@ -2900,8 +2880,8 @@ katmanZirhi.innerHTML = `
     /* 1. Çizim Tahtası: 3D şekillerin üstünde, butonların altında kalmalı */
     #drawing-canvas { position: relative !important; z-index: 50 !important; background-color: transparent !important; }
     
-    /* 2. 3D Sahnesi: PDF'in ve arka planların üzerinde görünmesi için z-index 9995 yapıldı */
-    #three-container { position: absolute !important; z-index: 9995 !important; pointer-events: none !important; display: block !important; }
+    /* 2. 3D Sahnesi: Kalemin altında kalmalı ki üstüne çizilebilsin */
+    #three-container { position: absolute !important; z-index: 40 !important; pointer-events: none !important; display: block !important; }
     
     /* 3. Arayüz ve Butonlar: Asla kaybolmamaları için en üst seviyeye sabitlendi */
     .panel, .panel *, button, .tool-button, .tool-button-sub, .tool-options,
@@ -2961,17 +2941,6 @@ if (typeof animateButton !== 'undefined' && animateButton) {
 canvas.addEventListener('pointerdown', (e) => {
     // 🚨 SİHİRLİ DOKUNUŞ 1: Ne olursa olsun ÖNCE tarayıcının yerleşik kaydırmasını (titremeyi) kilitliyoruz!
     if (e.cancelable) e.preventDefault();
-
-    // Tablet dikey konumdayken (veya genel olarak) çizime başlandığında tüm açık menüleri kapat
-    if (window.innerWidth <= 1024 || window.innerHeight > window.innerWidth) {
-        document.querySelectorAll('.tool-options').forEach(m => {
-            m.classList.add('hidden');
-            m.style.display = 'none';
-        });
-        document.querySelectorAll('.tool-button.active, .tool-button-sub.active').forEach(b => {
-            if (b.id !== 'btn-3d-menu' && b.id !== 'btn-tool-color') b.classList.remove('active');
-        });
-    }
 
     // AKILLI TAHTA YAMASI:
     if (e.pointerType === 'pen') {
@@ -3115,114 +3084,22 @@ canvas.addEventListener('pointermove', (e) => {
     if (e.pointerType === 'mouse') { let hasTouch = false; for (let p of pointers.values()) if (p.pointerType === 'touch' || p.pointerType === 'pen') hasTouch = true; if (hasTouch) return; }
     pointers.set(e.pointerId, e); 
 
-    // --- TABLET/PARDUS: İKİ PARMAK ZOOM (SADECE TAŞI ARACI SEÇİLİYKEN ÇALIŞSIN) ---
-    if ((pointers.size === 2 || (e.touches && e.touches.length === 2)) && currentTool === 'move') {
+    // --- TABLET/PARDUS: İKİ PARMAK ZOOM ---
+    if (pointers.size === 2 || (e.touches && e.touches.length === 2)) {
         let p1x, p1y, p2x, p2y;
         if (e.touches && e.touches.length === 2) { p1x = e.touches[0].clientX; p1y = e.touches[0].clientY; p2x = e.touches[1].clientX; p2y = e.touches[1].clientY; } 
         else { const p = Array.from(pointers.values()); p1x = p[0].clientX; p1y = p[0].clientY; p2x = p[1].clientX; p2y = p[1].clientY; }
         const currentDist = Math.hypot(p1x - p2x, p1y - p2y);
-        
-        // Merkez noktası (yakınlaştırma merkezi)
-        const centerX = (p1x + p2x) / 2;
-        const centerY = (p1y + p2y) / 2;
-
         if (lastDist > 0) {
-            const zoomStep = currentDist / lastDist;
-            
-            // TÜM ÇİZİMLERE VE ŞEKİLLERE UYGULA (Sadece arka plana değil!)
-            if (drawnStrokes.length > 0) {
-                const bgStrokes = drawnStrokes.filter(s => s.isBackground === true);
-                if (bgStrokes.length > 0) {
-                    drawnStrokes.forEach(s => {
-                        // Zoom the coordinates relative to the user's finger center
-                        if (s.type === 'pen' && s.path) {
-                            s.path.forEach(pt => {
-                                pt.x = centerX + (pt.x - centerX) * zoomStep;
-                                pt.y = centerY + (pt.y - centerY) * zoomStep;
-                            });
-                        } else {
-                            if (s.x !== undefined) s.x = centerX + (s.x - centerX) * zoomStep;
-                            if (s.y !== undefined) s.y = centerY + (s.y - centerY) * zoomStep;
-                            if (s.cx !== undefined) s.cx = centerX + (s.cx - centerX) * zoomStep;
-                            if (s.cy !== undefined) s.cy = centerY + (s.cy - centerY) * zoomStep;
-                            
-                            // Genişlik ve yükseklikleri ölçekle
-                            if (s.width !== undefined) s.width *= zoomStep;
-                            if (s.height !== undefined) s.height *= zoomStep;
-                            if (s.radius !== undefined) s.radius *= zoomStep;
-                            
-                            // Çokgen köşeleri
-                            if (s.vertices && Array.isArray(s.vertices)) {
-                                s.vertices.forEach(v => {
-                                    v.x = centerX + (v.x - centerX) * zoomStep;
-                                    v.y = centerY + (v.y - centerY) * zoomStep;
-                                });
-                            }
-                            
-                            // Arka plana sabitlenmiş resimlerin koordinatlarını da güncelle
-                            if (s.kordinatlar) {
-                                s.kordinatlar.x = s.x;
-                                s.kordinatlar.y = s.y;
-                                s.kordinatlar.width = s.width;
-                                s.kordinatlar.height = s.height;
-                            }
-                        }
-                    });
-                    
-                    redrawAllStrokes();
-                    
-                    if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-                        // PC'ye tüm strokes'ların son halini senkronize et
-                        window.sendNetworkData({ type: 'akilli_sekil_toplu', strokes: drawnStrokes });
-                    }
-                }
+            const delta = currentDist - lastDist; const zoomStep = 1 + (delta * 0.003);
+            const bgStrokes = drawnStrokes.filter(s => s.isBackground === true);
+            if (bgStrokes.length > 0) {
+                bgStrokes.forEach(bg => { const newW = bg.width * zoomStep; const newH = bg.height * zoomStep; bg.x -= (newW - bg.width) / 2; bg.y -= (newH - bg.height) / 2; bg.width = newW; bg.height = newH; });
+                redrawAllStrokes();
+                if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) window.sendNetworkData({ type: 'zoom_senkron', x: bgStrokes[0].x, y: bgStrokes[0].y, width: bgStrokes[0].width, height: bgStrokes[0].height });
             }
         }
         lastDist = currentDist; return; 
-    }
-
-    // --- TEK PARMAK PAN (KAYDIRMA) EKLENTİSİ ---
-    if ((pointers.size === 1 || (e.touches && e.touches.length === 1)) && currentTool === 'move') {
-        const bgStrokes = drawnStrokes.filter(s => s.isBackground === true);
-        // Eğer arka plan yüklüyse ve tek parmakla ekrana dokunulup sürükleniyorsa pan (kaydırma) yap
-        if (bgStrokes.length > 0 && isMoving === false && window.selectedItem === null) {
-            let pX, pY;
-            if (e.touches && e.touches.length === 1) { pX = e.touches[0].clientX; pY = e.touches[0].clientY; }
-            else { pX = e.clientX; pY = e.clientY; }
-            
-            if (typeof window.lastPanPos !== 'undefined' && window.lastPanPos) {
-                const dx = pX - window.lastPanPos.x;
-                const dy = pY - window.lastPanPos.y;
-                
-                // Canvas ölçeğine göre delta dönüşümü
-                const rect = canvas.getBoundingClientRect();
-                const cvsDx = dx * (canvas.width / rect.width);
-                const cvsDy = dy * (canvas.height / rect.height);
-
-                drawnStrokes.forEach(s => {
-                    if (s.type === 'pen' && s.path) {
-                        s.path.forEach(pt => { pt.x += cvsDx; pt.y += cvsDy; });
-                    } else {
-                        if (s.x !== undefined) s.x += cvsDx;
-                        if (s.y !== undefined) s.y += cvsDy;
-                        if (s.cx !== undefined) s.cx += cvsDx;
-                        if (s.cy !== undefined) s.cy += cvsDy;
-                        if (s.vertices && Array.isArray(s.vertices)) {
-                            s.vertices.forEach(v => { v.x += cvsDx; v.y += cvsDy; });
-                        }
-                    }
-                });
-                redrawAllStrokes();
-                
-                if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-                    window.sendNetworkData({ type: 'akilli_sekil_toplu', strokes: drawnStrokes });
-                }
-            }
-            window.lastPanPos = { x: pX, y: pY };
-            return;
-        }
-    } else {
-        window.lastPanPos = null;
     }
 
     if (pointers.size > 1 && e.isPrimary === false) return; 
@@ -3338,7 +3215,7 @@ canvas.addEventListener('pointermove', (e) => {
     if (['ruler', 'gonye', 'aciolcer', 'pergel', 'none'].includes(currentTool)) return;
     clearTimeout(snapHoverTimer);
     if (['point', 'straightLine', 'pen', 'segment'].includes(currentTool)) { const potentialSnap = findSnapPoint(pos); if (potentialSnap) { snapHoverTimer = setTimeout(() => { snapTarget = potentialSnap; snapIndicator.style.left = `${snapTarget.x}px`; snapIndicator.style.top = `${snapTarget.y}px`; snapIndicator.style.display = 'block'; }, 25); } else { snapTarget = null; snapIndicator.style.display = 'none'; } }
-    if (currentTool === 'eraser') { eraserPreview.style.left = `${e.clientX}px`; eraserPreview.style.top = `${e.clientY}px`; eraserPreview.style.display = 'block'; } else if (typeof eraserPreview !== 'undefined' && eraserPreview) eraserPreview.style.display = 'none';
+    if (currentTool === 'eraser') { eraserPreview.style.left = `${pos.x}px`; eraserPreview.style.top = `${pos.y}px`; eraserPreview.style.display = 'block'; } else if (typeof eraserPreview !== 'undefined' && eraserPreview) eraserPreview.style.display = 'none';
 
     let previewActive = false; const endPos = snapTarget || pos;
     const aktifCizimVarMi = isDrawingLine || isDrawingInfinityLine || isDrawingSegment || isDrawingRay || isDrawingRectangle || (window.tempPolygonData && window.tempPolygonData.center) || (currentTool === 'snapshot' && typeof snapshotStart !== 'undefined' && snapshotStart);
@@ -3548,12 +3425,6 @@ canvas.addEventListener('pointerup', (e) => {
             tempCtx.imageSmoothingEnabled = true;
             tempCtx.imageSmoothingQuality = 'high';
 
-            // 🚨 YENİ: Önce arka plan tuvalini çiz (PDF ve resimler için)
-            if (typeof bgCanvas !== 'undefined' && bgCanvas) {
-                tempCtx.drawImage(bgCanvas, x, y, w, h, 0, 0, w, h);
-            }
-            
-            // Sonra üstüne kullanıcının çizimlerini (canvas) çiz
             tempCtx.drawImage(canvas, x, y, w, h, 0, 0, w, h);
             const finalImage = tempCanvas.toDataURL('image/png', 1.0);
             
@@ -3719,16 +3590,20 @@ canvas.addEventListener('pointerup', (e) => {
                 tempCtx.closePath();
                 tempCtx.clip(); 
 
+                const bgLayer = document.getElementById('pdf-canvas') || document.querySelector('.pdf-page-canvas');
+                
                 // Kaliteyi artır
                 tempCtx.imageSmoothingEnabled = true;
                 tempCtx.imageSmoothingQuality = 'high';
 
-                // 🚨 YENİ: Önce arka plan tuvalini çiz (PDF ve resimler için)
-                if (typeof bgCanvas !== 'undefined' && bgCanvas) {
-                    tempCtx.drawImage(bgCanvas, minX, minY, w, h, 0, 0, w, h);
+                if (bgLayer) {
+                    const dprCanvasX = canvas.width / canvas.getBoundingClientRect().width;
+                    const dprCanvasY = canvas.height / canvas.getBoundingClientRect().height;
+
+                    const sX = (bgLayer.width / bgLayer.offsetWidth) / dprCanvasX;
+                    const sY = (bgLayer.height / bgLayer.offsetHeight) / dprCanvasY;
+                    tempCtx.drawImage(bgLayer, minX * sX, minY * sY, w * sX, h * sY, 0, 0, w, h);
                 }
-                
-                // Sonra üstüne kullanıcının çizimlerini (canvas) çiz
                 tempCtx.drawImage(canvas, minX, minY, w, h, 0, 0, w, h);
                 tempCtx.restore();
 
@@ -4029,12 +3904,11 @@ function addNewImageToCanvas(img, isPDF = false, pcKordinatlari = null) {
 
     redrawAllStrokes();
 
-    // 🚨 NİHAİ ÇÖZÜM: Tablet PDF sayfasını veya resmi yüklediğinde,
-    // o anki sayfanın yüksek çözünürlüklü halini doğrudan resim olarak PC'ye fırlatır!
+    // 🚨 NİHAİ ÇÖZÜM: PC zaten PDF'i kendi çiziyor, 20MB resmi yollama! Sadece koordinatları yolla!
     if (!pcKordinatlari && typeof isConnected !== 'undefined' && isConnected) {
         window.sendNetworkData({
             type: 'arka_plan_resmi_aktar', 
-            imgData: img.src, // Artık SADECE_KOORDINAT yok, resmi veriyoruz!
+            imgData: isPDF ? "SADECE_KOORDINAT" : img.src,
             isPDF: isPDF,
             kordinatlar: { x: newStroke.x, y: newStroke.y, width: newStroke.width, height: newStroke.height }
         });
@@ -4235,47 +4109,13 @@ if (window.drawnStrokes) {
 // --- BAŞLANGIÇ ---
 // --- AKILLI EKRAN BOYUTLANDIRMA (ADRES ÇUBUĞU ZIPLAMASINI ENGELLER) ---
 let lastWindowWidth = window.innerWidth;
-let lastWindowHeight = window.innerHeight;
 
 function resizeCanvas() {
     const newWidth = window.innerWidth;
     const newHeight = window.innerHeight;
 
-    // Eğer gerçekten döndürme veya boyut değişimi varsa
-    if (window.drawnStrokes && window.drawnStrokes.length > 0) {
-        const dpr = window.devicePixelRatio || 1;
-        const dx = (newWidth - lastWindowWidth) / 2;
-        const dy = (newHeight - lastWindowHeight) / 2;
-        
-        // Canvas ölçeğine göre delta dönüşümü
-        const cvsDx = dx * dpr;
-        const cvsDy = dy * dpr;
-
-        window.drawnStrokes.forEach(s => {
-            if (s.type === 'pen' && s.path) {
-                s.path.forEach(pt => { pt.x += cvsDx; pt.y += cvsDy; });
-            } else if (s.type !== '3d_shape') {
-                if (s.x !== undefined) s.x += cvsDx;
-                if (s.y !== undefined) s.y += cvsDy;
-                if (s.cx !== undefined) s.cx += cvsDx;
-                if (s.cy !== undefined) s.cy += cvsDy;
-                if (s.vertices && Array.isArray(s.vertices)) {
-                    s.vertices.forEach(v => { v.x += cvsDx; v.y += cvsDy; });
-                }
-                if (s.kordinatlar) {
-                    s.kordinatlar.x = s.x;
-                    s.kordinatlar.y = s.y;
-                }
-            }
-        });
-        
-        if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-            window.sendNetworkData({ type: 'akilli_sekil_toplu', strokes: window.drawnStrokes });
-        }
-    }
-
+    // Gerçekten ekran döndüyse veya boyut değiştiyse güncelle
     lastWindowWidth = newWidth;
-    lastWindowHeight = newHeight;
     canvas.width = newWidth;
     canvas.height = newHeight;
     
@@ -4295,29 +4135,6 @@ function resizeCanvas() {
         if (window.Scene3D.renderer) {
             window.Scene3D.renderer.setSize(newWidth, newHeight);
         }
-        
-        // 🚨 ÇÖZÜM: Ekran (tablet) döndürüldüğünde 3D şekillerin 2D tıklama alanlarını GÜNCELLE!
-        if (window.drawnStrokes) {
-            const rect = canvas.getBoundingClientRect();
-            const w = rect.width / 2, h = rect.height / 2;
-            window.drawnStrokes.forEach(s => {
-                if (s.type === '3d_shape' && window.Scene3D.scene) {
-                    const mesh = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === s.id);
-                    if (mesh) {
-                        const vec = mesh.position.clone();
-                        vec.project(window.Scene3D.camera);
-                        // Camera NDC to Screen coords
-                        const screenX = (vec.x * window.innerWidth / 2) + window.innerWidth / 2;
-                        const screenY = -(vec.y * window.innerHeight / 2) + window.innerHeight / 2;
-                        
-                        // Screen to Canvas coords
-                        s.x = (screenX - rect.left) - ((s.width||100) / 2);
-                        s.y = (screenY - rect.top) - ((s.height||100) / 2);
-                    }
-                }
-            });
-            if (window.Scene3D.currentMesh) window.Scene3D.updateHandlePositions();
-        }
     }
     
     redrawAllStrokes();
@@ -4327,11 +4144,7 @@ setupCanvasResolution();
 }
 
 window.addEventListener('load', resizeCanvas);
-let resizeTimeout;
-window.addEventListener('resize', () => {
-    clearTimeout(resizeTimeout);
-    resizeTimeout = setTimeout(resizeCanvas, 250);
-});
+window.addEventListener('resize', resizeCanvas);
 
 // --- app.js EN ALT SATIR (EDGE, CHROME, TABLET UYUMLU FİNAL) ---
 
@@ -4438,7 +4251,42 @@ window.addEventListener('touchmove', function(e) {
 // ==========================================
 
 
+// =========================================================
+// MOBİL TARAYICI ZIPLAMA ÇÖZÜMÜ: KATI EKRAN KİLİDİ (app.js)
+// =========================================================
+function lockScreenSize() {
+    // Ekranın o anki gerçek piksel boyutunu al
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const dpr = window.devicePixelRatio || 1; // 🚨 HD Oranı
 
+    // Kanvası ve body'yi bu piksel değerine beton gibi sabitle (100vh yerine px kullan)
+    const canvas = document.getElementById('drawing-canvas');
+    if (canvas) {
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+        canvas.width = w * dpr;   // 🚨 Çözünürlüğü HD yap (Gerçek Pikseller)
+        canvas.height = h * dpr;
+    }
+
+    document.body.style.width = w + 'px';
+    document.body.style.height = h + 'px';
+    document.documentElement.style.width = w + 'px';
+    document.documentElement.style.height = h + 'px';
+    
+    // 🚨 KESİN ÇÖZÜM: Kanvas boyutu değiştiğinde silinen çizimleri ve arka planı geri getir!
+    if (typeof window.redrawAllStrokes === 'function') {
+        window.redrawAllStrokes();
+    }
+}
+
+// 1. Sayfa yüklendiğinde boyutları kilitle
+window.addEventListener('load', lockScreenSize);
+
+// 2. Tablet yan çevrilirse (yatay/dikey) yeni boyuta göre tekrar kilitle
+window.addEventListener('orientationchange', () => {
+    setTimeout(lockScreenSize, 300);
+});
 
 // KRİTİK NOKTA: 'resize' eventini (adres çubuğu hareketlerini) DİNLEMİYORUZ!
 // Böylece adres çubuğu kaybolsa/çıksa bile sayfa esnemez, çizgiler zıplamaz.
@@ -5033,6 +4881,12 @@ function setLanguage(lang) {
 }
 
 // --- BU FONKSİYON SETLANGUAGE'İN DIŞINA/ALTINA GELİYOR ---
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    if (window.redrawAllStrokes) window.redrawAllStrokes();
+}
+
 // ================================================================
 // DİL SEÇİMİ VE AĞA FIRLATMA MOTORU
 // ================================================================
@@ -5258,15 +5112,7 @@ function akilliSilgi(e, isDown) {
                 }
                 // 🚨 YENİ 9: 3D ŞEKİLLERİ SİLME (Silgi Çözümü)
                 else if (s.type === '3d_shape') {
-                     // s.x ve s.y CSS pikselleri cinsindendir. nx ve ny ise Canvas iç çözünürlüğündedir.
-                     const cssNx = nx / scaleX;
-                     const cssNy = ny / scaleY;
-                     // s.x ve s.y şeklin sol üst köşesi olduğu için merkez noktasını buluyoruz
-                     const cx = (s.x || window.innerWidth/2) + (s.width || 100)/2;
-                     const cy = (s.y || window.innerHeight/2) + (s.height || 100)/2;
-                     
-                     // Hem silginin yarıçapını hem de şeklin yarıçapını CSS pikseline çevirerek karşılaştır
-                     if (Math.hypot(cx - cssNx, cy - cssNy) <= (s.width || 100)/2 + (eR / scaleX) + 20) {
+                     if (Math.hypot((s.x || window.innerWidth/2) - nx, (s.y || window.innerHeight/2) - ny) <= (s.width || 100)/2 + eR) {
                          vuruldu = true;
                      }
                 }
@@ -5583,42 +5429,115 @@ function setupConnectionEvents() {
 // =========================================================
 // EKRANLAR ARASI ORANTISAL ADAPTASYON (ÇÖZÜNÜRLÜK SENKRONU)
 // =========================================================
-window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw, senderCh) {
-    if (!stroke || !senderW || !senderH || Math.abs(senderW - window.innerWidth) < 5) return stroke;
+window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
+    if (!stroke || !senderW || !senderH) return stroke;
     
-    // PC ve Tablet arası oran hesaplama (Aspect Ratio)
-    let sx = window.innerWidth / senderW;
-    let sy = window.innerHeight / senderH;
-    
-    // Tablet yatay/dikey döndürüldüğünde ekran sündürmesini (distortion) önlemek için Math.min kullanılır
-    const scale = Math.min(sx, sy);
-    
-    // Her iki ekranın merkez noktaları
-    const cx_tab = senderW / 2;
-    const cy_tab = senderH / 2;
-    const cx_pc = window.innerWidth / 2;
-    const cy_pc = window.innerHeight / 2;
-    
-    // Koordinatları merkez noktasına göre yeniden haritalama fonksiyonu
-    const mapX = (x) => (x - cx_tab) * scale + cx_pc;
-    const mapY = (y) => (y - cy_tab) * scale + cy_pc;
+    // 🚨 3D ŞEKİL KORUMASI 🚨
+    // 3D şekiller WebGL (OrthographicCamera) içinde zaten normalize edilmiş koordinatlar (-1 ile 1 arası)
+    // ve sabit frustumSize (30) kullanır. Bu yüzden 2D canvas/css ölçeklendirmesinden (sx, sy, dpr) TAMAMEN MUAF tutulmalıdır.
+    // Aksi halde PC'ye geçerken çift ölçeklenerek devasa boyutlara ulaşırlar!
+    if (stroke.type === '3d_shape' || stroke.shapeType) return stroke;
 
-    if (stroke.type === 'pen' && stroke.path) {
-        stroke.path.forEach(pt => { pt.x = mapX(pt.x); pt.y = mapY(pt.y); });
-    } else {
-        if (stroke.x !== undefined) stroke.x = mapX(stroke.x);
-        if (stroke.y !== undefined) stroke.y = mapY(stroke.y);
+    const myW = window.innerWidth;
+    const myH = window.innerHeight;
+    
+    if (Math.abs(senderW - myW) < 5 && Math.abs(senderH - myH) < 5) return stroke;
+
+    const sx = myW / senderW;
+    const sy = myH / senderH;
+
+    // 🚨 KESİN ÇÖZÜM: Arka plan varsa, tüm çizim evrenini "Orantılı Ölçekle" (Aspect Ratio Korunur)
+    const hasBackground = window.drawnStrokes && window.drawnStrokes.some(s => s.isBackground === true);
+    const isLineType = ['pen', 'line', 'segment', 'ray', 'straightLine', 'polygon', 'point', 'arc'].includes(stroke.type);
+
+    if (stroke.isBackground === true || hasBackground) {
+        const scale = Math.min(sx, sy);
+        const cx_tab = senderW / 2;
+        const cy_tab = senderH / 2;
+        const cx_pc = myW / 2;
+        const cy_pc = myH / 2;
+
+        const mapX = (x) => cx_pc + ((x - cx_tab) * scale);
+        const mapY = (y) => cy_pc + ((y - cy_tab) * scale);
+
+        if (stroke.path) stroke.path.forEach(p => { p.x = mapX(p.x); p.y = mapY(p.y); });
+        if (stroke.points) stroke.points.forEach(p => { p.x = mapX(p.x); p.y = mapY(p.y); });
+
+        if (stroke.x !== undefined && stroke.width !== undefined && !isLineType) {
+            const center_x = mapX(stroke.x + stroke.width / 2);
+            stroke.width *= scale;
+            stroke.x = center_x - stroke.width / 2;
+        } else if (stroke.x !== undefined) {
+            stroke.x = mapX(stroke.x);
+            if (stroke.width !== undefined && !isLineType) stroke.width *= scale;
+        }
+
+        if (stroke.y !== undefined && stroke.height !== undefined && !isLineType) {
+            const center_y = mapY(stroke.y + stroke.height / 2);
+            stroke.height *= scale;
+            stroke.y = center_y - stroke.height / 2;
+        } else if (stroke.y !== undefined) {
+            stroke.y = mapY(stroke.y);
+            if (stroke.height !== undefined && !isLineType) stroke.height *= scale;
+        }
+        
         if (stroke.cx !== undefined) stroke.cx = mapX(stroke.cx);
         if (stroke.cy !== undefined) stroke.cy = mapY(stroke.cy);
-        if (stroke.width !== undefined) stroke.width *= scale;
-        if (stroke.height !== undefined) stroke.height *= scale;
+        if (stroke.center) {
+            if (stroke.center.x !== undefined) stroke.center.x = mapX(stroke.center.x);
+            if (stroke.center.y !== undefined) stroke.center.y = mapY(stroke.center.y);
+        }
         if (stroke.radius !== undefined) stroke.radius *= scale;
-        if (stroke.vertices) stroke.vertices.forEach(v => { v.x = mapX(v.x); v.y = mapY(v.y); });
-        if (stroke.kordinatlar) {
-            stroke.kordinatlar.x = stroke.x; stroke.kordinatlar.y = stroke.y;
-            stroke.kordinatlar.width = stroke.width; stroke.kordinatlar.height = stroke.height;
+        if (stroke.p1) { stroke.p1.x = mapX(stroke.p1.x); stroke.p1.y = mapY(stroke.p1.y); }
+        if (stroke.p2) { stroke.p2.x = mapX(stroke.p2.x); stroke.p2.y = mapY(stroke.p2.y); }
+        if (stroke.p3) { stroke.p3.x = mapX(stroke.p3.x); stroke.p3.y = mapY(stroke.p3.y); }
+        
+        if (stroke.type === 'text' && stroke.fontSize) stroke.fontSize *= scale;
+
+    } else {
+        // ESKİ MANTIK: Arka plan yoksa (beyaz tahta), ekrana sündürerek yay (Kusursuz oran kopyalama)
+        if (stroke.path) stroke.path.forEach(p => { p.x *= sx; p.y *= sy; });
+        if (stroke.points) stroke.points.forEach(p => { p.x *= sx; p.y *= sy; });
+        
+        if (stroke.x !== undefined) stroke.x *= sx;
+        if (stroke.y !== undefined) stroke.y *= sy;
+        
+        if (stroke.width !== undefined && !isLineType) stroke.width *= sx;
+        if (stroke.height !== undefined && !isLineType) stroke.height *= sy;
+        
+        if (stroke.cx !== undefined) stroke.cx *= sx;
+        if (stroke.cy !== undefined) stroke.cy *= sy;
+        if (stroke.center) {
+            if (stroke.center.x !== undefined) stroke.center.x *= sx;
+            if (stroke.center.y !== undefined) stroke.center.y *= sy;
+        }
+        if (stroke.radius !== undefined) stroke.radius *= sx; 
+        if (stroke.p1) { stroke.p1.x *= sx; stroke.p1.y *= sy; }
+        if (stroke.p2) { stroke.p2.x *= sx; stroke.p2.y *= sy; }
+        if (stroke.p3) { stroke.p3.x *= sx; stroke.p3.y *= sy; }
+        
+        if (stroke.type === 'text' && stroke.fontSize) stroke.fontSize *= Math.min(sx, sy);
+    }
+    
+    // Kalınlık hesaplaması (Çizgilerin çok ince veya çok kalın olmasını engeller)
+    if (stroke.width !== undefined && isLineType) {
+        const canvasElm = document.getElementById('drawing-canvas');
+        if (canvasElm && senderCw) {
+            const myDpr = canvasElm.width / myW;
+            const senderDpr = senderCw / senderW;
+            if (senderDpr > 0 && myDpr > 0) stroke.width *= (myDpr / senderDpr);
         }
     }
+    
+    if (stroke.baseWidth !== undefined) {
+        const canvasElm = document.getElementById('drawing-canvas');
+        if (canvasElm && senderCw) {
+            const myDpr = canvasElm.width / myW;
+            const senderDpr = senderCw / senderW;
+            if (senderDpr > 0 && myDpr > 0) stroke.baseWidth *= (myDpr / senderDpr);
+        }
+    }
+
     return stroke;
 };
 
@@ -5637,10 +5556,10 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw, sender
             // --- EKRANLAR ARASI ÇÖZÜNÜRLÜK ADAPTASYONU ---
             if (d.cssW && d.cssH && typeof window.adaptStrokeToScreen === 'function') {
                 if (d.stroke) {
-                    window.adaptStrokeToScreen(d.stroke, d.cssW, d.cssH, d.cw, d.ch);
+                    window.adaptStrokeToScreen(d.stroke, d.cssW, d.cssH, d.cw);
                 }
                 if (d.strokes && Array.isArray(d.strokes)) {
-                    d.strokes.forEach(s => window.adaptStrokeToScreen(s, d.cssW, d.cssH, d.cw, d.ch));
+                    d.strokes.forEach(s => window.adaptStrokeToScreen(s, d.cssW, d.cssH, d.cw));
                 }
                 
                 // Fiziki araçların (cetvel vb) uzaklık oranı korunarak taşınması
@@ -5748,11 +5667,7 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw, sender
             if (!window.chunkBuffers[id]) window.chunkBuffers[id] = "";
             window.chunkBuffers[id] += data.data;
             if (data.isLast) {
-                try { 
-                    veriyiIsle(JSON.parse(window.chunkBuffers[id])); 
-                } catch (e) {
-                    console.error("Parçalanmış veri birleştirme (Chunk Parse) hatası:", e);
-                }
+                try { veriyiIsle(JSON.parse(window.chunkBuffers[id])); } catch (e) {}
                 delete window.chunkBuffers[id]; 
             }
             return;
@@ -5765,7 +5680,63 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw, sender
     // --- VERİ İŞLEME MERKEZİ ---
     function processData(data) {
 
-        if (!data || !data.type) return;
+// 🚨 YENİ ALICI: TABLETTEN GELEN KUSURSUZ RESMİ VE PDF'İ EKRANA ÇİZER
+        if (data.type === 'arka_plan_resmi_aktar') {
+            // PDF sayfaları için devasa resim gelmez, sadece hizalama koordinatları gelir!
+            if (data.isPDF && data.imgData === "SADECE_KOORDINAT") {
+                setTimeout(() => {
+                    let zemin = window.drawnStrokes.find(s => s.isBackground === true);
+                    if (zemin && data.kordinatlar) {
+                        let sx = 1, sy = 1;
+                        if (data.cssW && data.cssH && Math.abs(data.cssW - window.innerWidth) >= 5) {
+                            sx = window.innerWidth / data.cssW;
+                            sy = window.innerHeight / data.cssH;
+                        }
+                        
+                        // 🚨 KESİN ÇÖZÜM: Resmin sündürülmesini engelle ve ekranın tam merkezine orantılı oturt!
+                        const scale = Math.min(sx, sy);
+                        const cx_tab = (data.cssW || window.innerWidth) / 2;
+                        const cy_tab = (data.cssH || window.innerHeight) / 2;
+                        const cx_pc = window.innerWidth / 2;
+                        const cy_pc = window.innerHeight / 2;
+
+                        const img_cx_tab = data.kordinatlar.x + (data.kordinatlar.width / 2);
+                        const img_cy_tab = data.kordinatlar.y + (data.kordinatlar.height / 2);
+                        const dx = (img_cx_tab - cx_tab) * scale;
+                        const dy = (img_cy_tab - cy_tab) * scale;
+
+                        zemin.width = data.kordinatlar.width * scale;
+                        zemin.height = data.kordinatlar.height * scale;
+                        zemin.x = (cx_pc + dx) - (zemin.width / 2);
+                        zemin.y = (cy_pc + dy) - (zemin.height / 2);
+                        
+                        if (window.redrawAllStrokes) window.redrawAllStrokes();
+                    }
+                }, 200); // PC'nin kendi PDF'ini çizmesi için mini bir an bekleyip koordinatları kitleriz
+                return;
+            }
+
+            // Normal JPG/PNG resimler aynen aktarılır
+            const img = new Image();
+            img.onload = () => { 
+                if (typeof addNewImageToCanvas === 'function') {
+                    let sonKoordinat = data.kordinatlar;
+                    if (sonKoordinat && data.cssW && data.cssH && Math.abs(data.cssW - window.innerWidth) >= 5) {
+                        const sx = window.innerWidth / data.cssW;
+                        const sy = window.innerHeight / data.cssH;
+                        sonKoordinat = {
+                            x: data.kordinatlar.x * sx,
+                            y: data.kordinatlar.y * sy,
+                            width: data.kordinatlar.width * sx,
+                            height: data.kordinatlar.height * sy
+                        };
+                    }
+                    addNewImageToCanvas(img, data.isPDF, sonKoordinat); 
+                }
+            };
+            img.src = data.imgData;
+            return; // İşlemi bitir
+        }        if (!data || !data.type) return;
         if (!window.drawnStrokes) window.drawnStrokes = [];
 
         // DİL SEÇİMİ HER ZAMAN GEÇSİN
@@ -5791,17 +5762,8 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw, sender
         if (data.type === 'akilli_sekil_toplu') {
             if (data.strokes && Array.isArray(data.strokes)) {
                 data.strokes.forEach(s => {
-                    const existingIndex = window.drawnStrokes.findIndex(ds => ds.id === s.id);
-                    if (existingIndex !== -1) {
-                        const original = window.drawnStrokes[existingIndex];
-                        // Preserve large objects that shouldn't be overridden by network JSON
-                        if (original.imgObj) s.imgObj = original.imgObj;
-                        if (original.img) s.img = original.img;
-                        if (original.imgData && !s.imgData) s.imgData = original.imgData;
-                        window.drawnStrokes[existingIndex] = s;
-                    } else {
-                        window.drawnStrokes.push(s);
-                    }
+                    const isDuplicate = s.id && window.drawnStrokes.some(ds => ds.id === s.id);
+                    if (!isDuplicate) window.drawnStrokes.push(s);
                 });
             }
             if (window.redrawAllStrokes) window.redrawAllStrokes();
@@ -6022,8 +5984,24 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw, sender
             console.log("PC: Silme komutu alındı. Çizimler ve kopyalar uçuruldu, sadece zemin korundu.");
         }
         
-        // (pdf_yukle ve pdf_sayfa_degis alıcıları iptal edildi. 
-        // Çünkü PC artık PDF'i kendi okumaya çalışmıyor, tablet ona hazır çizilmiş resmini atıyor)
+        if (data.type === 'pdf_yukle') { 
+            try {
+                const base64Data = data.pdfData.split(',')[1];
+                const binaryString = window.atob(base64Data);
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) { bytes[i] = binaryString.charCodeAt(i); }
+                if (typeof pdfjsLib !== 'undefined') {
+                    pdfjsLib.getDocument(bytes).promise.then(pdf => {
+                        window.currentPDF = pdf; window.totalPDFPages = pdf.numPages; window.currentPDFPage = 1;
+                        if (document.getElementById('pdf-controls')) document.getElementById('pdf-controls').classList.remove('hidden');
+                        if (typeof renderPDFPage === 'function') renderPDFPage(1);
+                    });
+                }
+            } catch (e) { console.error("PDF Hatası:", e); }
+        }
+
+        if (data.type === 'pdf_sayfa_degis') { window.currentPDFPage = data.sayfa; if (typeof renderPDFPage === 'function') renderPDFPage(window.currentPDFPage); }
         
         // 🚨 NİHAİ ÇÖZÜM: Yeni Sayfa veya Resim geldiğinde PC ekranına KUSURSUZ yansıt 🚨
         if (data.type === 'arka_plan_resmi_aktar') {
@@ -6031,9 +6009,18 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw, sender
             img.onload = () => { 
                 if (typeof addNewImageToCanvas === 'function') {
                     // Resmi tabletin bize yolladığı KESİN koordinatlarla oluştur!
-                    // Tablet yatay/dikey de olsa PC'ye koordinatları aynen (1:1) aktarır.
-                    // Ayrı orantılama sündürülmesini iptal ettik, çünkü 3D şekiller ve çizimler de 1:1 geliyor.
                     let sonKoordinat = data.kordinatlar;
+                    // Eğer boyutlar geldiyse ve PC ekranı farklıysa, İLK ANDA BİLE orantıla!
+                    if (sonKoordinat && data.cssW && data.cssH && Math.abs(data.cssW - window.innerWidth) >= 5) {
+                        const sx = window.innerWidth / data.cssW;
+                        const sy = window.innerHeight / data.cssH;
+                        sonKoordinat = {
+                            x: data.kordinatlar.x * sx,
+                            y: data.kordinatlar.y * sy,
+                            width: data.kordinatlar.width * sx,
+                            height: data.kordinatlar.height * sy
+                        };
+                    }
                     addNewImageToCanvas(img, data.isPDF, sonKoordinat); 
                 }
             };
@@ -6513,52 +6500,6 @@ window.Scene3D = {
         this.animate();
     },
 
-    get3DShapeColors: function(type, cx, cy) {
-        let isLightBg = false;
-        const canvas = document.getElementById('drawing-canvas');
-        if (canvas) {
-            try {
-                const ctx = canvas.getContext('2d', { willReadFrequently: true });
-                const rect = canvas.getBoundingClientRect();
-                const pixelX = Math.floor((cx - rect.left) * (canvas.width / rect.width));
-                const pixelY = Math.floor((cy - rect.top) * (canvas.height / rect.height));
-                const pixelData = ctx.getImageData(pixelX, pixelY, 1, 1).data;
-                if (pixelData[3] > 0) {
-                    const brightness = (pixelData[0] + pixelData[1] + pixelData[2]) / 3;
-                    if (brightness > 128) isLightBg = true;
-                }
-            } catch(e) {
-                // CORS fallback
-                const hasBg = window.drawnStrokes && window.drawnStrokes.some(s => s.isBackground === true && cx >= s.x && cx <= s.x + s.width && cy >= s.y && cy <= s.y + s.height);
-                if (hasBg) isLightBg = true;
-            }
-        }
-
-        let neon, dark;
-        if (type.startsWith('prism_cube') || type === 'prism_rect') {
-            neon = 0x00e5ff; // Neon Cyan
-            dark = 0x005b66;
-        } else if (type === 'sphere') {
-            neon = 0xff66cc; // Açık Pembe (Light Pink)
-            dark = 0xcc0077; // Açık Pembe Koyu Zemin
-        } else if (type.startsWith('pyramid_')) {
-            neon = 0xffd500; // Neon Yellow/Gold
-            dark = 0x806a00;
-        } else if (type.startsWith('prism_')) {
-            neon = 0x39ff14; // Neon Lime Green
-            dark = 0x1a800a;
-        } else {
-            neon = 0xbf00ff; // Neon Purple
-            dark = 0x4a0080;
-        }
-
-        return {
-            isLightBg: isLightBg,
-            edgeColor: isLightBg ? dark : neon,
-            faceColor: isLightBg ? dark : neon
-        };
-    },
-
     updateHandlePositions: function() {
         if (!this.currentMesh || window.currentTool !== 'move') {
             if(this.rotateHandleBtn) this.rotateHandleBtn.style.display = 'none';
@@ -6567,22 +6508,18 @@ window.Scene3D = {
         }
         const vec = this.currentMesh.position.clone();
         vec.project(this.camera);
-        const rect = (this.renderer && this.renderer.domElement) ? this.renderer.domElement.getBoundingClientRect() : {width: window.innerWidth, height: window.innerHeight, left: 0, top: 0};
-        const w = rect.width / 2, h = rect.height / 2;
-        const px = (vec.x * w) + w + rect.left, py = -(vec.y * h) + h + rect.top;
+        const w = window.innerWidth / 2, h = window.innerHeight / 2;
+        const px = (vec.x * w) + w, py = -(vec.y * h) + h;
         
         this.handles.center = { x: px, y: py };
         
-        // Z-Index Zırhından kaçmak için çok yüksek değer verdik!
         this.rotateHandleBtn.style.display = 'flex';
         this.rotateHandleBtn.style.left = (px + 30) + 'px';
         this.rotateHandleBtn.style.top = (py - 60) + 'px';
-        this.rotateHandleBtn.style.zIndex = '999999';
         
         this.resizeHandleBtn.style.display = 'flex';
         this.resizeHandleBtn.style.left = (px - 70) + 'px';
         this.resizeHandleBtn.style.top = (py + 30) + 'px';
-        this.resizeHandleBtn.style.zIndex = '999999';
     },
 
     animate: function() {
@@ -6601,13 +6538,11 @@ window.Scene3D = {
 
    // 🚨 3D TABLET HATASI ÇÖZÜMÜ: Ekranın tamamı değil, çizim kutusunun gerçek sınırları baz alınır!
     getNormalizedCoords: function(clientX, clientY) {
-        if (!this.renderer || !this.renderer.domElement) {
-            return { x: (clientX / window.innerWidth) * 2 - 1, y: -(clientY / window.innerHeight) * 2 + 1 };
-        }
-        const rect = this.renderer.domElement.getBoundingClientRect();
+        // clientX ve clientY zaten canvas'a göre (rect.left çıkarılmış) gelir!
+        // O yüzden sadece CSS genişliğine (window.innerWidth) bölmek yeterlidir.
         return {
-            x: ((clientX - rect.left) / rect.width) * 2 - 1,
-            y: -((clientY - rect.top) / rect.height) * 2 + 1
+            x: (clientX / window.innerWidth) * 2 - 1,
+            y: -(clientY / window.innerHeight) * 2 + 1
         };
     },
 
@@ -6702,23 +6637,9 @@ window.Scene3D = {
             this.isDrawing = true;
             this.startPoint = this.get3DPointOnFloor(x, y) || new THREE.Vector3(0,0,0);
             
-            const isSphere = this.activeTool === 'sphere';
-            const colors = this.get3DShapeColors(this.activeTool, x, y);
-            const mat = new THREE.MeshBasicMaterial({ color: colors.faceColor, transparent: true, opacity: isSphere ? 0.85 : 0.25 });
-            const edgeMat = new THREE.LineBasicMaterial({ color: colors.edgeColor, transparent: true, opacity: 0.8 });
-            
-            if (window.Foldable3D) {
-                this.previewMesh = window.Foldable3D.createFoldableGroup(this.activeTool, 0.1, mat, edgeMat);
-                // Önizlemenin baştan kapalı (katlı) başlaması için updateUnfold(..., 0)
-                if (this.previewMesh) window.Foldable3D.updateUnfold(this.previewMesh, 0);
-            }
-            
-            if (!this.previewMesh) {
-                const previewGeo = this.createGeometry(this.activeTool, 0.1);
-                if(this.activeTool.startsWith('prism') || this.activeTool.startsWith('pyramid')) previewGeo.rotateX(Math.PI / 2);
-                this.previewMesh = new THREE.Mesh(previewGeo, mat);
-            }
-            
+            const previewGeo = this.createGeometry(this.activeTool, 0.1);
+            if(this.activeTool.startsWith('prism') || this.activeTool.startsWith('pyramid')) previewGeo.rotateX(Math.PI / 2);
+            this.previewMesh = new THREE.Mesh(previewGeo, new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true, transparent: true, opacity: 0.5 }));
             this.previewMesh.position.copy(this.startPoint);
             this.scene.add(this.previewMesh);
             return true;
@@ -6734,10 +6655,8 @@ window.Scene3D = {
 
     onMove: function(x, y) {
         if (this.isRotatingHandle && this.currentMesh) {
-            // Şeklin yatmadan (tilting olmadan) sağa/sola dönmesi için Dünya (World) Y ekseni etrafında döndürüyoruz
-            // Kullanıcı isteğine göre yönler tersine çevrildi (çekildiği yöne dönsün)
-            this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), (this.lastMousePos.y - y) * 0.01);
-            this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), (this.lastMousePos.x - x) * 0.01);
+            this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), (y - this.lastMousePos.y) * 0.01);
+            this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), (x - this.lastMousePos.x) * 0.01);
             this.lastMousePos = { x, y };
             this.updateHandlePositions();
             return;
@@ -6777,14 +6696,9 @@ window.Scene3D = {
                     // 2D Merkez noktasını (x,y) Formül kutusu için de güncelle
                     const vec = this.currentMesh.position.clone();
                     vec.project(this.camera);
-                    const canvasElm = document.getElementById('drawing-canvas');
-                    const rect = canvasElm ? canvasElm.getBoundingClientRect() : {left: 0, top: 0};
-                    
-                    const screenX = (vec.x * window.innerWidth / 2) + window.innerWidth / 2;
-                    const screenY = -(vec.y * window.innerHeight / 2) + window.innerHeight / 2;
-                    
-                    sd.x = (screenX - rect.left) - (sd.width / 2);
-                    sd.y = (screenY - rect.top) - (sd.height / 2);
+                    const w = window.innerWidth / 2, h = window.innerHeight / 2;
+                    sd.x = ((vec.x * w) + w) - (sd.width / 2);
+                    sd.y = (-(vec.y * h) + h) - (sd.height / 2);
                     
                     window.selectedItem = sd;
 
@@ -6815,39 +6729,21 @@ window.Scene3D = {
         if (wasDrawing && this.previewMesh) {
             const finalScale = this.previewMesh.scale.x || 1;
             const finalRadius = 0.1 * finalScale;
-            this.scene.remove(this.previewMesh); 
-            if (this.previewMesh.geometry) this.previewMesh.geometry.dispose(); 
-            this.previewMesh = null;
+            this.scene.remove(this.previewMesh); this.previewMesh.geometry.dispose(); this.previewMesh = null;
             
-            const vec = (this.startPoint || new THREE.Vector3(0,0,0)).clone();
-            vec.project(this.camera);
-            const rect = (this.renderer && this.renderer.domElement) ? this.renderer.domElement.getBoundingClientRect() : {width: window.innerWidth, height: window.innerHeight, left: 0, top: 0};
-            const w = rect.width / 2;
-            const h = rect.height / 2;
-            const screenX = (vec.x * w) + w;
-            const screenY = -(vec.y * h) + h;
-
             const isSphere = this.activeTool === 'sphere';
-            const colors = this.get3DShapeColors(this.activeTool, screenX, screenY);
-            
-            // Tüm şekiller holografik ve şeffaf. Kürelerde arka yüzeyin çakışıp rengi koyulaştırmasını önlemek için FrontSide kullanıyoruz ve opacity'yi artırıyoruz.
-            const mainMaterial = new THREE.MeshPhongMaterial({ color: colors.faceColor, shininess: 100, specular: 0x555555, transparent: true, opacity: isSphere ? 0.85 : 0.25, depthWrite: isSphere ? true : false, side: isSphere ? THREE.FrontSide : THREE.DoubleSide });
-            const edgeMaterial = new THREE.LineBasicMaterial({ color: colors.edgeColor, transparent: true, opacity: 1.0 });
+            const mainMaterial = new THREE.MeshPhongMaterial({ color: 0x00ffcc, shininess: 100, specular: 0x111111, transparent: !isSphere, opacity: isSphere ? 1.0 : 0.4, depthWrite: isSphere, side: THREE.DoubleSide });
+            const edgeMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 });
             
             let solidShape = null;
             if (window.Foldable3D) {
                 solidShape = window.Foldable3D.createFoldableGroup(this.activeTool, finalRadius, mainMaterial, edgeMaterial);
-                if (solidShape) window.Foldable3D.updateUnfold(solidShape, 0);
             }
             if (!solidShape) {
                 const geometry = this.createGeometry(this.activeTool, finalRadius);
                 if(this.activeTool.startsWith('prism') || this.activeTool.startsWith('pyramid')) geometry.rotateX(Math.PI / 2);
                 solidShape = new THREE.Mesh(geometry, mainMaterial);
-                
-                // KÜRE İSE MERİDYEN ÇİZGİLERİNİ EKLEME (Düz yüzey olsun)
-                if (!isSphere) {
-                    solidShape.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edgeMaterial));
-                }
+                solidShape.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edgeMaterial));
             }
             
             // Şekli 3D uzaya tam senin bıraktığın yere yerleştir
@@ -6857,14 +6753,22 @@ window.Scene3D = {
             this.currentMesh = solidShape;
             this.updateHandlePositions();
 
+            // 🚨 SİHİRLİ DOKUNUŞ: 3D Şeklin 2D Çizim Noktasını Tam İsabet Hesapla! (Ortaya kaçmaz)
+            const vec = solidShape.position.clone();
+            vec.project(this.camera);
+            const w = window.innerWidth / 2;
+            const h = window.innerHeight / 2;
+            const screenX = (vec.x * w) + w;
+            const screenY = -(vec.y * h) + h;
 
             const networkData = {
                 type: '3d_shape', id: Date.now().toString() + Math.random(), shapeType: this.activeTool,
                 x: screenX - (finalRadius * 15), 
                 y: screenY - (finalRadius * 15), 
                 width: finalRadius * 30, height: finalRadius * 30,
-                rotationX: solidShape.rotation.x, rotationY: solidShape.rotation.y, rotationZ: solidShape.rotation.z,
-                rotation: 0, yaw: 0, pitch: 1, openRatio: 0, isPreview: false, isLightBg: colors.isLightBg, color: '#' + colors.faceColor.toString(16).padStart(6, '0')
+                rotationX: 0, rotationY: 0, rotationZ: 0,
+                pos3D: { x: solidShape.position.x, y: solidShape.position.y, z: solidShape.position.z },
+                rotation: 0, yaw: 0, pitch: 1, openRatio: 0, isPreview: false, color: '#00ffcc'
             };
             Object.assign(solidShape.userData, { type: this.activeTool, baseSize: finalRadius, height: finalRadius * 2, strokeData: networkData });
             
@@ -6932,58 +6836,21 @@ window.Scene3D = {
     addShapeFromNetwork: function(strokeData) {
         if (!this.isInit) this.init();
         const isSphere = strokeData.shapeType === 'sphere';
-        
-        let neon, dark;
-        const type = strokeData.shapeType;
-        if (type.startsWith('prism_cube') || type === 'prism_rect') { neon = 0x00e5ff; dark = 0x005b66; }
-        else if (type === 'sphere') { neon = 0xff66cc; dark = 0xcc0077; }
-        else if (type.startsWith('pyramid_')) { neon = 0xffd500; dark = 0x806a00; }
-        else if (type.startsWith('prism_')) { neon = 0x39ff14; dark = 0x1a800a; }
-        else { neon = 0xbf00ff; dark = 0x4a0080; }
-        
-        const faceColor = strokeData.isLightBg ? dark : neon;
-        const edgeColor = strokeData.isLightBg ? dark : neon;
-        
-        // Tüm şekiller holografik ve şeffaf. Kürelerde arka yüzeyin çakışıp rengi koyulaştırmasını önlemek için FrontSide kullanıyoruz ve opacity'yi artırıyoruz.
-        const mainMaterial = new THREE.MeshPhongMaterial({ color: faceColor, shininess: 100, specular: 0x555555, transparent: true, opacity: isSphere ? 0.85 : 0.25, depthWrite: isSphere ? true : false, side: isSphere ? THREE.FrontSide : THREE.DoubleSide });
-        const edgeMaterial = new THREE.LineBasicMaterial({ color: edgeColor, transparent: true, opacity: 1.0 });
+        const mainMaterial = new THREE.MeshPhongMaterial({ color: 0x00ffcc, shininess: 100, specular: 0x111111, transparent: !isSphere, opacity: isSphere ? 1.0 : 0.4, depthWrite: isSphere, side: THREE.DoubleSide });
+        const edgeMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 });
         
         let solidShape = null;
         if (window.Foldable3D) {
             solidShape = window.Foldable3D.createFoldableGroup(strokeData.shapeType, strokeData.width / 30, mainMaterial, edgeMaterial);
-            if (solidShape) window.Foldable3D.updateUnfold(solidShape, strokeData.openRatio || 0);
         }
         if (!solidShape) {
             const geometry = this.createGeometry(strokeData.shapeType, strokeData.width / 30);
             if(strokeData.shapeType.startsWith('prism') || strokeData.shapeType.startsWith('pyramid')) geometry.rotateX(Math.PI / 2);
             solidShape = new THREE.Mesh(geometry, mainMaterial);
-            
-            // KÜRE İSE MERİDYEN ÇİZGİLERİNİ EKLEME (Düz yüzey olsun)
-            if (!isSphere) {
-                solidShape.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edgeMaterial));
-            }
+            solidShape.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edgeMaterial));
         }
         
-        // 🚨 ÇÖZÜM: PC ve Tabletin 3D Dünyaları Zaten Ortak Merkezlidir!
-        // Eğer pos3D varsa, doğrudan onu kullan. Böylece cihaz çözünürlüğünden bağımsız tam yerine oturur.
-        let pt = null;
-        const canvasElm = document.getElementById('drawing-canvas');
-        if (canvasElm && window.Scene3D && window.Scene3D.camera) {
-            const rct = canvasElm.getBoundingClientRect();
-            const cx = strokeData.x + (strokeData.width / 2);
-            const cy = strokeData.y + (strokeData.height / 2);
-            const nx = (cx / rct.width) * 2 - 1;
-            const ny = -(cy / rct.height) * 2 + 1;
-            
-            const raycaster = new THREE.Raycaster();
-            raycaster.setFromCamera(new THREE.Vector2(nx, ny), window.Scene3D.camera);
-            const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
-            const intersection = new THREE.Vector3();
-            if (raycaster.ray.intersectPlane(plane, intersection)) {
-                pt = intersection;
-            }
-        }
-        if (pt) solidShape.position.copy(pt);
+        if (strokeData.pos3D) solidShape.position.set(strokeData.pos3D.x, strokeData.pos3D.y, strokeData.pos3D.z);
         if (strokeData.rotationX !== undefined) solidShape.rotation.x = strokeData.rotationX;
         if (strokeData.rotationY !== undefined) solidShape.rotation.y = strokeData.rotationY;
         Object.assign(solidShape.userData, { type: strokeData.shapeType, baseSize: strokeData.width / 30, height: (strokeData.width / 30) * 2, strokeData: strokeData });
@@ -7009,46 +6876,23 @@ window.addEventListener('load', () => {
 
         const menuPrizmalar = document.createElement('div'); menuPrizmalar.id = 'options-prizmalar'; menuPrizmalar.className = 'tool-options hidden';
         menuPrizmalar.style.cssText = `position: absolute; left: 100%; margin-left: 10px; top: 0; z-index: 21; background-color: rgba(30, 30, 46, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 15px 35px rgba(0,0,0,0.4); padding: 15px; border-radius: 15px; display: flex; flex-direction: column; gap: 8px; width: 180px;`;
-        menuPrizmalar.innerHTML = `<button class="tool-button-sub" data-3d="3d_kup">Küp</button><button class="tool-button-sub" data-3d="3d_silindir">Silindir</button><button class="tool-button-sub" data-3d="3d_ucgen_prizma">Üçgen Prizma</button><button class="tool-button-sub" data-3d="3d_dortgen_prizma">Dikdörtgen Prizma</button><button class="tool-button-sub" data-3d="3d_besgen_prizma">Beşgen Prizma</button><button class="tool-button-sub" data-3d="3d_altigen_prizma">Altıgen Prizma</button>`;
-        menu3D.appendChild(menuPrizmalar); // viewport hatası düzeltildi, tekrar menu3D'ye eklendi
+        menuPrizmalar.innerHTML = `<button class="tool-button-sub" data-3d="3d_kup">Küp</button><button class="tool-button-sub" data-3d="3d_silindir">Silindir</button><button class="tool-button-sub" data-3d="3d_ucgen_prizma">Üçgen Prizma</button><button class="tool-button-sub" data-3d="3d_dortgen_prizma">Dörtgen Prizma</button><button class="tool-button-sub" data-3d="3d_besgen_prizma">Beşgen Prizma</button><button class="tool-button-sub" data-3d="3d_altigen_prizma">Altıgen Prizma</button>`;
+        menu3D.appendChild(menuPrizmalar);
 
         const menuPiramitler = document.createElement('div'); menuPiramitler.id = 'options-piramitler'; menuPiramitler.className = 'tool-options hidden';
         menuPiramitler.style.cssText = `position: absolute; left: 100%; margin-left: 10px; top: 40px; z-index: 21; background-color: rgba(30, 30, 46, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 15px 35px rgba(0,0,0,0.4); padding: 15px; border-radius: 15px; display: flex; flex-direction: column; gap: 8px; width: 180px;`;
         menuPiramitler.innerHTML = `<button class="tool-button-sub" data-3d="3d_koni">Koni</button><button class="tool-button-sub" data-3d="3d_ucgen_piramit">Üçgen Piramit</button><button class="tool-button-sub" data-3d="3d_kare_piramit">Kare Piramit</button><button class="tool-button-sub" data-3d="3d_besgen_piramit">Beşgen Piramit</button><button class="tool-button-sub" data-3d="3d_altigen_piramit">Altıgen Piramit</button>`;
-        menu3D.appendChild(menuPiramitler); // viewport hatası düzeltildi, tekrar menu3D'ye eklendi
+        menu3D.appendChild(menuPiramitler);
 
         btn3D.addEventListener('click', (e) => {
             e.stopPropagation(); document.querySelectorAll('.tool-options').forEach(m => { if(m !== menu3D && m !== menuPrizmalar && m !== menuPiramitler) { m.classList.add('hidden'); m.style.display = 'none'; } });
             if (menu3D.classList.contains('hidden')) {
-                menu3D.classList.remove('hidden'); menu3D.style.display = 'flex'; 
-                menuPrizmalar.classList.add('hidden'); menuPrizmalar.style.display = 'none'; 
-                menuPiramitler.classList.add('hidden'); menuPiramitler.style.display = 'none'; 
-                
-                // Tablet Dikey (Portrait) vs Yatay kontrolü
-                if (window.innerHeight > window.innerWidth) {
-                    menu3D.style.left = '0';
-                    menu3D.style.marginLeft = '5px';
-                    // Sol panelin (şimdi üstte) hemen altına açılmalı
-                    menu3D.style.top = (btn3D.parentElement.getBoundingClientRect().bottom) + 'px';
-                } else {
-                    menu3D.style.left = '100%';
-                    menu3D.style.marginLeft = '10px';
-                    menu3D.style.top = (btn3D.getBoundingClientRect().top - btn3D.parentElement.getBoundingClientRect().top) + 'px';
-                }
-                
-                btn3D.classList.add('active');
-            } else { 
-                menu3D.classList.add('hidden'); menu3D.style.display = 'none'; 
-                btn3D.classList.remove('active'); 
-            }
+                menu3D.classList.remove('hidden'); menu3D.style.display = 'flex'; menuPrizmalar.classList.add('hidden'); menuPrizmalar.style.display = 'none'; menuPiramitler.classList.add('hidden'); menuPiramitler.style.display = 'none'; menu3D.style.top = (btn3D.getBoundingClientRect().top - btn3D.parentElement.getBoundingClientRect().top) + 'px'; btn3D.classList.add('active');
+            } else { menu3D.classList.add('hidden'); menu3D.style.display = 'none'; btn3D.classList.remove('active'); }
         });
 
         document.getElementById('btn-prizmalar').addEventListener('mouseenter', () => { menuPrizmalar.classList.remove('hidden'); menuPrizmalar.style.display = 'flex'; menuPiramitler.classList.add('hidden'); menuPiramitler.style.display = 'none'; });
         document.getElementById('btn-piramitler').addEventListener('mouseenter', () => { menuPiramitler.classList.remove('hidden'); menuPiramitler.style.display = 'flex'; menuPrizmalar.classList.add('hidden'); menuPrizmalar.style.display = 'none'; });
-        
-        // Tablet (dokunmatik) için click eventleri eklendi!
-        document.getElementById('btn-prizmalar').addEventListener('click', (e) => { e.stopPropagation(); menuPrizmalar.classList.remove('hidden'); menuPrizmalar.style.display = 'flex'; menuPiramitler.classList.add('hidden'); menuPiramitler.style.display = 'none'; });
-        document.getElementById('btn-piramitler').addEventListener('click', (e) => { e.stopPropagation(); menuPiramitler.classList.remove('hidden'); menuPiramitler.style.display = 'flex'; menuPrizmalar.classList.add('hidden'); menuPrizmalar.style.display = 'none'; });
         
        document.querySelectorAll('#options-3d-main button[data-3d]').forEach(b => {
             b.addEventListener('click', (e) => {
@@ -7058,15 +6902,10 @@ window.addEventListener('load', () => {
                 if (typeof setActiveTool === 'function') setActiveTool('none');
                 
                 window.active3DShapeTool = 'draw_' + data3d; 
-                window.currentTool = 'draw_3d_' + data3d; // Çizim yapılabilmesi için currentTool da ayarlanmalı!
                 const btn3D = document.getElementById('btn-3d-menu');
                 if (btn3D) btn3D.classList.add('active'); 
-                
-                // Menü tamamen kapanacak
                 const menu3D = document.getElementById('options-3d-main');
                 if (menu3D) { menu3D.classList.add('hidden'); menu3D.style.display = 'none'; }
-                if (menuPrizmalar) { menuPrizmalar.classList.add('hidden'); menuPrizmalar.style.display = 'none'; }
-                if (menuPiramitler) { menuPiramitler.classList.add('hidden'); menuPiramitler.style.display = 'none'; }
 
                 // 3D Motorunu Uyandır ve Aracı Ver
                 if (window.Scene3D) {
@@ -7081,7 +6920,7 @@ window.addEventListener('load', () => {
                     else if (data3d.includes('silindir')) toolName = 'prism_cylinder'; 
                     else if (data3d.includes('koni')) toolName = 'pyramid_cone'; 
                     else if (data3d.includes('ucgen_prizma')) toolName = 'prism_3'; 
-                    else if (data3d.includes('dortgen_prizma')) toolName = 'prism_rect'; 
+                    else if (data3d.includes('dortgen_prizma')) toolName = 'prism_4'; 
                     else if (data3d.includes('besgen_prizma')) toolName = 'prism_5'; 
                     else if (data3d.includes('altigen_prizma')) toolName = 'prism_6'; 
                     else if (data3d.includes('ucgen_piramit')) toolName = 'pyramid_3'; 
@@ -7295,11 +7134,11 @@ window.broadcastPreview = function(toolType, stateData) {
 // 🚨 KESİN ÇÖZÜM: 3D ŞEKİLLERİ ÇİZİMİN ALTINA ALIRKEN BUTONLARI KORUMA ZIRHI
 const canvasKatmanZirhi = document.createElement('style');
 canvasKatmanZirhi.innerHTML = `
-    /* Çizim tahtasını ayarlıyoruz */
+    /* Çizim tahtasını 3D cisimlerin üstüne çıkarıyoruz */
     #drawing-canvas { position: relative !important; z-index: 50 !important; }
     
-    /* 3D uzay sahnesini PDF ve resimlerin üzerinde görebilmek için z-index 9995 yapıyoruz */
-    #three-container { position: absolute !important; z-index: 9995 !important; pointer-events: none !important; display: block !important; }
+    /* 3D uzay sahnesini çizimlerin arkasına itiyoruz */
+    #three-container { position: absolute !important; z-index: 10 !important; pointer-events: none !important; }
     
     /* 🔴 BUTONLARIN GERİ GELMESİNİ SAĞLAYAN EN ÜST KATMAN KORUMASI 🔴 */
     .panel, .panel *, button, .tool-button, .tool-button-sub, .tool-options, 
@@ -7309,4 +7148,3 @@ canvasKatmanZirhi.innerHTML = `
     }
 `;
 document.head.appendChild(canvasKatmanZirhi);
-
