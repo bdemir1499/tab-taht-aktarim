@@ -4140,6 +4140,23 @@ function resizeCanvas() {
         if (window.Scene3D.renderer) {
             window.Scene3D.renderer.setSize(newWidth, newHeight);
         }
+        
+        // 🚨 ÇÖZÜM: Ekran (tablet) döndürüldüğünde 3D şekillerin 2D tıklama alanlarını GÜNCELLE!
+        if (window.drawnStrokes) {
+            const w = newWidth / 2, h = newHeight / 2;
+            window.drawnStrokes.forEach(s => {
+                if (s.type === '3d_shape' && window.Scene3D.scene) {
+                    const mesh = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === s.id);
+                    if (mesh) {
+                        const vec = mesh.position.clone();
+                        vec.project(window.Scene3D.camera);
+                        s.x = ((vec.x * w) + w) - ((s.width||100) / 2);
+                        s.y = (-(vec.y * h) + h) - ((s.height||100) / 2);
+                    }
+                }
+            });
+            if (window.Scene3D.currentMesh) window.Scene3D.updateHandlePositions();
+        }
     }
     
     redrawAllStrokes();
@@ -5117,7 +5134,15 @@ function akilliSilgi(e, isDown) {
                 }
                 // 🚨 YENİ 9: 3D ŞEKİLLERİ SİLME (Silgi Çözümü)
                 else if (s.type === '3d_shape') {
-                     if (Math.hypot((s.x || window.innerWidth/2) - nx, (s.y || window.innerHeight/2) - ny) <= (s.width || 100)/2 + eR) {
+                     // s.x ve s.y CSS pikselleri cinsindendir. nx ve ny ise Canvas iç çözünürlüğündedir.
+                     const cssNx = nx / scaleX;
+                     const cssNy = ny / scaleY;
+                     // s.x ve s.y şeklin sol üst köşesi olduğu için merkez noktasını buluyoruz
+                     const cx = (s.x || window.innerWidth/2) + (s.width || 100)/2;
+                     const cy = (s.y || window.innerHeight/2) + (s.height || 100)/2;
+                     
+                     // Hem silginin yarıçapını hem de şeklin yarıçapını CSS pikseline çevirerek karşılaştır
+                     if (Math.hypot(cx - cssNx, cy - cssNy) <= (s.width || 100)/2 + (eR / scaleX) + 20) {
                          vuruldu = true;
                      }
                 }
@@ -6804,7 +6829,17 @@ window.Scene3D = {
             solidShape.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edgeMaterial));
         }
         
-        if (strokeData.pos3D) solidShape.position.set(strokeData.pos3D.x, strokeData.pos3D.y, strokeData.pos3D.z);
+        // 🚨 ÇÖZÜM: Tabletteki (x,y) koordinatlarını PC'nin 3D dünyasına yerleştir.
+        // Böylece PC farklı boyutta olsa bile 2D çizimlerle aynı hizaya düşer!
+        const targetPixelX = strokeData.x + strokeData.width / 2;
+        const targetPixelY = strokeData.y + strokeData.height / 2;
+        const pt = window.Scene3D && window.Scene3D.get3DPointOnFloor ? window.Scene3D.get3DPointOnFloor(targetPixelX, targetPixelY) : null;
+        
+        if (pt) {
+            solidShape.position.copy(pt);
+        } else if (strokeData.pos3D) {
+            solidShape.position.set(strokeData.pos3D.x, strokeData.pos3D.y, strokeData.pos3D.z);
+        }
         if (strokeData.rotationX !== undefined) solidShape.rotation.x = strokeData.rotationX;
         if (strokeData.rotationY !== undefined) solidShape.rotation.y = strokeData.rotationY;
         Object.assign(solidShape.userData, { type: strokeData.shapeType, baseSize: strokeData.width / 30, height: (strokeData.width / 30) * 2, strokeData: strokeData });

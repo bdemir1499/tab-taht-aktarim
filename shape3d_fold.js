@@ -288,15 +288,9 @@ window.Foldable3D = {
         outerGroup.userData = group.userData;
         outerGroup.userData.innerGroup = group; // İç grubu sakla ki rotasyonu nötrleyebilelim
 
-        // KULLANICI İSTEĞİ: "küp ve kare prizmanın tamamlanmış şekli resimdeki gibi olacak"
-        // İzometrik/Kavalier görünüme daha uygun olması için X ve Y eğim açıları güncellendi.
-        if (type.startsWith('prism_') || type.startsWith('pyramid_')) {
-            if (type === 'pyramid_cone') {
-                outerGroup.rotation.x = Math.PI / 12; // Koni hafif eğik dursun
-            } else {
-                outerGroup.rotation.x = Math.PI / 10;
-                outerGroup.rotation.y = -Math.PI / 10;
-            }
+        if (type === 'prism_cube' || type === 'prism_rect') {
+            outerGroup.rotation.x = Math.PI / 10;
+            outerGroup.rotation.y = -Math.PI / 10;
         }
 
         if (type.startsWith('prism_')) {
