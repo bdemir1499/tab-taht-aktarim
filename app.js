@@ -2878,8 +2878,8 @@ katmanZirhi.innerHTML = `
     /* 1. Çizim Tahtası: 3D şekillerin üstünde, butonların altında kalmalı */
     #drawing-canvas { position: relative !important; z-index: 50 !important; background-color: transparent !important; }
     
-    /* 2. 3D Sahnesi: Kalemin altında kalmalı ki üstüne çizilebilsin */
-    #three-container { position: absolute !important; z-index: 40 !important; pointer-events: none !important; display: block !important; }
+    /* 2. 3D Sahnesi: PDF'in ve arka planların üzerinde görünmesi için z-index 9995 yapıldı */
+    #three-container { position: absolute !important; z-index: 9995 !important; pointer-events: none !important; display: block !important; }
     
     /* 3. Arayüz ve Butonlar: Asla kaybolmamaları için en üst seviyeye sabitlendi */
     .panel, .panel *, button, .tool-button, .tool-button-sub, .tool-options,
@@ -7102,11 +7102,11 @@ window.broadcastPreview = function(toolType, stateData) {
 // 🚨 KESİN ÇÖZÜM: 3D ŞEKİLLERİ ÇİZİMİN ALTINA ALIRKEN BUTONLARI KORUMA ZIRHI
 const canvasKatmanZirhi = document.createElement('style');
 canvasKatmanZirhi.innerHTML = `
-    /* Çizim tahtasını 3D cisimlerin üstüne çıkarıyoruz */
+    /* Çizim tahtasını ayarlıyoruz */
     #drawing-canvas { position: relative !important; z-index: 50 !important; }
     
-    /* 3D uzay sahnesini PDF ve resimlerin üzerinde görebilmek için öne çıkarıyoruz */
-    #three-container { position: absolute !important; z-index: 60 !important; pointer-events: none !important; }
+    /* 3D uzay sahnesini PDF ve resimlerin üzerinde görebilmek için z-index 9995 yapıyoruz */
+    #three-container { position: absolute !important; z-index: 9995 !important; pointer-events: none !important; display: block !important; }
     
     /* 🔴 BUTONLARIN GERİ GELMESİNİ SAĞLAYAN EN ÜST KATMAN KORUMASI 🔴 */
     .panel, .panel *, button, .tool-button, .tool-button-sub, .tool-options, 
