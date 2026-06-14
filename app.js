@@ -749,7 +749,7 @@ function setupCanvasResolution() {
 setupCanvasResolution();
 
 // 2. Ekran boyutu her değiştiğinde (yükle butonu sonrası veya yan çevirince) çalıştır
-window.addEventListener('resize', setupCanvasResolution);
+
 
 // PARDUS KESİN ÇÖZÜM: Tarayıcının kaydırma ve yakınlaştırma yapmasını yasakla
 canvas.style.touchAction = 'none';
@@ -4166,7 +4166,11 @@ setupCanvasResolution();
 }
 
 window.addEventListener('load', resizeCanvas);
-window.addEventListener('resize', resizeCanvas);
+let resizeTimeout;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(resizeCanvas, 250);
+});
 
 // --- app.js EN ALT SATIR (EDGE, CHROME, TABLET UYUMLU FİNAL) ---
 
@@ -4273,42 +4277,7 @@ window.addEventListener('touchmove', function(e) {
 // ==========================================
 
 
-// =========================================================
-// MOBİL TARAYICI ZIPLAMA ÇÖZÜMÜ: KATI EKRAN KİLİDİ (app.js)
-// =========================================================
-function lockScreenSize() {
-    // Ekranın o anki gerçek piksel boyutunu al
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    const dpr = window.devicePixelRatio || 1; // 🚨 HD Oranı
 
-    // Kanvası ve body'yi bu piksel değerine beton gibi sabitle (100vh yerine px kullan)
-    const canvas = document.getElementById('drawing-canvas');
-    if (canvas) {
-        canvas.style.width = w + 'px';
-        canvas.style.height = h + 'px';
-        canvas.width = w * dpr;   // 🚨 Çözünürlüğü HD yap (Gerçek Pikseller)
-        canvas.height = h * dpr;
-    }
-
-    document.body.style.width = w + 'px';
-    document.body.style.height = h + 'px';
-    document.documentElement.style.width = w + 'px';
-    document.documentElement.style.height = h + 'px';
-    
-    // 🚨 KESİN ÇÖZÜM: Kanvas boyutu değiştiğinde silinen çizimleri ve arka planı geri getir!
-    if (typeof window.redrawAllStrokes === 'function') {
-        window.redrawAllStrokes();
-    }
-}
-
-// 1. Sayfa yüklendiğinde boyutları kilitle
-window.addEventListener('load', lockScreenSize);
-
-// 2. Tablet yan çevrilirse (yatay/dikey) yeni boyuta göre tekrar kilitle
-window.addEventListener('orientationchange', () => {
-    setTimeout(lockScreenSize, 300);
-});
 
 // KRİTİK NOKTA: 'resize' eventini (adres çubuğu hareketlerini) DİNLEMİYORUZ!
 // Böylece adres çubuğu kaybolsa/çıksa bile sayfa esnemez, çizgiler zıplamaz.

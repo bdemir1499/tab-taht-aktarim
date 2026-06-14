@@ -44,7 +44,7 @@ input, textarea {
    2. TARAYICI ARAYÜZÜNÜ VE KAYDIRMAYI ÇİVİLEME
    ========================================= */
 html, body {
-    width: 100vw; height: 100vh; margin: 0; padding: 0;
+    width: 100vw; height: 100dvh; margin: 0; padding: 0;
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
     overflow: hidden !important; 
     overscroll-behavior: none !important; 
@@ -60,7 +60,7 @@ html, body {
    3. ANA ÇİZİM ALANI VE NOKTALI GEOMETRİ DEFTERİ SİHRİ
    ========================================= */
 #drawing-canvas {
-    display: block; width: 100vw; height: 100vh;
+    display: block; width: 100vw; height: 100dvh;
     
     /* Zemin Rengi */
     background-color: #1e1e2e; 
