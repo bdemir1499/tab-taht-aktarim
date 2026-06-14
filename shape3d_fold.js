@@ -51,9 +51,13 @@ window.Foldable3D = {
             
             let currentParent = root;
             let prevSideWidth = 0;
+            let totalWidth = 0;
+            let firstSideWidth = 0;
 
             for (let i = 0; i < sides; i++) {
                 let currentSideWidth = (type === 'prism_rect') ? ((i % 2 === 0) ? L : W) : sideWidth;
+                totalWidth += currentSideWidth;
+                if (i === 0) firstSideWidth = currentSideWidth;
 
                 const hinge = new THREE.Group();
                 // İlk yüzey sabit, diğerleri birbirine ekleniyor
@@ -88,7 +92,7 @@ window.Foldable3D = {
                 if (i === middleIndex) {
                     // Üst kapak
                     const topHinge = new THREE.Group();
-                    topHinge.position.set(actualSideWidth / 2, height / 2, 0);
+                    topHinge.position.set(currentSideWidth / 2, height / 2, 0);
                     hinge.add(topHinge);
                     
                     let topGeo;
@@ -118,7 +122,7 @@ window.Foldable3D = {
 
                     // Alt kapak
                     const bottomHinge = new THREE.Group();
-                    bottomHinge.position.set(actualSideWidth / 2, -height / 2, 0);
+                    bottomHinge.position.set(currentSideWidth / 2, -height / 2, 0);
                     hinge.add(bottomHinge);
                     
                     let bottomGeo;
@@ -148,7 +152,7 @@ window.Foldable3D = {
                     faceCounter++;
                 }
             }
-            group.userData.shiftX = (actualSideWidth / 2) * (1 - sides);
+            group.userData.shiftX = firstSideWidth / 2 - totalWidth / 2;
         } 
         // PİRAMİTLER (Yaprak gibi dışa doğru açılır)
         else if (type.startsWith('pyramid_') && type !== 'pyramid_cone') {
