@@ -6655,8 +6655,8 @@ window.Scene3D = {
                     vec.project(this.camera);
                     const rect = (this.renderer && this.renderer.domElement) ? this.renderer.domElement.getBoundingClientRect() : {width: window.innerWidth, height: window.innerHeight, left: 0, top: 0};
                     const w = rect.width / 2, h = rect.height / 2;
-                    sd.x = ((vec.x * w) + w + rect.left) - (sd.width / 2);
-                    sd.y = (-(vec.y * h) + h + rect.top) - (sd.height / 2);
+                    sd.x = ((vec.x * w) + w) - (sd.width / 2);
+                    sd.y = (-(vec.y * h) + h) - (sd.height / 2);
                     
                     window.selectedItem = sd;
 
@@ -6691,7 +6691,7 @@ window.Scene3D = {
             
             const isSphere = this.activeTool === 'sphere';
             const hasBackground = window.drawnStrokes && window.drawnStrokes.some(s => s.isBackground === true);
-            const shapeColor = hasBackground ? 0x222222 : 0x00ffcc;
+            const shapeColor = hasBackground ? 0x445566 : 0x00ffcc;
             const edgeColor = hasBackground ? 0x000000 : 0xffffff;
             
             const mainMaterial = new THREE.MeshPhongMaterial({ color: shapeColor, shininess: 100, specular: 0x111111, transparent: !isSphere, opacity: isSphere ? 1.0 : 0.4, depthWrite: isSphere, side: THREE.DoubleSide });
@@ -6721,8 +6721,8 @@ window.Scene3D = {
             const rect = (this.renderer && this.renderer.domElement) ? this.renderer.domElement.getBoundingClientRect() : {width: window.innerWidth, height: window.innerHeight, left: 0, top: 0};
             const w = rect.width / 2;
             const h = rect.height / 2;
-            const screenX = (vec.x * w) + w + rect.left;
-            const screenY = -(vec.y * h) + h + rect.top;
+            const screenX = (vec.x * w) + w;
+            const screenY = -(vec.y * h) + h;
 
             const networkData = {
                 type: '3d_shape', id: Date.now().toString() + Math.random(), shapeType: this.activeTool,
@@ -6800,7 +6800,7 @@ window.Scene3D = {
         if (!this.isInit) this.init();
         const isSphere = strokeData.shapeType === 'sphere';
         const hasBackground = window.drawnStrokes && window.drawnStrokes.some(s => s.isBackground === true);
-        const shapeColor = hasBackground ? 0x222222 : 0x00ffcc;
+        const shapeColor = hasBackground ? 0x445566 : 0x00ffcc;
         const edgeColor = hasBackground ? 0x000000 : 0xffffff;
         
         const mainMaterial = new THREE.MeshPhongMaterial({ color: shapeColor, shininess: 100, specular: 0x111111, transparent: !isSphere, opacity: isSphere ? 1.0 : 0.4, depthWrite: isSphere, side: THREE.DoubleSide });
