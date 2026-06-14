@@ -290,7 +290,7 @@ window.Foldable3D = {
 
         if (type === 'prism_cube' || type === 'prism_rect') {
             outerGroup.rotation.x = Math.PI / 10;
-            outerGroup.rotation.y = -Math.PI / 10;
+            outerGroup.rotation.y = Math.PI - Math.PI / 10;
         }
 
         if (type.startsWith('prism_')) {

@@ -4903,12 +4903,6 @@ function setLanguage(lang) {
 }
 
 // --- BU FONKSİYON SETLANGUAGE'İN DIŞINA/ALTINA GELİYOR ---
-function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    if (window.redrawAllStrokes) window.redrawAllStrokes();
-}
-
 // ================================================================
 // DİL SEÇİMİ VE AĞA FIRLATMA MOTORU
 // ================================================================
@@ -6672,8 +6666,9 @@ window.Scene3D = {
     onMove: function(x, y) {
         if (this.isRotatingHandle && this.currentMesh) {
             // Şeklin yatmadan (tilting olmadan) sağa/sola dönmesi için Dünya (World) Y ekseni etrafında döndürüyoruz
-            this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), (y - this.lastMousePos.y) * 0.01);
-            this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), (x - this.lastMousePos.x) * 0.01);
+            // Kullanıcı isteğine göre yönler tersine çevrildi (çekildiği yöne dönsün)
+            this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), (this.lastMousePos.y - y) * 0.01);
+            this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), (this.lastMousePos.x - x) * 0.01);
             this.lastMousePos = { x, y };
             this.updateHandlePositions();
             return;
@@ -6899,12 +6894,8 @@ window.Scene3D = {
         
         // 🚨 ÇÖZÜM: PC ve Tabletin 3D Dünyaları Zaten Ortak Merkezlidir!
         // Eğer pos3D varsa, doğrudan onu kullan. Böylece cihaz çözünürlüğünden bağımsız tam yerine oturur.
-        if (strokeData.pos3D) {
-            solidShape.position.set(strokeData.pos3D.x, strokeData.pos3D.y, strokeData.pos3D.z);
-        } else {
-            const pt = window.Scene3D && window.Scene3D.get3DPointOnFloor ? window.Scene3D.get3DPointOnFloor(strokeData.x + strokeData.width / 2, strokeData.y + strokeData.height / 2) : null;
-            if (pt) solidShape.position.copy(pt);
-        }
+        const pt = window.Scene3D && window.Scene3D.get3DPointOnFloor ? window.Scene3D.get3DPointOnFloor(strokeData.x + strokeData.width / 2, strokeData.y + strokeData.height / 2) : null;
+        if (pt) solidShape.position.copy(pt);
         if (strokeData.rotationX !== undefined) solidShape.rotation.x = strokeData.rotationX;
         if (strokeData.rotationY !== undefined) solidShape.rotation.y = strokeData.rotationY;
         Object.assign(solidShape.userData, { type: strokeData.shapeType, baseSize: strokeData.width / 30, height: (strokeData.width / 30) * 2, strokeData: strokeData });
