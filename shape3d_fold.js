@@ -276,8 +276,8 @@ window.Foldable3D = {
             baseLabel.position.set(0, 0, r);
             baseHinge.add(baseLabel);
             
-            // Açıldığında 180 derece ters yöne açılması istendi
-            group.userData.hinges.push({ obj: baseHinge, maxAngle: Math.PI / 2, initialAngle: 0, axis: 'x' });
+            // Açıldığında tabanın AŞAĞI doğru (ters yöne) inmesi istendi
+            group.userData.hinges.push({ obj: baseHinge, maxAngle: -Math.PI / 2, initialAngle: 0, axis: 'x' });
             group.userData.coneData.baseHinge = baseHinge;
         }
 
@@ -287,6 +287,18 @@ window.Foldable3D = {
         const outerGroup = new THREE.Group();
         outerGroup.userData = group.userData;
         outerGroup.userData.innerGroup = group; // İç grubu sakla ki rotasyonu nötrleyebilelim
+
+        // KULLANICI İSTEĞİ: "küp ve kare prizmanın tamamlanmış şekli resimdeki gibi olacak"
+        // İzometrik/Kavalier görünüme daha uygun olması için X ve Y eğim açıları güncellendi.
+        if (type.startsWith('prism_') || type.startsWith('pyramid_')) {
+            if (type === 'pyramid_cone') {
+                outerGroup.rotation.x = Math.PI / 12; // Koni hafif eğik dursun
+            } else {
+                outerGroup.rotation.x = Math.PI / 10;
+                outerGroup.rotation.y = -Math.PI / 10;
+            }
+        }
+
         if (type.startsWith('prism_')) {
             outerGroup.userData.shiftX = group.userData.shiftX;
         }
@@ -344,21 +356,15 @@ window.Foldable3D = {
             // Perspektif yanılgısını (kameranın aşağıdan bakması) önlemek için şekli hafif geriye (yukarı) yatırıyoruz: 0.25 radyan
             const tiltOffset = 0.25; 
 
-            if (group.userData.shapeType.startsWith('pyramid_')) {
-                // Piramitleri normal düzlemde tut (Z yukarı bakar). Açıldığında arkaya yatmasın, dik dursun (Math.PI / 2)
-                const qClosed = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
-                const qOuterInverse = group.quaternion.clone().invert();
-                const qOpenTarget = qOuterInverse.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2));
-                
-                // Quaternion slerp ile pürüzsüz geçiş
-                inner.quaternion.copy(qClosed).slerp(qOpenTarget, openRatio);
-            } else {
-                // Prizmalar vs için (Kamera açısından dik durmasını sağla)
-                const qClosed = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
-                
-                // Spin (takla atma) YOK! Sadece dik duracak ve önden yana doğru açılacak
-                inner.quaternion.copy(qClosed);
-            }
+            // Tüm şekiller için (Prizmalar ve Piramitler): 
+            // Kapalıyken (openRatio=0) outerGroup'un izometrik açısı geçerlidir.
+            // Açıldıkça (openRatio=1) outerGroup'un açısını yok edip tam karşıdan (dik) görünmesini sağlarız.
+            const qClosed = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+            const qOuterInverse = group.quaternion.clone().invert();
+            const qOpenTarget = qOuterInverse.multiply(qClosed.clone());
+            
+            // Slerp ile izometrik -> düz geçişi
+            inner.quaternion.copy(qClosed).slerp(qOpenTarget, openRatio);
 
             // Prizmaların açınımı yana doğru uzadığı için, açıldıkça şekli ortala
             if (group.userData.shiftX) {
