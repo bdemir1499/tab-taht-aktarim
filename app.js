@@ -6889,7 +6889,7 @@ window.addEventListener('load', () => {
 
         const menuPrizmalar = document.createElement('div'); menuPrizmalar.id = 'options-prizmalar'; menuPrizmalar.className = 'tool-options hidden';
         menuPrizmalar.style.cssText = `position: absolute; left: 100%; margin-left: 10px; top: 0; z-index: 21; background-color: rgba(30, 30, 46, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 15px 35px rgba(0,0,0,0.4); padding: 15px; border-radius: 15px; display: flex; flex-direction: column; gap: 8px; width: 180px;`;
-        menuPrizmalar.innerHTML = `<button class="tool-button-sub" data-3d="3d_kup">Küp</button><button class="tool-button-sub" data-3d="3d_silindir">Silindir</button><button class="tool-button-sub" data-3d="3d_ucgen_prizma">Üçgen Prizma</button><button class="tool-button-sub" data-3d="3d_dortgen_prizma">Dörtgen Prizma</button><button class="tool-button-sub" data-3d="3d_besgen_prizma">Beşgen Prizma</button><button class="tool-button-sub" data-3d="3d_altigen_prizma">Altıgen Prizma</button>`;
+        menuPrizmalar.innerHTML = `<button class="tool-button-sub" data-3d="3d_kup">Küp</button><button class="tool-button-sub" data-3d="3d_silindir">Silindir</button><button class="tool-button-sub" data-3d="3d_ucgen_prizma">Üçgen Prizma</button><button class="tool-button-sub" data-3d="3d_dortgen_prizma">Dikdörtgen Prizma</button><button class="tool-button-sub" data-3d="3d_besgen_prizma">Beşgen Prizma</button><button class="tool-button-sub" data-3d="3d_altigen_prizma">Altıgen Prizma</button>`;
         menu3D.appendChild(menuPrizmalar); // viewport hatası düzeltildi, tekrar menu3D'ye eklendi
 
         const menuPiramitler = document.createElement('div'); menuPiramitler.id = 'options-piramitler'; menuPiramitler.className = 'tool-options hidden';
@@ -6961,7 +6961,7 @@ window.addEventListener('load', () => {
                     else if (data3d.includes('silindir')) toolName = 'prism_cylinder'; 
                     else if (data3d.includes('koni')) toolName = 'pyramid_cone'; 
                     else if (data3d.includes('ucgen_prizma')) toolName = 'prism_3'; 
-                    else if (data3d.includes('dortgen_prizma')) toolName = 'prism_4'; 
+                    else if (data3d.includes('dortgen_prizma')) toolName = 'prism_rect'; 
                     else if (data3d.includes('besgen_prizma')) toolName = 'prism_5'; 
                     else if (data3d.includes('altigen_prizma')) toolName = 'prism_6'; 
                     else if (data3d.includes('ucgen_piramit')) toolName = 'pyramid_3'; 
