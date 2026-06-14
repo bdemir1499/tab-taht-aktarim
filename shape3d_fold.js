@@ -290,8 +290,8 @@ window.Foldable3D = {
         outerGroup.userData.innerGroup = group; // İç grubu sakla ki rotasyonu nötrleyebilelim
 
         if (type === 'prism_cube' || type === 'prism_rect') {
-            outerGroup.rotation.x = Math.PI / 10;
-            outerGroup.rotation.y = Math.PI - Math.PI / 10;
+            outerGroup.rotation.x = -Math.PI / 10;
+            outerGroup.rotation.y = -Math.PI / 10;
         }
 
         if (type.startsWith('prism_')) {
