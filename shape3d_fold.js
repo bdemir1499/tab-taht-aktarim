@@ -101,8 +101,8 @@ window.Foldable3D = {
                         topGeo.rotateZ(Math.PI);
                         topGeo.translate(0, -apothem, 0);
                     } else if (type === 'prism_rect') {
-                        topGeo = new THREE.PlaneGeometry(L, W);
-                        topGeo.translate(0, W / 2, 0);
+                        topGeo = new THREE.PlaneGeometry(W, L);
+                        topGeo.translate(0, -L / 2, 0);
                     } else {
                         topGeo = new THREE.CircleGeometry(r, sides, 0); 
                         topGeo.rotateZ(-Math.PI / 2 - Math.PI / sides); // Alt kenarı yatay (X'e paralel) yap
@@ -131,8 +131,8 @@ window.Foldable3D = {
                         bottomGeo.rotateZ(Math.PI);
                         bottomGeo.translate(0, apothem, 0);
                     } else if (type === 'prism_rect') {
-                        bottomGeo = new THREE.PlaneGeometry(L, W);
-                        bottomGeo.translate(0, -W / 2, 0);
+                        bottomGeo = new THREE.PlaneGeometry(W, L);
+                        bottomGeo.translate(0, L / 2, 0);
                     } else {
                         bottomGeo = new THREE.CircleGeometry(r, sides, 0);
                         bottomGeo.rotateZ(Math.PI / 2 - Math.PI / sides); // İlk kenarı yatay yap
