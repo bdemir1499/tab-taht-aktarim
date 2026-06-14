@@ -6703,14 +6703,6 @@ window.Scene3D = {
             this.currentMesh = solidShape;
             this.updateHandlePositions();
 
-            // 🚨 SİHİRLİ DOKUNUŞ: 3D Şeklin 2D Çizim Noktasını Tam İsabet Hesapla! (Ortaya kaçmaz)
-            const vec = solidShape.position.clone();
-            vec.project(this.camera);
-            const rect = (this.renderer && this.renderer.domElement) ? this.renderer.domElement.getBoundingClientRect() : {width: window.innerWidth, height: window.innerHeight, left: 0, top: 0};
-            const w = rect.width / 2;
-            const h = rect.height / 2;
-            const screenX = (vec.x * w) + w;
-            const screenY = -(vec.y * h) + h;
 
             const networkData = {
                 type: '3d_shape', id: Date.now().toString() + Math.random(), shapeType: this.activeTool,
