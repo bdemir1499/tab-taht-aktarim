@@ -3127,8 +3127,7 @@ canvas.addEventListener('pointermove', (e) => {
         const centerY = (p1y + p2y) / 2;
 
         if (lastDist > 0) {
-            const delta = currentDist - lastDist; 
-            const zoomStep = 1 + (delta * 0.003);
+            const zoomStep = currentDist / lastDist;
             
             // TÜM ÇİZİMLERE VE ŞEKİLLERE UYGULA (Sadece arka plana değil!)
             if (drawnStrokes.length > 0) {
@@ -5589,10 +5588,41 @@ function setupConnectionEvents() {
 // EKRANLAR ARASI ORANTISAL ADAPTASYON (ÇÖZÜNÜRLÜK SENKRONU)
 // =========================================================
 window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw, senderCh) {
-    // Tüm çizimleri Tablet'teki orijinal koordinatlarıyla birebir aynı yere koy.
-    // Asla matematiksel olarak yeniden ölçeklendirme veya kaydırma yapma!
-    // Bu sayede, "tabletteki resim zoom yapılsa bile" veya "tablet döndürülse bile" 
-    // çizilen her şey arka plandaki şekle 1:1 yapışık (relative aligned) kalır.
+    if (!stroke || !senderW || !senderH || Math.abs(senderW - window.innerWidth) < 5) return stroke;
+    
+    // PC ve Tablet arası oran hesaplama (Aspect Ratio)
+    let sx = window.innerWidth / senderW;
+    let sy = window.innerHeight / senderH;
+    
+    // Tablet yatay/dikey döndürüldüğünde ekran sündürmesini (distortion) önlemek için Math.min kullanılır
+    const scale = Math.min(sx, sy);
+    
+    // Her iki ekranın merkez noktaları
+    const cx_tab = senderW / 2;
+    const cy_tab = senderH / 2;
+    const cx_pc = window.innerWidth / 2;
+    const cy_pc = window.innerHeight / 2;
+    
+    // Koordinatları merkez noktasına göre yeniden haritalama fonksiyonu
+    const mapX = (x) => (x - cx_tab) * scale + cx_pc;
+    const mapY = (y) => (y - cy_tab) * scale + cy_pc;
+
+    if (stroke.type === 'pen' && stroke.path) {
+        stroke.path.forEach(pt => { pt.x = mapX(pt.x); pt.y = mapY(pt.y); });
+    } else {
+        if (stroke.x !== undefined) stroke.x = mapX(stroke.x);
+        if (stroke.y !== undefined) stroke.y = mapY(stroke.y);
+        if (stroke.cx !== undefined) stroke.cx = mapX(stroke.cx);
+        if (stroke.cy !== undefined) stroke.cy = mapY(stroke.cy);
+        if (stroke.width !== undefined) stroke.width *= scale;
+        if (stroke.height !== undefined) stroke.height *= scale;
+        if (stroke.radius !== undefined) stroke.radius *= scale;
+        if (stroke.vertices) stroke.vertices.forEach(v => { v.x = mapX(v.x); v.y = mapY(v.y); });
+        if (stroke.kordinatlar) {
+            stroke.kordinatlar.x = stroke.x; stroke.kordinatlar.y = stroke.y;
+            stroke.kordinatlar.width = stroke.width; stroke.kordinatlar.height = stroke.height;
+        }
+    }
     return stroke;
 };
 
@@ -5764,52 +5794,17 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw, sender
         // --- A) TOPLU ŞEKİL ALICISI (ÇOKGENLER VE ÜÇGENLER) ---
         if (data.type === 'akilli_sekil_toplu') {
             if (data.strokes && Array.isArray(data.strokes)) {
-                let sx = 1, sy = 1;
-                let isScaled = false;
-                if (data.cssW && data.cssH && Math.abs(data.cssW - window.innerWidth) >= 5) {
-                    sx = window.innerWidth / data.cssW;
-                    sy = window.innerHeight / data.cssH;
-                    isScaled = true;
-                }
-                const scale = Math.min(sx, sy);
-                const cx_tab = data.cssW ? data.cssW / 2 : window.innerWidth / 2;
-                const cy_tab = data.cssH ? data.cssH / 2 : window.innerHeight / 2;
-                const cx_pc = window.innerWidth / 2;
-                const cy_pc = window.innerHeight / 2;
-                
-                const mapX = (x) => isScaled ? (x - cx_tab) * scale + cx_pc : x;
-                const mapY = (y) => isScaled ? (y - cy_tab) * scale + cy_pc : y;
-
                 data.strokes.forEach(s => {
-                    const clone = JSON.parse(JSON.stringify(s));
-                    if (isScaled) {
-                        if (clone.type === 'pen' && clone.path) {
-                            clone.path.forEach(pt => { pt.x = mapX(pt.x); pt.y = mapY(pt.y); });
-                        } else {
-                            if (clone.x !== undefined) clone.x = mapX(clone.x);
-                            if (clone.y !== undefined) clone.y = mapY(clone.y);
-                            if (clone.cx !== undefined) clone.cx = mapX(clone.cx);
-                            if (clone.cy !== undefined) clone.cy = mapY(clone.cy);
-                            if (clone.width !== undefined) clone.width *= scale;
-                            if (clone.height !== undefined) clone.height *= scale;
-                            if (clone.radius !== undefined) clone.radius *= scale;
-                            if (clone.vertices) clone.vertices.forEach(v => { v.x = mapX(v.x); v.y = mapY(v.y); });
-                            if (clone.kordinatlar) {
-                                clone.kordinatlar.x = clone.x; clone.kordinatlar.y = clone.y;
-                                clone.kordinatlar.width = clone.width; clone.kordinatlar.height = clone.height;
-                            }
-                        }
-                    }
-
-                    const existingIndex = window.drawnStrokes.findIndex(ds => ds.id === clone.id);
+                    const existingIndex = window.drawnStrokes.findIndex(ds => ds.id === s.id);
                     if (existingIndex !== -1) {
                         const original = window.drawnStrokes[existingIndex];
-                        if (original.imgObj) clone.imgObj = original.imgObj;
-                        if (original.img) clone.img = original.img;
-                        if (original.imgData && !clone.imgData) clone.imgData = original.imgData;
-                        window.drawnStrokes[existingIndex] = clone;
+                        // Preserve large objects that shouldn't be overridden by network JSON
+                        if (original.imgObj) s.imgObj = original.imgObj;
+                        if (original.img) s.img = original.img;
+                        if (original.imgData && !s.imgData) s.imgData = original.imgData;
+                        window.drawnStrokes[existingIndex] = s;
                     } else {
-                        window.drawnStrokes.push(clone);
+                        window.drawnStrokes.push(s);
                     }
                 });
             }
