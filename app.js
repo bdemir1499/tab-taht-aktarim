@@ -3127,7 +3127,7 @@ canvas.addEventListener('pointermove', (e) => {
         const centerY = (p1y + p2y) / 2;
 
         if (lastDist > 0) {
-            const zoomStep = Math.exp((currentDist - lastDist) * 0.002);
+            const zoomStep = Math.exp((currentDist - lastDist) * 0.0005);
             
             // TÜM ÇİZİMLERE VE ŞEKİLLERE UYGULA (Sadece arka plana değil!)
             if (drawnStrokes.length > 0) {
