@@ -6593,9 +6593,19 @@ window.Scene3D = {
             this.isDrawing = true;
             this.startPoint = this.get3DPointOnFloor(x, y) || new THREE.Vector3(0,0,0);
             
-            const previewGeo = this.createGeometry(this.activeTool, 0.1);
-            if(this.activeTool.startsWith('prism') || this.activeTool.startsWith('pyramid')) previewGeo.rotateX(Math.PI / 2);
-            this.previewMesh = new THREE.Mesh(previewGeo, new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true, transparent: true, opacity: 0.5 }));
+            const mat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true, transparent: true, opacity: 0.5 });
+            const edgeMat = new THREE.LineBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.8 });
+            
+            if (window.Foldable3D) {
+                this.previewMesh = window.Foldable3D.createFoldableGroup(this.activeTool, 0.1, mat, edgeMat);
+            }
+            
+            if (!this.previewMesh) {
+                const previewGeo = this.createGeometry(this.activeTool, 0.1);
+                if(this.activeTool.startsWith('prism') || this.activeTool.startsWith('pyramid')) previewGeo.rotateX(Math.PI / 2);
+                this.previewMesh = new THREE.Mesh(previewGeo, mat);
+            }
+            
             this.previewMesh.position.copy(this.startPoint);
             this.scene.add(this.previewMesh);
             return true;
@@ -6829,16 +6839,13 @@ window.Scene3D = {
             solidShape.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edgeMaterial));
         }
         
-        // 🚨 ÇÖZÜM: Tabletteki (x,y) koordinatlarını PC'nin 3D dünyasına yerleştir.
-        // Böylece PC farklı boyutta olsa bile 2D çizimlerle aynı hizaya düşer!
-        const targetPixelX = strokeData.x + strokeData.width / 2;
-        const targetPixelY = strokeData.y + strokeData.height / 2;
-        const pt = window.Scene3D && window.Scene3D.get3DPointOnFloor ? window.Scene3D.get3DPointOnFloor(targetPixelX, targetPixelY) : null;
-        
-        if (pt) {
-            solidShape.position.copy(pt);
-        } else if (strokeData.pos3D) {
+        // 🚨 ÇÖZÜM: PC ve Tabletin 3D Dünyaları Zaten Ortak Merkezlidir!
+        // Eğer pos3D varsa, doğrudan onu kullan. Böylece cihaz çözünürlüğünden bağımsız tam yerine oturur.
+        if (strokeData.pos3D) {
             solidShape.position.set(strokeData.pos3D.x, strokeData.pos3D.y, strokeData.pos3D.z);
+        } else {
+            const pt = window.Scene3D && window.Scene3D.get3DPointOnFloor ? window.Scene3D.get3DPointOnFloor(strokeData.x + strokeData.width / 2, strokeData.y + strokeData.height / 2) : null;
+            if (pt) solidShape.position.copy(pt);
         }
         if (strokeData.rotationX !== undefined) solidShape.rotation.x = strokeData.rotationX;
         if (strokeData.rotationY !== undefined) solidShape.rotation.y = strokeData.rotationY;
