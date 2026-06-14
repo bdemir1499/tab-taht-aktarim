@@ -3133,12 +3133,8 @@ canvas.addEventListener('pointermove', (e) => {
             if (drawnStrokes.length > 0) {
                 const bgStrokes = drawnStrokes.filter(s => s.isBackground === true);
                 if (bgStrokes.length > 0) {
-                    const bg = bgStrokes[0];
-                    const centerX = bg.x + bg.width / 2;
-                    const centerY = bg.y + bg.height / 2;
-                    
                     drawnStrokes.forEach(s => {
-                        // Zoom the coordinates relative to the background's center
+                        // Zoom the coordinates relative to the user's finger center
                         if (s.type === 'pen' && s.path) {
                             s.path.forEach(pt => {
                                 pt.x = centerX + (pt.x - centerX) * zoomStep;
