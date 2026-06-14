@@ -5433,33 +5433,37 @@ function setupConnectionEvents() {
 // =========================================================
 // EKRANLAR ARASI ORANTISAL ADAPTASYON (ÇÖZÜNÜRLÜK SENKRONU)
 // =========================================================
-window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
+window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw, senderCh) {
     if (!stroke || !senderW || !senderH) return stroke;
     
     // 🚨 3D ŞEKİL KORUMASI 🚨
-    // 3D şekiller WebGL (OrthographicCamera) içinde zaten normalize edilmiş koordinatlar (-1 ile 1 arası)
-    // ve sabit frustumSize (30) kullanır. Bu yüzden 2D canvas/css ölçeklendirmesinden (sx, sy, dpr) TAMAMEN MUAF tutulmalıdır.
-    // Aksi halde PC'ye geçerken çift ölçeklenerek devasa boyutlara ulaşırlar!
     if (stroke.type === '3d_shape' || stroke.shapeType) return stroke;
 
+    const canvasElm = document.getElementById('drawing-canvas');
     const myW = window.innerWidth;
     const myH = window.innerHeight;
     
-    if (Math.abs(senderW - myW) < 5 && Math.abs(senderH - myH) < 5) return stroke;
+    // Çözünürlük farkını CANVAS pikselleri üzerinden yönet (CSS değil!)
+    const myCw = canvasElm ? canvasElm.width : myW;
+    const myCh = canvasElm ? canvasElm.height : myH;
+    
+    const sCw = senderCw || senderW;
+    const sCh = senderCh || senderH;
+    
+    if (Math.abs(sCw - myCw) < 5 && Math.abs(sCh - myCh) < 5) return stroke;
 
-    const sx = myW / senderW;
-    const sy = myH / senderH;
+    const sx = myCw / sCw;
+    const sy = myCh / sCh;
 
-    // 🚨 KESİN ÇÖZÜM: Arka plan varsa, tüm çizim evrenini "Orantılı Ölçekle" (Aspect Ratio Korunur)
     const hasBackground = window.drawnStrokes && window.drawnStrokes.some(s => s.isBackground === true);
     const isLineType = ['pen', 'line', 'segment', 'ray', 'straightLine', 'polygon', 'point', 'arc'].includes(stroke.type);
 
     if (stroke.isBackground === true || hasBackground) {
         const scale = Math.min(sx, sy);
-        const cx_tab = senderW / 2;
-        const cy_tab = senderH / 2;
-        const cx_pc = myW / 2;
-        const cy_pc = myH / 2;
+        const cx_tab = sCw / 2;
+        const cy_tab = sCh / 2;
+        const cx_pc = myCw / 2;
+        const cy_pc = myCh / 2;
 
         const mapX = (x) => cx_pc + ((x - cx_tab) * scale);
         const mapY = (y) => cy_pc + ((y - cy_tab) * scale);
@@ -5560,10 +5564,10 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
             // --- EKRANLAR ARASI ÇÖZÜNÜRLÜK ADAPTASYONU ---
             if (d.cssW && d.cssH && typeof window.adaptStrokeToScreen === 'function') {
                 if (d.stroke) {
-                    window.adaptStrokeToScreen(d.stroke, d.cssW, d.cssH, d.cw);
+                    window.adaptStrokeToScreen(d.stroke, d.cssW, d.cssH, d.cw, d.ch);
                 }
                 if (d.strokes && Array.isArray(d.strokes)) {
-                    d.strokes.forEach(s => window.adaptStrokeToScreen(s, d.cssW, d.cssH, d.cw));
+                    d.strokes.forEach(s => window.adaptStrokeToScreen(s, d.cssW, d.cssH, d.cw, d.ch));
                 }
                 
                 // Fiziki araçların (cetvel vb) uzaklık oranı korunarak taşınması
