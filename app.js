@@ -3132,52 +3132,54 @@ canvas.addEventListener('pointermove', (e) => {
             
             // TÜM ÇİZİMLERE VE ŞEKİLLERE UYGULA (Sadece arka plana değil!)
             if (drawnStrokes.length > 0) {
-                const rect = canvas.getBoundingClientRect();
-                const cvsCenterX = (centerX - rect.left) * (canvas.width / rect.width);
-                const cvsCenterY = (centerY - rect.top) * (canvas.height / rect.height);
-                
-                drawnStrokes.forEach(s => {
-                    // Zoom the coordinates relative to the center
-                    if (s.type === 'pen' && s.path) {
-                        s.path.forEach(pt => {
-                            pt.x = cvsCenterX + (pt.x - cvsCenterX) * zoomStep;
-                            pt.y = cvsCenterY + (pt.y - cvsCenterY) * zoomStep;
-                        });
-                    } else {
-                        // Resimler, çokgenler ve 3D şekillerin x/y değerlerini merkezi baz alarak kaydır
-                        if (s.x !== undefined) s.x = cvsCenterX + (s.x - cvsCenterX) * zoomStep;
-                        if (s.y !== undefined) s.y = cvsCenterY + (s.y - cvsCenterY) * zoomStep;
-                        if (s.cx !== undefined) s.cx = cvsCenterX + (s.cx - cvsCenterX) * zoomStep;
-                        if (s.cy !== undefined) s.cy = cvsCenterY + (s.cy - cvsCenterY) * zoomStep;
-                        
-                        // Genişlik ve yükseklikleri ölçekle
-                        if (s.width !== undefined) s.width *= zoomStep;
-                        if (s.height !== undefined) s.height *= zoomStep;
-                        if (s.radius !== undefined) s.radius *= zoomStep;
-                        
-                        // Çokgen köşeleri
-                        if (s.vertices && Array.isArray(s.vertices)) {
-                            s.vertices.forEach(v => {
-                                v.x = cvsCenterX + (v.x - cvsCenterX) * zoomStep;
-                                v.y = cvsCenterY + (v.y - cvsCenterY) * zoomStep;
+                const bgStrokes = drawnStrokes.filter(s => s.isBackground === true);
+                if (bgStrokes.length > 0) {
+                    const bg = bgStrokes[0];
+                    const centerX = bg.x + bg.width / 2;
+                    const centerY = bg.y + bg.height / 2;
+                    
+                    drawnStrokes.forEach(s => {
+                        // Zoom the coordinates relative to the background's center
+                        if (s.type === 'pen' && s.path) {
+                            s.path.forEach(pt => {
+                                pt.x = centerX + (pt.x - centerX) * zoomStep;
+                                pt.y = centerY + (pt.y - centerY) * zoomStep;
                             });
+                        } else {
+                            if (s.x !== undefined) s.x = centerX + (s.x - centerX) * zoomStep;
+                            if (s.y !== undefined) s.y = centerY + (s.y - centerY) * zoomStep;
+                            if (s.cx !== undefined) s.cx = centerX + (s.cx - centerX) * zoomStep;
+                            if (s.cy !== undefined) s.cy = centerY + (s.cy - centerY) * zoomStep;
+                            
+                            // Genişlik ve yükseklikleri ölçekle
+                            if (s.width !== undefined) s.width *= zoomStep;
+                            if (s.height !== undefined) s.height *= zoomStep;
+                            if (s.radius !== undefined) s.radius *= zoomStep;
+                            
+                            // Çokgen köşeleri
+                            if (s.vertices && Array.isArray(s.vertices)) {
+                                s.vertices.forEach(v => {
+                                    v.x = centerX + (v.x - centerX) * zoomStep;
+                                    v.y = centerY + (v.y - centerY) * zoomStep;
+                                });
+                            }
+                            
+                            // Arka plana sabitlenmiş resimlerin koordinatlarını da güncelle
+                            if (s.kordinatlar) {
+                                s.kordinatlar.x = s.x;
+                                s.kordinatlar.y = s.y;
+                                s.kordinatlar.width = s.width;
+                                s.kordinatlar.height = s.height;
+                            }
                         }
-                        
-                        // Arka plana sabitlenmiş resimlerin koordinatlarını da güncelle
-                        if (s.kordinatlar) {
-                            s.kordinatlar.x = s.x;
-                            s.kordinatlar.y = s.y;
-                            s.kordinatlar.width = s.width;
-                            s.kordinatlar.height = s.height;
-                        }
+                    });
+                    
+                    redrawAllStrokes();
+                    
+                    if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                        // PC'ye tüm strokes'ların son halini senkronize et
+                        window.sendNetworkData({ type: 'akilli_sekil_toplu', strokes: drawnStrokes });
                     }
-                });
-                
-                redrawAllStrokes();
-                
-                if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-                    // PC'ye tüm strokes'ların son halini senkronize et
-                    window.sendNetworkData({ type: 'akilli_sekil_toplu', strokes: drawnStrokes });
                 }
             }
         }
@@ -5762,9 +5764,53 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw, sender
         // --- A) TOPLU ŞEKİL ALICISI (ÇOKGENLER VE ÜÇGENLER) ---
         if (data.type === 'akilli_sekil_toplu') {
             if (data.strokes && Array.isArray(data.strokes)) {
+                let sx = 1, sy = 1;
+                let isScaled = false;
+                if (data.cssW && data.cssH && Math.abs(data.cssW - window.innerWidth) >= 5) {
+                    sx = window.innerWidth / data.cssW;
+                    sy = window.innerHeight / data.cssH;
+                    isScaled = true;
+                }
+                const scale = Math.min(sx, sy);
+                const cx_tab = data.cssW ? data.cssW / 2 : window.innerWidth / 2;
+                const cy_tab = data.cssH ? data.cssH / 2 : window.innerHeight / 2;
+                const cx_pc = window.innerWidth / 2;
+                const cy_pc = window.innerHeight / 2;
+                
+                const mapX = (x) => isScaled ? (x - cx_tab) * scale + cx_pc : x;
+                const mapY = (y) => isScaled ? (y - cy_tab) * scale + cy_pc : y;
+
                 data.strokes.forEach(s => {
-                    const isDuplicate = s.id && window.drawnStrokes.some(ds => ds.id === s.id);
-                    if (!isDuplicate) window.drawnStrokes.push(s);
+                    const clone = JSON.parse(JSON.stringify(s));
+                    if (isScaled) {
+                        if (clone.type === 'pen' && clone.path) {
+                            clone.path.forEach(pt => { pt.x = mapX(pt.x); pt.y = mapY(pt.y); });
+                        } else {
+                            if (clone.x !== undefined) clone.x = mapX(clone.x);
+                            if (clone.y !== undefined) clone.y = mapY(clone.y);
+                            if (clone.cx !== undefined) clone.cx = mapX(clone.cx);
+                            if (clone.cy !== undefined) clone.cy = mapY(clone.cy);
+                            if (clone.width !== undefined) clone.width *= scale;
+                            if (clone.height !== undefined) clone.height *= scale;
+                            if (clone.radius !== undefined) clone.radius *= scale;
+                            if (clone.vertices) clone.vertices.forEach(v => { v.x = mapX(v.x); v.y = mapY(v.y); });
+                            if (clone.kordinatlar) {
+                                clone.kordinatlar.x = clone.x; clone.kordinatlar.y = clone.y;
+                                clone.kordinatlar.width = clone.width; clone.kordinatlar.height = clone.height;
+                            }
+                        }
+                    }
+
+                    const existingIndex = window.drawnStrokes.findIndex(ds => ds.id === clone.id);
+                    if (existingIndex !== -1) {
+                        const original = window.drawnStrokes[existingIndex];
+                        if (original.imgObj) clone.imgObj = original.imgObj;
+                        if (original.img) clone.img = original.img;
+                        if (original.imgData && !clone.imgData) clone.imgData = original.imgData;
+                        window.drawnStrokes[existingIndex] = clone;
+                    } else {
+                        window.drawnStrokes.push(clone);
+                    }
                 });
             }
             if (window.redrawAllStrokes) window.redrawAllStrokes();
