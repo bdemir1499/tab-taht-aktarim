@@ -6479,8 +6479,8 @@ window.Scene3D = {
             neon = 0x00e5ff; // Neon Cyan
             dark = 0x005b66;
         } else if (type === 'sphere') {
-            neon = 0xff00a0; // Neon Pink
-            dark = 0x800050;
+            neon = 0xff66cc; // Açık Pembe (Light Pink)
+            dark = 0xcc0077; // Açık Pembe Koyu Zemin
         } else if (type.startsWith('pyramid_')) {
             neon = 0xffd500; // Neon Yellow/Gold
             dark = 0x806a00;
@@ -6639,12 +6639,15 @@ window.Scene3D = {
             this.isDrawing = true;
             this.startPoint = this.get3DPointOnFloor(x, y) || new THREE.Vector3(0,0,0);
             
+            const isSphere = this.activeTool === 'sphere';
             const colors = this.get3DShapeColors(this.activeTool, x, y);
-            const mat = new THREE.MeshBasicMaterial({ color: colors.faceColor, transparent: true, opacity: 0.25 });
+            const mat = new THREE.MeshBasicMaterial({ color: colors.faceColor, transparent: true, opacity: isSphere ? 0.85 : 0.25 });
             const edgeMat = new THREE.LineBasicMaterial({ color: colors.edgeColor, transparent: true, opacity: 0.8 });
             
             if (window.Foldable3D) {
                 this.previewMesh = window.Foldable3D.createFoldableGroup(this.activeTool, 0.1, mat, edgeMat);
+                // Önizlemenin baştan kapalı (katlı) başlaması için updateUnfold(..., 0)
+                if (this.previewMesh) window.Foldable3D.updateUnfold(this.previewMesh, 0);
             }
             
             if (!this.previewMesh) {
@@ -6668,9 +6671,9 @@ window.Scene3D = {
 
     onMove: function(x, y) {
         if (this.isRotatingHandle && this.currentMesh) {
+            // Şeklin yatmadan (tilting olmadan) sağa/sola dönmesi için Dünya (World) Y ekseni etrafında döndürüyoruz
             this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), (y - this.lastMousePos.y) * 0.01);
-            // Şeklin kendi ekseni etrafında (lokal Y) dönmesi için rotateY kullanıyoruz
-            this.currentMesh.rotateY((x - this.lastMousePos.x) * 0.01);
+            this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), (x - this.lastMousePos.x) * 0.01);
             this.lastMousePos = { x, y };
             this.updateHandlePositions();
             return;
@@ -6759,19 +6762,24 @@ window.Scene3D = {
             const isSphere = this.activeTool === 'sphere';
             const colors = this.get3DShapeColors(this.activeTool, screenX, screenY);
             
-            // Tüm şekiller holografik ve şeffaf. Kürelerde arka yüzeyin çakışıp rengi koyulaştırmasını önlemek için FrontSide kullanıyoruz.
-            const mainMaterial = new THREE.MeshPhongMaterial({ color: colors.faceColor, shininess: 100, specular: 0x555555, transparent: true, opacity: 0.25, depthWrite: false, side: isSphere ? THREE.FrontSide : THREE.DoubleSide });
+            // Tüm şekiller holografik ve şeffaf. Kürelerde arka yüzeyin çakışıp rengi koyulaştırmasını önlemek için FrontSide kullanıyoruz ve opacity'yi artırıyoruz.
+            const mainMaterial = new THREE.MeshPhongMaterial({ color: colors.faceColor, shininess: 100, specular: 0x555555, transparent: true, opacity: isSphere ? 0.85 : 0.25, depthWrite: isSphere ? true : false, side: isSphere ? THREE.FrontSide : THREE.DoubleSide });
             const edgeMaterial = new THREE.LineBasicMaterial({ color: colors.edgeColor, transparent: true, opacity: 1.0 });
             
             let solidShape = null;
             if (window.Foldable3D) {
                 solidShape = window.Foldable3D.createFoldableGroup(this.activeTool, finalRadius, mainMaterial, edgeMaterial);
+                if (solidShape) window.Foldable3D.updateUnfold(solidShape, 0);
             }
             if (!solidShape) {
                 const geometry = this.createGeometry(this.activeTool, finalRadius);
                 if(this.activeTool.startsWith('prism') || this.activeTool.startsWith('pyramid')) geometry.rotateX(Math.PI / 2);
                 solidShape = new THREE.Mesh(geometry, mainMaterial);
-                solidShape.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edgeMaterial));
+                
+                // KÜRE İSE MERİDYEN ÇİZGİLERİNİ EKLEME (Düz yüzey olsun)
+                if (!isSphere) {
+                    solidShape.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edgeMaterial));
+                }
             }
             
             // Şekli 3D uzaya tam senin bıraktığın yere yerleştir
@@ -6861,7 +6869,7 @@ window.Scene3D = {
         let neon, dark;
         const type = strokeData.shapeType;
         if (type.startsWith('prism_cube') || type === 'prism_rect') { neon = 0x00e5ff; dark = 0x005b66; }
-        else if (type === 'sphere') { neon = 0xff00a0; dark = 0x800050; }
+        else if (type === 'sphere') { neon = 0xff66cc; dark = 0xcc0077; }
         else if (type.startsWith('pyramid_')) { neon = 0xffd500; dark = 0x806a00; }
         else if (type.startsWith('prism_')) { neon = 0x39ff14; dark = 0x1a800a; }
         else { neon = 0xbf00ff; dark = 0x4a0080; }
@@ -6869,19 +6877,24 @@ window.Scene3D = {
         const faceColor = strokeData.isLightBg ? dark : neon;
         const edgeColor = strokeData.isLightBg ? dark : neon;
         
-        // Tüm şekiller holografik ve şeffaf. Kürelerde arka yüzeyin çakışıp rengi koyulaştırmasını önlemek için FrontSide kullanıyoruz.
-        const mainMaterial = new THREE.MeshPhongMaterial({ color: faceColor, shininess: 100, specular: 0x555555, transparent: true, opacity: 0.25, depthWrite: false, side: isSphere ? THREE.FrontSide : THREE.DoubleSide });
+        // Tüm şekiller holografik ve şeffaf. Kürelerde arka yüzeyin çakışıp rengi koyulaştırmasını önlemek için FrontSide kullanıyoruz ve opacity'yi artırıyoruz.
+        const mainMaterial = new THREE.MeshPhongMaterial({ color: faceColor, shininess: 100, specular: 0x555555, transparent: true, opacity: isSphere ? 0.85 : 0.25, depthWrite: isSphere ? true : false, side: isSphere ? THREE.FrontSide : THREE.DoubleSide });
         const edgeMaterial = new THREE.LineBasicMaterial({ color: edgeColor, transparent: true, opacity: 1.0 });
         
         let solidShape = null;
         if (window.Foldable3D) {
             solidShape = window.Foldable3D.createFoldableGroup(strokeData.shapeType, strokeData.width / 30, mainMaterial, edgeMaterial);
+            if (solidShape) window.Foldable3D.updateUnfold(solidShape, strokeData.openRatio || 0);
         }
         if (!solidShape) {
             const geometry = this.createGeometry(strokeData.shapeType, strokeData.width / 30);
             if(strokeData.shapeType.startsWith('prism') || strokeData.shapeType.startsWith('pyramid')) geometry.rotateX(Math.PI / 2);
             solidShape = new THREE.Mesh(geometry, mainMaterial);
-            solidShape.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edgeMaterial));
+            
+            // KÜRE İSE MERİDYEN ÇİZGİLERİNİ EKLEME (Düz yüzey olsun)
+            if (!isSphere) {
+                solidShape.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edgeMaterial));
+            }
         }
         
         // 🚨 ÇÖZÜM: PC ve Tabletin 3D Dünyaları Zaten Ortak Merkezlidir!
