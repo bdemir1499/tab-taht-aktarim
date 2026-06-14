@@ -6453,6 +6453,52 @@ window.Scene3D = {
         this.animate();
     },
 
+    get3DShapeColors: function(type, cx, cy) {
+        let isLightBg = false;
+        const canvas = document.getElementById('drawing-canvas');
+        if (canvas) {
+            try {
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                const rect = canvas.getBoundingClientRect();
+                const pixelX = Math.floor((cx - rect.left) * (canvas.width / rect.width));
+                const pixelY = Math.floor((cy - rect.top) * (canvas.height / rect.height));
+                const pixelData = ctx.getImageData(pixelX, pixelY, 1, 1).data;
+                if (pixelData[3] > 0) {
+                    const brightness = (pixelData[0] + pixelData[1] + pixelData[2]) / 3;
+                    if (brightness > 128) isLightBg = true;
+                }
+            } catch(e) {
+                // CORS fallback
+                const hasBg = window.drawnStrokes && window.drawnStrokes.some(s => s.isBackground === true && cx >= s.x && cx <= s.x + s.width && cy >= s.y && cy <= s.y + s.height);
+                if (hasBg) isLightBg = true;
+            }
+        }
+
+        let neon, dark;
+        if (type.startsWith('prism_cube') || type === 'prism_rect') {
+            neon = 0x00e5ff; // Neon Cyan
+            dark = 0x005b66;
+        } else if (type === 'sphere') {
+            neon = 0xff00a0; // Neon Pink
+            dark = 0x800050;
+        } else if (type.startsWith('pyramid_')) {
+            neon = 0xffd500; // Neon Yellow/Gold
+            dark = 0x806a00;
+        } else if (type.startsWith('prism_')) {
+            neon = 0x39ff14; // Neon Lime Green
+            dark = 0x1a800a;
+        } else {
+            neon = 0xbf00ff; // Neon Purple
+            dark = 0x4a0080;
+        }
+
+        return {
+            isLightBg: isLightBg,
+            edgeColor: isLightBg ? dark : neon,
+            faceColor: isLightBg ? dark : neon
+        };
+    },
+
     updateHandlePositions: function() {
         if (!this.currentMesh || window.currentTool !== 'move') {
             if(this.rotateHandleBtn) this.rotateHandleBtn.style.display = 'none';
@@ -6593,8 +6639,9 @@ window.Scene3D = {
             this.isDrawing = true;
             this.startPoint = this.get3DPointOnFloor(x, y) || new THREE.Vector3(0,0,0);
             
-            const mat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true, transparent: true, opacity: 0.5 });
-            const edgeMat = new THREE.LineBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.8 });
+            const colors = this.get3DShapeColors(this.activeTool, x, y);
+            const mat = new THREE.MeshBasicMaterial({ color: colors.faceColor, transparent: true, opacity: 0.25 });
+            const edgeMat = new THREE.LineBasicMaterial({ color: colors.edgeColor, transparent: true, opacity: 0.8 });
             
             if (window.Foldable3D) {
                 this.previewMesh = window.Foldable3D.createFoldableGroup(this.activeTool, 0.1, mat, edgeMat);
@@ -6708,17 +6755,10 @@ window.Scene3D = {
             const screenY = -(vec.y * h) + h;
 
             const isSphere = this.activeTool === 'sphere';
-            const hasBackground = window.drawnStrokes && window.drawnStrokes.some(s => {
-                if (s.isBackground === true) {
-                    return (screenX >= s.x && screenX <= s.x + s.width && screenY >= s.y && screenY <= s.y + s.height);
-                }
-                return false;
-            });
-            const shapeColor = hasBackground ? 0x445566 : 0x00ffcc;
-            const edgeColor = hasBackground ? 0x000000 : 0xffffff;
+            const colors = this.get3DShapeColors(this.activeTool, screenX, screenY);
             
-            const mainMaterial = new THREE.MeshPhongMaterial({ color: shapeColor, shininess: 100, specular: 0x111111, transparent: !isSphere, opacity: isSphere ? 1.0 : 0.4, depthWrite: isSphere, side: THREE.DoubleSide });
-            const edgeMaterial = new THREE.LineBasicMaterial({ color: edgeColor, transparent: true, opacity: 1.0 });
+            const mainMaterial = new THREE.MeshPhongMaterial({ color: colors.faceColor, shininess: 100, specular: 0x555555, transparent: !isSphere, opacity: isSphere ? 0.9 : 0.25, depthWrite: isSphere, side: THREE.DoubleSide });
+            const edgeMaterial = new THREE.LineBasicMaterial({ color: colors.edgeColor, transparent: true, opacity: 1.0 });
             
             let solidShape = null;
             if (window.Foldable3D) {
@@ -6746,7 +6786,7 @@ window.Scene3D = {
                 width: finalRadius * 30, height: finalRadius * 30,
                 rotationX: 0, rotationY: 0, rotationZ: 0,
                 pos3D: { x: solidShape.position.x, y: solidShape.position.y, z: solidShape.position.z },
-                rotation: 0, yaw: 0, pitch: 1, openRatio: 0, isPreview: false, color: '#00ffcc'
+                rotation: 0, yaw: 0, pitch: 1, openRatio: 0, isPreview: false, isLightBg: colors.isLightBg, color: '#' + colors.faceColor.toString(16).padStart(6, '0')
             };
             Object.assign(solidShape.userData, { type: this.activeTool, baseSize: finalRadius, height: finalRadius * 2, strokeData: networkData });
             
@@ -6814,18 +6854,19 @@ window.Scene3D = {
     addShapeFromNetwork: function(strokeData) {
         if (!this.isInit) this.init();
         const isSphere = strokeData.shapeType === 'sphere';
-        const cx = strokeData.x + strokeData.width / 2;
-        const cy = strokeData.y + strokeData.height / 2;
-        const hasBackground = window.drawnStrokes && window.drawnStrokes.some(s => {
-            if (s.isBackground === true) {
-                return (cx >= s.x && cx <= s.x + s.width && cy >= s.y && cy <= s.y + s.height);
-            }
-            return false;
-        });
-        const shapeColor = hasBackground ? 0x445566 : 0x00ffcc;
-        const edgeColor = hasBackground ? 0x000000 : 0xffffff;
         
-        const mainMaterial = new THREE.MeshPhongMaterial({ color: shapeColor, shininess: 100, specular: 0x111111, transparent: !isSphere, opacity: isSphere ? 1.0 : 0.4, depthWrite: isSphere, side: THREE.DoubleSide });
+        let neon, dark;
+        const type = strokeData.shapeType;
+        if (type.startsWith('prism_cube') || type === 'prism_rect') { neon = 0x00e5ff; dark = 0x005b66; }
+        else if (type === 'sphere') { neon = 0xff00a0; dark = 0x800050; }
+        else if (type.startsWith('pyramid_')) { neon = 0xffd500; dark = 0x806a00; }
+        else if (type.startsWith('prism_')) { neon = 0x39ff14; dark = 0x1a800a; }
+        else { neon = 0xbf00ff; dark = 0x4a0080; }
+        
+        const faceColor = strokeData.isLightBg ? dark : neon;
+        const edgeColor = strokeData.isLightBg ? dark : neon;
+        
+        const mainMaterial = new THREE.MeshPhongMaterial({ color: faceColor, shininess: 100, specular: 0x555555, transparent: !isSphere, opacity: isSphere ? 0.9 : 0.25, depthWrite: isSphere, side: THREE.DoubleSide });
         const edgeMaterial = new THREE.LineBasicMaterial({ color: edgeColor, transparent: true, opacity: 1.0 });
         
         let solidShape = null;
