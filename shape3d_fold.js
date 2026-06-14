@@ -53,7 +53,8 @@ window.Foldable3D = {
             for (let i = 0; i < sides; i++) {
                 const hinge = new THREE.Group();
                 // İlk yüzey sabit, diğerleri birbirine ekleniyor
-                if (i === 0) {
+                // Kapakları orta panele bağla (böylece açınım solda toplanır ve resme tam uyar)
+                if (i === Math.floor(sides / 2)) {
                     hinge.position.set(-actualSideWidth / 2, 0, apothem); // İlk yüzey ÖNDE ve ortalanmış başlasın
                     hinge.rotation.y = 0; // Kameraya (dışa) baksın
                     root.add(hinge);
@@ -290,7 +291,7 @@ window.Foldable3D = {
 
         if (type === 'prism_cube' || type === 'prism_rect') {
             outerGroup.rotation.x = Math.PI / 10;
-            outerGroup.rotation.y = Math.PI - Math.PI / 10;
+            outerGroup.rotation.y = -Math.PI / 10;
         }
 
         if (type.startsWith('prism_')) {

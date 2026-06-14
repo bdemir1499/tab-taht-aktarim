@@ -6759,8 +6759,7 @@ window.Scene3D = {
                 x: screenX - (finalRadius * 15), 
                 y: screenY - (finalRadius * 15), 
                 width: finalRadius * 30, height: finalRadius * 30,
-                rotationX: 0, rotationY: 0, rotationZ: 0,
-                pos3D: { x: solidShape.position.x, y: solidShape.position.y, z: solidShape.position.z },
+                rotationX: solidShape.rotation.x, rotationY: solidShape.rotation.y, rotationZ: solidShape.rotation.z,
                 rotation: 0, yaw: 0, pitch: 1, openRatio: 0, isPreview: false, isLightBg: colors.isLightBg, color: '#' + colors.faceColor.toString(16).padStart(6, '0')
             };
             Object.assign(solidShape.userData, { type: this.activeTool, baseSize: finalRadius, height: finalRadius * 2, strokeData: networkData });
