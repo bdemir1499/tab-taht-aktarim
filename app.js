@@ -6744,7 +6744,9 @@ window.Scene3D = {
         if (wasDrawing && this.previewMesh) {
             const finalScale = this.previewMesh.scale.x || 1;
             const finalRadius = 0.1 * finalScale;
-            this.scene.remove(this.previewMesh); this.previewMesh.geometry.dispose(); this.previewMesh = null;
+            this.scene.remove(this.previewMesh); 
+            if (this.previewMesh.geometry) this.previewMesh.geometry.dispose(); 
+            this.previewMesh = null;
             
             const vec = (this.startPoint || new THREE.Vector3(0,0,0)).clone();
             vec.project(this.camera);
@@ -6757,7 +6759,8 @@ window.Scene3D = {
             const isSphere = this.activeTool === 'sphere';
             const colors = this.get3DShapeColors(this.activeTool, screenX, screenY);
             
-            const mainMaterial = new THREE.MeshPhongMaterial({ color: colors.faceColor, shininess: 100, specular: 0x555555, transparent: !isSphere, opacity: isSphere ? 0.9 : 0.25, depthWrite: isSphere, side: THREE.DoubleSide });
+            // Tüm şekiller holografik ve şeffaf. Kürelerde arka yüzeyin çakışıp rengi koyulaştırmasını önlemek için FrontSide kullanıyoruz.
+            const mainMaterial = new THREE.MeshPhongMaterial({ color: colors.faceColor, shininess: 100, specular: 0x555555, transparent: true, opacity: 0.25, depthWrite: false, side: isSphere ? THREE.FrontSide : THREE.DoubleSide });
             const edgeMaterial = new THREE.LineBasicMaterial({ color: colors.edgeColor, transparent: true, opacity: 1.0 });
             
             let solidShape = null;
@@ -6866,7 +6869,8 @@ window.Scene3D = {
         const faceColor = strokeData.isLightBg ? dark : neon;
         const edgeColor = strokeData.isLightBg ? dark : neon;
         
-        const mainMaterial = new THREE.MeshPhongMaterial({ color: faceColor, shininess: 100, specular: 0x555555, transparent: !isSphere, opacity: isSphere ? 0.9 : 0.25, depthWrite: isSphere, side: THREE.DoubleSide });
+        // Tüm şekiller holografik ve şeffaf. Kürelerde arka yüzeyin çakışıp rengi koyulaştırmasını önlemek için FrontSide kullanıyoruz.
+        const mainMaterial = new THREE.MeshPhongMaterial({ color: faceColor, shininess: 100, specular: 0x555555, transparent: true, opacity: 0.25, depthWrite: false, side: isSphere ? THREE.FrontSide : THREE.DoubleSide });
         const edgeMaterial = new THREE.LineBasicMaterial({ color: edgeColor, transparent: true, opacity: 1.0 });
         
         let solidShape = null;
