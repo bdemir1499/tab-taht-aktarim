@@ -732,13 +732,30 @@ function getPointerInfo(e) {
 const canvas = document.getElementById('drawing-canvas');
 const ctx = canvas.getContext('2d');
 
+// --- YENİ: DUAL CANVAS (ARKA PLAN TUVALİ) ---
+let bgCanvas = document.getElementById('bg-canvas');
+if (!bgCanvas) {
+    bgCanvas = document.createElement('canvas');
+    bgCanvas.id = 'bg-canvas';
+    // Arka planı 3D'nin (40 veya 9995) ve ana tuvalin (50) altında tutuyoruz. Tıklanamaz.
+    bgCanvas.style.cssText = 'position: absolute !important; top: 0; left: 0; pointer-events: none !important; z-index: 10 !important; background-color: transparent !important;';
+    document.body.insertBefore(bgCanvas, document.getElementById('three-container') || canvas);
+}
+const bgCtx = bgCanvas.getContext('2d');
+
 function setupCanvasResolution() {
     const rect = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1; // 🚨 Cihazın HD piksel oranını (Retina Gücünü) al
     
-    // Kanvasın iç piksel sayısını, ekranın gerçek HD çözünürlüğü ile eşitle
+    // Ana tuval
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
+
+    // Arka plan tuvali
+    if (bgCanvas) {
+        bgCanvas.width = canvas.width;
+        bgCanvas.height = canvas.height;
+    }
     
     if (typeof redrawAllStrokes === 'function') {
         redrawAllStrokes();
@@ -1114,6 +1131,10 @@ function redrawAllStrokes() {
     // 1. ÖNCE KOORDİNATLARI SIFIRLA VE TÜM EKRANI SİL
     ctx.setTransform(1, 0, 0, 1, 0, 0); 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (typeof bgCtx !== 'undefined' && bgCtx) {
+        bgCtx.setTransform(1, 0, 0, 1, 0, 0);
+        bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+    }
     
     // GÜVENLİK KİLİDİ
     if (!window.drawnStrokes || window.drawnStrokes.length === 0) return;
@@ -1623,11 +1644,12 @@ else if (stroke.type === 'rectangle') {
     ctx.restore();
 
 // === EKLENECEK YENİ BÖLÜM: SAYFAYI EN ARKAYA ÇİZ ===
-    // Deliğin arkasından görünmesi için PDF'i her şeyin altına (destination-over) çiziyoruz
-    ctx.save();
-    ctx.globalCompositeOperation = 'destination-over'; 
+    // Dual-Canvas Mimarisi: PDF ve arka plan resimleri ayrı bir tuvale (bgCanvas) çiziliyor.
+    const targetCtx = (typeof bgCtx !== 'undefined' && bgCtx) ? bgCtx : ctx;
+    targetCtx.save();
+    if (targetCtx === ctx) targetCtx.globalCompositeOperation = 'destination-over'; 
     for (const stroke of drawnStrokes) {
-    if (stroke.type === 'image' && stroke.isBackground !== false) {
+        if (stroke.type === 'image' && stroke.isBackground !== false) {
             let imgToDraw = null;
             if (stroke.img && (stroke.img instanceof HTMLImageElement || stroke.img instanceof HTMLCanvasElement)) {
                 imgToDraw = stroke.img; 
@@ -1636,17 +1658,17 @@ else if (stroke.type === 'rectangle') {
             }
 
             if (imgToDraw && (imgToDraw instanceof HTMLCanvasElement || imgToDraw.complete || imgToDraw.readyState >= 2)) {
-                ctx.save();
+                targetCtx.save();
                 const centerX = stroke.x + (stroke.width / 2);
                 const centerY = stroke.y + (stroke.height / 2);
-                ctx.translate(centerX, centerY);
-                ctx.rotate((stroke.rotation || 0) * Math.PI / 180);
-                ctx.drawImage(imgToDraw, -stroke.width / 2, -stroke.height / 2, stroke.width, stroke.height);
-                ctx.restore();
+                targetCtx.translate(centerX, centerY);
+                targetCtx.rotate((stroke.rotation || 0) * Math.PI / 180);
+                targetCtx.drawImage(imgToDraw, -stroke.width / 2, -stroke.height / 2, stroke.width, stroke.height);
+                targetCtx.restore();
             }
         }
     }
-    ctx.restore();
+    targetCtx.restore();
     // ====================================================
 
     // --- YENİ EKLENEN KISIM: OTOMATİK HARF SENKRONİZASYONU ---
@@ -3434,6 +3456,12 @@ canvas.addEventListener('pointerup', (e) => {
             tempCtx.imageSmoothingEnabled = true;
             tempCtx.imageSmoothingQuality = 'high';
 
+            // 🚨 YENİ: Önce arka plan tuvalini çiz (PDF ve resimler için)
+            if (typeof bgCanvas !== 'undefined' && bgCanvas) {
+                tempCtx.drawImage(bgCanvas, x, y, w, h, 0, 0, w, h);
+            }
+            
+            // Sonra üstüne kullanıcının çizimlerini (canvas) çiz
             tempCtx.drawImage(canvas, x, y, w, h, 0, 0, w, h);
             const finalImage = tempCanvas.toDataURL('image/png', 1.0);
             
@@ -3599,20 +3627,16 @@ canvas.addEventListener('pointerup', (e) => {
                 tempCtx.closePath();
                 tempCtx.clip(); 
 
-                const bgLayer = document.getElementById('pdf-canvas') || document.querySelector('.pdf-page-canvas');
-                
                 // Kaliteyi artır
                 tempCtx.imageSmoothingEnabled = true;
                 tempCtx.imageSmoothingQuality = 'high';
 
-                if (bgLayer) {
-                    const dprCanvasX = canvas.width / canvas.getBoundingClientRect().width;
-                    const dprCanvasY = canvas.height / canvas.getBoundingClientRect().height;
-
-                    const sX = (bgLayer.width / bgLayer.offsetWidth) / dprCanvasX;
-                    const sY = (bgLayer.height / bgLayer.offsetHeight) / dprCanvasY;
-                    tempCtx.drawImage(bgLayer, minX * sX, minY * sY, w * sX, h * sY, 0, 0, w, h);
+                // 🚨 YENİ: Önce arka plan tuvalini çiz (PDF ve resimler için)
+                if (typeof bgCanvas !== 'undefined' && bgCanvas) {
+                    tempCtx.drawImage(bgCanvas, minX, minY, w, h, 0, 0, w, h);
                 }
+                
+                // Sonra üstüne kullanıcının çizimlerini (canvas) çiz
                 tempCtx.drawImage(canvas, minX, minY, w, h, 0, 0, w, h);
                 tempCtx.restore();
 
