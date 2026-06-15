@@ -314,20 +314,18 @@ window.Foldable3D = {
             // Perspektif yanılgısını (kameranın aşağıdan bakması) önlemek için şekli hafif geriye (yukarı) yatırıyoruz: 0.25 radyan
             const tiltOffset = 0.25; 
 
-            if (group.userData.shapeType.startsWith('pyramid_')) {
-                // Piramitler Y ekseninde inşa edildiği için dik durmaları için X ekseninde 90 derece dönmeleri gerekir
-                const qClosed = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
-                const qOpen = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
-                const currentQ = qClosed.clone().slerp(qOpen, openRatio);
-                inner.quaternion.copy(currentQ);
-            } else {
-                // Prizmalar Y ekseninde inşa edildikleri için dik durmaları için X ekseninde 90 derece dönmeleri gerekir
-                const qClosed = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
-                // Açılırken yere yatmasını engellemek için qOpen'ı qClosed ile aynı yapıyoruz (sadece tilt kalabilir veya dümdüz kalır)
-                const qOpen = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
-                const currentQ = qClosed.clone().slerp(qOpen, openRatio);
-                inner.quaternion.copy(currentQ);
-            }
+            // Her iki şekil türü de Y ekseninde inşa edilip X ekseninde 90 derece döndürülerek dik hale getirilir.
+            const qClosed = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+            
+            // Açıldığında tam karşıdan (ve hafif yukarıdan) görünmesi için mutlak hedef rotasyon
+            const qOpenAbsolute = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2 - tiltOffset);
+            
+            // Dış grubun rotasyonunu iptal etmek için tersini alıp hedefle çarpıyoruz
+            const qOuterInverse = group.quaternion.clone().invert();
+            const qOpenTarget = qOuterInverse.multiply(qOpenAbsolute);
+            
+            // Kapalıyken izometrik duruşta kal, açıldıkça kameraya dön
+            inner.quaternion.copy(qClosed).slerp(qOpenTarget, openRatio);
 
             // Prizmaların açınımı yana doğru uzadığı için, açıldıkça şekli ortala
             if (group.userData.shiftX) {
