@@ -1438,10 +1438,10 @@ function redrawAllStrokes() {
                 }
                 if (typeof currentTool !== 'undefined' && currentTool === 'move' && selectedItem === stroke) {
                     const rotateHandlePos = window.PolygonTool.getRotateHandlePosition(stroke);
-                    ctx.beginPath(); ctx.arc(rotateHandlePos.x, rotateHandlePos.y, 10, 0, 2 * Math.PI);
+                    ctx.beginPath(); ctx.arc(rotateHandlePos.x, rotateHandlePos.y, 6, 0, 2 * Math.PI);
                     ctx.fillStyle = 'rgba(0, 255, 0, 0.8)'; ctx.fill(); ctx.strokeStyle = '#0F0'; ctx.lineWidth = 2; ctx.stroke();
-                    const resizeHandlePos = vertices.length > 0 ? vertices[0] : stroke.center; 
-                    ctx.beginPath(); ctx.arc(resizeHandlePos.x, resizeHandlePos.y, 8, 0, 2 * Math.PI);
+                    const resizeHandlePos = window.PolygonTool.getResizeHandlePosition(stroke);
+                    ctx.beginPath(); ctx.arc(resizeHandlePos.x, resizeHandlePos.y, 6, 0, 2 * Math.PI);
                     ctx.fillStyle = 'rgba(255, 0, 255, 0.8)'; ctx.fill(); ctx.strokeStyle = '#F0F'; ctx.lineWidth = 2; ctx.stroke();
                 }
             }
@@ -2070,10 +2070,10 @@ if (stroke.type === 'image') {
         if (currentTool === 'move' && selectedItem === stroke) {
             if (stroke.type === 'polygon') {
                 const rotateHandlePos = window.PolygonTool.getRotateHandlePosition(stroke);
-                const resizeHandlePos = (stroke.vertices && stroke.vertices.length > 0) ? stroke.vertices[0] : null;
+                const resizeHandlePos = window.PolygonTool.getResizeHandlePosition(stroke);
                 
                 const dRot = distance(pos, rotateHandlePos);
-                const dRes = resizeHandlePos ? distance(pos, resizeHandlePos) : Infinity;
+                const dRes = distance(pos, resizeHandlePos);
 
                 // 🚨 PEMBE VE YEŞİL BUTON ÇAKIŞMA ZIRHI (Öncelik en yakın olana verilir)
                 if (dRes < 35 && dRes <= dRot) return { item: stroke, pointKey: 'resize' }; 
@@ -6507,13 +6507,13 @@ window.Scene3D = {
         this.scene.add(this.helperGroup);
 
         const styleBtn = (btn, isRotate) => {
-            btn.style.position = 'absolute'; btn.style.width = '45px'; btn.style.height = '45px';
+            btn.style.position = 'absolute'; btn.style.width = '32px'; btn.style.height = '32px';
             btn.style.borderRadius = '50%'; btn.style.backgroundColor = isRotate ? '#ff007f' : '#00ffcc';
-            btn.style.color = 'white'; btn.style.fontSize = '22px';
+            btn.style.color = 'white'; btn.style.fontSize = '16px';
             btn.style.display = 'none'; btn.style.justifyContent = 'center'; btn.style.alignItems = 'center';
             btn.style.cursor = 'pointer'; btn.style.zIndex = '1000';
-            btn.style.boxShadow = '0 4px 10px rgba(0,0,0,0.5)';
-            btn.innerHTML = isRotate ? '🔄' : '↔';
+            btn.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
+            btn.innerHTML = isRotate ? '↻' : '⤡';
         };
 
         this.rotateHandleBtn = document.createElement('div');

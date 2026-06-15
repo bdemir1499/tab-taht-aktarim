@@ -157,55 +157,22 @@ window.PolygonTool = {
         window.tempPolygonData = null;
     },
     
-// Bir çokgenin DÖNDÜRME tutamacının yerini hesaplar
     getRotateHandlePosition: function(polygon) {
-        // Döndürme tutamacını, "merkez" ile "ilk köşe" arasına, yarıçaptan biraz DIŞARI koy
-        const radius = polygon.radius + 25; // Merkezden 25px dışarı
-        const angleRad = polygon.rotation * (Math.PI / 180); // Çokgenin mevcut açısı
-        
+        const radius = polygon.radius + 35; // Köşenin biraz daha dışında
+        const angleRad = polygon.rotation * (Math.PI / 180); 
         return {
             x: polygon.center.x + radius * Math.cos(angleRad),
             y: polygon.center.y + radius * Math.sin(angleRad)
         };
     },
 
-    // Bir çokgenin BOYUTLANDIRMA tutamacının yerini hesaplar (ilk köşe)
     getResizeHandlePosition: function(polygon) {
-        if (!polygon.vertices || polygon.vertices.length === 0) {
-            // Eğer köşe hesaplanmadıysa, geçici olarak hesapla
-            polygon.vertices = this.calculateVertices(polygon.center, polygon.radius, polygon.sideCount, polygon.rotation);
-        }
-        // 'vertices' dizisinin varlığını ve boş olmadığını tekrar kontrol et
-        if (polygon.vertices && polygon.vertices.length > 0) {
-             return polygon.vertices[0]; // İlk köşeyi döndür
-        }
-        // Acil durum (Eğer vertices hala tanımsızsa)
-        return polygon.center; 
-    },
-
-getRotateHandlePosition: function(polygon) {
-        // Döndürme tutamacını, "merkez" ile "ilk köşe" arasına, yarıçaptan biraz DIŞARI koy
-        const radius = polygon.radius + 25; // Merkezden 25px dışarı
-        const angleRad = polygon.rotation * (Math.PI / 180); // Çokgenin mevcut açısı
-        
+        const radius = polygon.radius + 15; // Köşenin hemen dışında
+        const angleRad = polygon.rotation * (Math.PI / 180); 
         return {
             x: polygon.center.x + radius * Math.cos(angleRad),
             y: polygon.center.y + radius * Math.sin(angleRad)
         };
-    },
-
-    // Bir çokgenin BOYUTLANDIRMA tutamacının yerini hesaplar (ilk köşe)
-    getResizeHandlePosition: function(polygon) {
-        if (!polygon.vertices || polygon.vertices.length === 0) {
-            // Eğer köşe hesaplanmadıysa, geçici olarak hesapla
-            polygon.vertices = this.calculateVertices(polygon.center, polygon.radius, polygon.sideCount, polygon.rotation);
-        }
-        // 'vertices' dizisinin varlığını ve boş olmadığını tekrar kontrol et
-        if (polygon.vertices && polygon.vertices.length > 0) {
-             return polygon.vertices[0]; // İlk köşeyi döndür
-        }
-        // Acil durum (Eğer vertices hala tanımsızsa)
-        return polygon.center; 
     },
 
 // 1. ÇEMBER HESAPLAMALARI (Pi = 3)
