@@ -5716,6 +5716,38 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
 
                     if (d.type === 'aktif_onizleme' && d.payload) {
                         const p = d.payload;
+                        
+                        // 🚨 ÇİZİM ÖNİZLEME ADAPTASYONU (Native Koordinatlar) 🚨
+                        if (d.arac === 'cizim_onizleme' || d.arac === 'cizgi_onizleme') {
+                            const isBg = window.drawnStrokes && window.drawnStrokes.some(s => s.isBackground === true);
+                            const tempStroke = {
+                                type: p.tool === 'pen' ? 'pen' : 'line',
+                                isBackground: isBg,
+                                path: p.path ? JSON.parse(JSON.stringify(p.path)) : undefined,
+                                center: p.center ? JSON.parse(JSON.stringify(p.center)) : undefined,
+                                p1: p.start ? JSON.parse(JSON.stringify(p.start)) : undefined,
+                                p2: p.end ? JSON.parse(JSON.stringify(p.end)) : undefined,
+                                radius: p.radius
+                            };
+                            
+                            if (p.startX !== undefined && p.startY !== undefined) tempStroke.p1 = { x: p.startX, y: p.startY };
+                            if (p.endX !== undefined && p.endY !== undefined) tempStroke.p2 = { x: p.endX, y: p.endY };
+
+                            if (typeof window.adaptStrokeToScreen === 'function') {
+                                window.adaptStrokeToScreen(tempStroke, d.cssW, d.cssH, d.cw);
+                            }
+
+                            if (tempStroke.path) p.path = tempStroke.path;
+                            if (tempStroke.center) p.center = tempStroke.center;
+                            if (tempStroke.p1 && p.start) { p.start.x = tempStroke.p1.x; p.start.y = tempStroke.p1.y; }
+                            if (tempStroke.p2 && p.end) { p.end.x = tempStroke.p2.x; p.end.y = tempStroke.p2.y; }
+                            if (tempStroke.radius !== undefined) p.radius = tempStroke.radius;
+                            
+                            if (tempStroke.p1 && p.startX !== undefined) { p.startX = tempStroke.p1.x; p.startY = tempStroke.p1.y; }
+                            if (tempStroke.p2 && p.endX !== undefined) { p.endX = tempStroke.p2.x; p.endY = tempStroke.p2.y; }
+                        }
+                        
+                        // FİZİKSEL ARAÇLARIN KOORDİNAT ADAPTASYONU (CSS Koordinatları)
                         if (p.handleX !== undefined) p.handleX *= scaleX;
                         if (p.handleY !== undefined) p.handleY *= scaleY;
                         if (p.cx !== undefined) p.cx = (p.cx * scaleX) + dx;
@@ -5743,19 +5775,26 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
             // 1. ZOOM VE PDF SENKRONİZASYONU
             if (d.type === 'zoom_senkron') {
                 if (window.drawnStrokes) {
-                    let sx = 1, sy = 1;
-                    if (d.cssW && d.cssH && Math.abs(d.cssW - window.innerWidth) >= 5) {
-                        sx = window.innerWidth / d.cssW;
-                        sy = window.innerHeight / d.cssH;
-                    }
+                    const myW = window.innerWidth;
+                    const myH = window.innerHeight;
+                    const canvasElm = document.getElementById('drawing-canvas');
+                    const myCw = canvasElm ? canvasElm.width : myW;
+                    const senderCw = d.cw || d.cssW;
+                    const myDpr = myCw / myW;
+                    const senderDpr = senderCw ? (senderCw / d.cssW) : 1;
+
+                    const cssScaleX = myW / d.cssW;
+                    const cssScaleY = myH / d.cssH;
+                    const cssScale = Math.min(cssScaleX, cssScaleY);
                     
-                    // 🚨 KESİN ÇÖZÜM: Tablet yan çevrildiğinde veya oranlar farklıysa, şekli uzatıp sündürme!
-                    // Oranları koruyarak (Math.min) merkeze göre hizala.
-                    const scale = Math.min(sx, sy);
-                    const cx_tab = (d.cssW || window.innerWidth) / 2;
-                    const cy_tab = (d.cssH || window.innerHeight) / 2;
-                    const cx_pc = window.innerWidth / 2;
-                    const cy_pc = window.innerHeight / 2;
+                    // Native koordinat ölçeklemesi
+                    const scale = cssScale * (myDpr / senderDpr);
+
+                    // Merkezler NATIVE PIXEL cinsinden olmalı!
+                    const cx_tab = (d.cssW / 2) * senderDpr;
+                    const cy_tab = (d.cssH / 2) * senderDpr;
+                    const cx_pc = (myW / 2) * myDpr;
+                    const cy_pc = (myH / 2) * myDpr;
 
                     const bgStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
                     bgStrokes.forEach(bg => { 
