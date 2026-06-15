@@ -1637,30 +1637,43 @@ else if (stroke.type === 'rectangle') {
     ctx.restore();
 
 // === EKLENECEK YENİ BÖLÜM: SAYFAYI EN ARKAYA ÇİZ ===
-    // Deliğin arkasından görünmesi için PDF'i her şeyin altına (destination-over) çiziyoruz
-    ctx.save();
-    ctx.globalCompositeOperation = 'destination-over'; 
-    for (const stroke of drawnStrokes) {
-    if (stroke.type === 'image' && stroke.isBackground !== false) {
-            let imgToDraw = null;
-            if (stroke.img && stroke.img instanceof HTMLImageElement) {
-                imgToDraw = stroke.img; 
-            } else if (stroke.imgObj) {
-                imgToDraw = stroke.imgObj; 
-            }
+    if (bgCtx) {
+        bgCtx.save();
+        for (const stroke of drawnStrokes) {
+            if (stroke.type === 'image' && stroke.isBackground !== false) {
+                let imgToDraw = null;
+                if (stroke.img && stroke.img instanceof HTMLImageElement) {
+                    imgToDraw = stroke.img; 
+                } else if (stroke.imgObj) {
+                    imgToDraw = stroke.imgObj; 
+                }
 
-            if (imgToDraw && (imgToDraw.complete || imgToDraw.readyState >= 2)) {
-                ctx.save();
-                const centerX = stroke.x + (stroke.width / 2);
-                const centerY = stroke.y + (stroke.height / 2);
-                ctx.translate(centerX, centerY);
-                ctx.rotate((stroke.rotation || 0) * Math.PI / 180);
-                ctx.drawImage(imgToDraw, -stroke.width / 2, -stroke.height / 2, stroke.width, stroke.height);
-                ctx.restore();
+                if (imgToDraw && (imgToDraw.complete || imgToDraw.readyState >= 2)) {
+                    bgCtx.save();
+                    const centerX = stroke.x + (stroke.width / 2);
+                    const centerY = stroke.y + (stroke.height / 2);
+                    bgCtx.translate(centerX, centerY);
+                    bgCtx.rotate((stroke.rotation || 0) * Math.PI / 180);
+                    bgCtx.drawImage(imgToDraw, -stroke.width / 2, -stroke.height / 2, stroke.width, stroke.height);
+                    bgCtx.restore();
+                }
+            }
+            // Ayrıca Lasso-mask ile PDF üzerinde delik açılmışsa onu da bgCtx'den siliyoruz
+            else if (stroke.type === 'lasso-mask') {
+                bgCtx.save();
+                bgCtx.globalCompositeOperation = 'destination-out';
+                bgCtx.beginPath();
+                bgCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+                for (let i = 1; i < stroke.points.length; i++) {
+                    bgCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+                }
+                bgCtx.closePath();
+                bgCtx.fill();
+                bgCtx.restore();
             }
         }
+        bgCtx.restore();
     }
-    ctx.restore();
     // ====================================================
 
     // --- YENİ EKLENEN KISIM: OTOMATİK HARF SENKRONİZASYONU ---
