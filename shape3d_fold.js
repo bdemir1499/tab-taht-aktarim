@@ -323,11 +323,13 @@ window.Foldable3D = {
                 // Quaternion slerp ile pürüzsüz geçiş
                 inner.quaternion.copy(qClosed).slerp(qOpenTarget, openRatio);
             } else {
-                // Prizmalar vs için (Kamera açısından dik durmasını sağla)
+                // Prizmalar vs için de aynı mantık: kapalıyken dik dursun, açıldıkça kameraya dönsün
                 const qClosed = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+                const qOuterInverse = group.quaternion.clone().invert();
+                const qOpenTarget = qOuterInverse.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI - tiltOffset));
                 
-                // Spin (takla atma) YOK! Sadece dik duracak ve önden yana doğru açılacak
-                inner.quaternion.copy(qClosed);
+                // Quaternion slerp ile pürüzsüz geçiş
+                inner.quaternion.copy(qClosed).slerp(qOpenTarget, openRatio);
             }
 
             // Prizmaların açınımı yana doğru uzadığı için, açıldıkça şekli ortala

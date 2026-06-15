@@ -6831,7 +6831,7 @@ window.Scene3D = {
                 x: screenX - (finalRadius * 15), 
                 y: screenY - (finalRadius * 15), 
                 width: finalRadius * 30, height: finalRadius * 30,
-                rotationX: 0, rotationY: 0, rotationZ: 0,
+                rotationX: solidShape.rotation.x, rotationY: solidShape.rotation.y, rotationZ: solidShape.rotation.z,
                 pos3D: { x: solidShape.position.x, y: solidShape.position.y, z: solidShape.position.z },
                 rotation: 0, yaw: 0, pitch: 1, openRatio: 0, isPreview: false, color: '#00ffcc'
             };
