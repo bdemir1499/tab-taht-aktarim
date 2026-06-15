@@ -2984,11 +2984,30 @@ canvas.addEventListener('pointerdown', (e) => {
     // 🚨 SİHİRLİ DOKUNUŞ 1: Ne olursa olsun ÖNCE tarayıcının yerleşik kaydırmasını (titremeyi) kilitliyoruz!
     if (e.cancelable) e.preventDefault();
 
-    // AKILLI TAHTA YAMASI:
+    // AKILLI TAHTA YAMASI VE GERİYE DÖNÜK AVUÇ İÇİ (PALM) REDDİ:
     if (e.pointerType === 'pen') {
+        // Eğer kısa süre önce (avuç içi yüzünden) bir veya birden fazla "touch" çizimi başladıysa, onları anında iptal et ve sil!
+        let avucIciSilindi = false;
+        while (window.drawnStrokes && window.drawnStrokes.length > 0) {
+            const lastS = window.drawnStrokes[window.drawnStrokes.length - 1];
+            if (lastS.type === 'pen' && lastS.pointerType === 'touch' && lastS.startTime && (Date.now() - lastS.startTime) < 1500) {
+                window.drawnStrokes.pop();
+                avucIciSilindi = true;
+                if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'geri_al' }); // PC'den de sil
+            } else {
+                break;
+            }
+        }
+        
+        if (avucIciSilindi) {
+            isDrawing = false; // Temizle ki alt taraftaki switch bloğu kalem için temiz bir stroke başlatsın
+            if (window.redrawAllStrokes) window.redrawAllStrokes();
+        }
+        
         isPenActive = true;
         clearTimeout(penActiveTimer);
-        penActiveTimer = setTimeout(() => { isPenActive = false; }, 1000);
+        // Kalem havaya kalksa bile 2 saniye boyunca eli (avuç içini) reddetmeye devam et:
+        penActiveTimer = setTimeout(() => { isPenActive = false; }, 2000); 
     }
     if (e.pointerType === 'touch' && isPenActive) return; 
 
@@ -3094,7 +3113,7 @@ canvas.addEventListener('pointerdown', (e) => {
     if (currentTool === 'snapshot') { snapshotStart = getPointerPos(e); return; }
 
     switch (currentTool) {
-        case 'pen': isDrawing = true; const pInfoDown = getPointerInfo(e); const pStroke = { type: 'pen', path: [{x: snapPos.x, y: snapPos.y, p: pInfoDown.type === 'pen' ? pInfoDown.pressure : 1}], color: currentPenColor, baseWidth: currentPenWidth, id: Date.now() + Math.random() }; drawnStrokes.push(pStroke); break;
+        case 'pen': isDrawing = true; const pInfoDown = getPointerInfo(e); const pStroke = { type: 'pen', pointerType: pInfoDown.type, startTime: Date.now(), path: [{x: snapPos.x, y: snapPos.y, p: pInfoDown.type === 'pen' ? pInfoDown.pressure : 1}], color: currentPenColor, baseWidth: currentPenWidth, id: Date.now() + Math.random() }; drawnStrokes.push(pStroke); break;
         case 'point': isDrawing = false; const noktaObj = { type: 'point', x: snapPos.x, y: snapPos.y, label: nextPointChar, color: window.isToolThemeBlack ? '#000000' : (window.currentLineColor || '#FFFFFF'), id: Date.now() + Math.random() }; drawnStrokes.push(noktaObj); if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) window.sendNetworkData({ type: 'yeni_cizim', stroke: noktaObj }); nextPointChar = advanceChar(nextPointChar); if (typeof window.nextPointChar !== 'undefined') window.nextPointChar = nextPointChar; setTimeout(() => { if (typeof redrawAllStrokes === 'function') redrawAllStrokes(); }, 10); break;
         case 'eraser': isDrawing = false; break; // 🚨 KESİN ÇÖZÜM: Silgi modunda kalem izi çizilmesi tamamen yasaklandı!
         case 'straightLine': if (!isDrawingLine) { isDrawingLine = true; lineStartPoint = snapPos; } break;
