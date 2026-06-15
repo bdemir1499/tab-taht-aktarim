@@ -894,7 +894,7 @@ if (dikdortgenButton) {
         if (typeof window.setActiveTool === 'function') {
             window.setActiveTool('draw_rectangle');
         } else {
-            window.currentTool = 'draw_rectangle';
+            currentTool = 'draw_rectangle';
         }
     });
 }
@@ -3038,14 +3038,14 @@ canvas.addEventListener('pointerdown', (e) => {
 
     // --- 🚨 KÖPRÜ 1: 3D MOTORUNA DEVRET (HIRSIZLIK KORUMALI) ---
     if (window.Scene3D && window.Scene3D.isInit) {
-        if (window.currentTool === 'move' || window.currentTool === 'select') {
+        if (currentTool === 'move' || currentTool === 'select') {
             const is3DHit = window.Scene3D.onDown(rawX, rawY);
             if (is3DHit) return; 
         }
         // SADECE "draw_3d" ile başlayan 3D araçları seçiliyse 3D motoruna izin ver! (Silgiyi ve Çokgenleri Çalmasın)
-        else if (window.currentTool && window.currentTool.startsWith('draw_3d_')) {
+        else if (currentTool && currentTool.startsWith('draw_3d_')) {
             // 🚨 KESİN ÇÖZÜM: İngilizce isimleri doğrudan tool isminden çekiyoruz! Prizma takılması bitti.
-            let toolName = window.currentTool.replace('draw_3d_', '');
+            let toolName = currentTool.replace('draw_3d_', '');
             window.Scene3D.setTool(toolName); 
             window.Scene3D.onDown(rawX, rawY); 
             return;
@@ -3381,7 +3381,7 @@ canvas.addEventListener('pointerup', (e) => {
             if (wasDrawing) {
                 // 🚨 KESİN ÇÖZÜM: "Taşı" (move) butonuna otomatik geçmeyi İPTAL ettik. Sistem boşta kalır.
                 window.active3DShapeTool = null;
-                window.currentTool = 'none'; 
+                currentTool = 'none'; 
                 if (typeof setActiveTool === 'function') setActiveTool('none'); 
                 
                 const mainBtn = document.getElementById('btn-3d-menu'); 
@@ -6559,7 +6559,7 @@ window.Scene3D = {
     },
 
     updateHandlePositions: function() {
-        if (!this.currentMesh || window.currentTool !== 'move') {
+        if (!this.currentMesh || currentTool !== 'move') {
             if(this.rotateHandleBtn) this.rotateHandleBtn.style.display = 'none';
             if(this.resizeHandleBtn) this.resizeHandleBtn.style.display = 'none';
             return;
@@ -6619,7 +6619,8 @@ window.Scene3D = {
             case 'prism_cylinder': return new THREE.CylinderGeometry(size, size, height, 32);
             case 'prism_3': return new THREE.CylinderGeometry(size, size, height, 3); 
             case 'prism_4': return new THREE.BoxGeometry(size*1.5, size*1.5, height); 
-            case 'prism_rect': return new THREE.BoxGeometry(size * 1.5, size, height); 
+            case 'prism_square': return new THREE.BoxGeometry(size * 1.5, size * 1.5, size * 3); 
+            case 'prism_rect': return new THREE.BoxGeometry(size * 3, size * 1.5, size * 1.5); 
             case 'prism_5': return new THREE.CylinderGeometry(size, size, height, 5); 
             case 'prism_6': return new THREE.CylinderGeometry(size, size, height, 6); 
             case 'pyramid_cone': return new THREE.ConeGeometry(size, height, 32);
@@ -6650,7 +6651,7 @@ window.Scene3D = {
         }
         
         // 🚨 TABLET DOKUNMATİK ZIRHI: Parmakla basıldığında 3D Işın ıskalasa bile 2D Kutusundan Kesin Yakala!
-        if (!foundMesh && window.drawnStrokes && window.currentTool === 'move') {
+        if (!foundMesh && window.drawnStrokes && currentTool === 'move') {
             const canvasEl = document.getElementById('drawing-canvas');
             if (canvasEl) {
                 const rect = canvasEl.getBoundingClientRect();
@@ -6670,7 +6671,7 @@ window.Scene3D = {
             this.currentMesh = foundMesh.object;
             this.clickStartPos = { x, y };
             
-            if (window.currentTool === 'move') {
+            if (currentTool === 'move') {
                 this.isRotatingShape = false; 
                 this.isDragging = true;
                 this.dragPlane.setFromNormalAndCoplanarPoint(this.camera.getWorldDirection(new THREE.Vector3()), this.currentMesh.position);
@@ -6703,7 +6704,7 @@ window.Scene3D = {
             return true;
         }
         
-        if (window.currentTool === 'move') {
+        if (currentTool === 'move') {
             this.currentMesh = null;
             window.selectedItem = null;
             this.updateHandlePositions();
@@ -6766,7 +6767,7 @@ window.Scene3D = {
             }
             return; 
         } 
-        if (this.isRotatingShape && this.currentMesh && window.currentTool !== 'move') {
+        if (this.isRotatingShape && this.currentMesh && currentTool !== 'move') {
             this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), (y - this.lastMousePos.y) * 0.01);
             this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), (x - this.lastMousePos.x) * 0.01);
             this.lastMousePos = { x, y };
@@ -6934,7 +6935,7 @@ window.addEventListener('load', () => {
 
         const menuPrizmalar = document.createElement('div'); menuPrizmalar.id = 'options-prizmalar'; menuPrizmalar.className = 'tool-options hidden';
         menuPrizmalar.style.cssText = `position: absolute; left: 100%; margin-left: 10px; top: 0; z-index: 21; background-color: rgba(30, 30, 46, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 15px 35px rgba(0,0,0,0.4); padding: 15px; border-radius: 15px; display: flex; flex-direction: column; gap: 8px; width: 180px;`;
-        menuPrizmalar.innerHTML = `<button class="tool-button-sub" data-3d="3d_kup">Küp</button><button class="tool-button-sub" data-3d="3d_silindir">Silindir</button><button class="tool-button-sub" data-3d="3d_ucgen_prizma">Üçgen Prizma</button><button class="tool-button-sub" data-3d="3d_dortgen_prizma">Dörtgen Prizma</button><button class="tool-button-sub" data-3d="3d_besgen_prizma">Beşgen Prizma</button><button class="tool-button-sub" data-3d="3d_altigen_prizma">Altıgen Prizma</button>`;
+        menuPrizmalar.innerHTML = `<button class="tool-button-sub" data-3d="3d_kup">Küp</button><button class="tool-button-sub" data-3d="3d_kare_prizma">Kare Prizma</button><button class="tool-button-sub" data-3d="3d_dikdortgen_prizma">Dikdörtgen Prizma</button><button class="tool-button-sub" data-3d="3d_ucgen_prizma">Üçgen Prizma</button><button class="tool-button-sub" data-3d="3d_besgen_prizma">Beşgen Prizma</button><button class="tool-button-sub" data-3d="3d_altigen_prizma">Altıgen Prizma</button><button class="tool-button-sub" data-3d="3d_silindir">Silindir</button>`;
         menu3D.appendChild(menuPrizmalar);
 
         const menuPiramitler = document.createElement('div'); menuPiramitler.id = 'options-piramitler'; menuPiramitler.className = 'tool-options hidden';
@@ -6977,8 +6978,9 @@ window.addEventListener('load', () => {
                     else if (data3d.includes('kup')) toolName = 'prism_cube'; 
                     else if (data3d.includes('silindir')) toolName = 'prism_cylinder'; 
                     else if (data3d.includes('koni')) toolName = 'pyramid_cone'; 
+                    else if (data3d.includes('kare_prizma')) toolName = 'prism_square'; 
+                    else if (data3d.includes('dikdortgen_prizma')) toolName = 'prism_rect';
                     else if (data3d.includes('ucgen_prizma')) toolName = 'prism_3'; 
-                    else if (data3d.includes('dortgen_prizma')) toolName = 'prism_4'; 
                     else if (data3d.includes('besgen_prizma')) toolName = 'prism_5'; 
                     else if (data3d.includes('altigen_prizma')) toolName = 'prism_6'; 
                     else if (data3d.includes('ucgen_piramit')) toolName = 'pyramid_3'; 
@@ -6987,7 +6989,7 @@ window.addEventListener('load', () => {
                     else if (data3d.includes('altigen_piramit')) toolName = 'pyramid_6'; 
                     else toolName = 'prism_rect';
                     
-                    window.currentTool = 'draw_3d_' + toolName; 
+                    currentTool = 'draw_3d_' + toolName; 
                     window.Scene3D.setTool(toolName);
                 }
             });
@@ -7021,7 +7023,7 @@ window.addEventListener('load', () => {
                 else slider.style.display = 'flex';
             }
             if (info) {
-                let isSelectedMove = (window.currentTool === 'move' && window.selectedItem === activeShape);
+                let isSelectedMove = (currentTool === 'move' && window.selectedItem === activeShape);
                 if (isSelectedMove) {
                     info.style.display = 'block'; 
                 } else {
