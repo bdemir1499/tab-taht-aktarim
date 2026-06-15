@@ -6551,16 +6551,20 @@ window.Scene3D = {
             this.resizeHandleBtn.addEventListener(evt, (e) => startInteract('isResizingHandle', e), {passive: false});
         });
 
-        window.addEventListener('touchmove', (e) => {
-            if (this.isRotatingHandle || this.isResizingHandle) {
-                e.preventDefault();
-                const px = e.touches ? e.touches[0].clientX : e.clientX;
-                const py = e.touches ? e.touches[0].clientY : e.clientY;
-                this.onMove(px, py);
-            }
-        }, { passive: false });
+        ['touchmove', 'mousemove', 'pointermove'].forEach(evt => {
+            window.addEventListener(evt, (e) => {
+                if (this.isRotatingHandle || this.isResizingHandle) {
+                    if (e.cancelable) e.preventDefault();
+                    const px = e.touches ? e.touches[0].clientX : e.clientX;
+                    const py = e.touches ? e.touches[0].clientY : e.clientY;
+                    this.onMove(px, py);
+                }
+            }, { passive: false });
+        });
 
-        window.addEventListener('touchend', () => { if (this.isRotatingHandle || this.isResizingHandle) this.onUp(); });
+        ['touchend', 'mouseup', 'pointerup'].forEach(evt => {
+            window.addEventListener(evt, () => { if (this.isRotatingHandle || this.isResizingHandle) this.onUp(); });
+        });
 
         this.isInit = true;
         this.animate();
