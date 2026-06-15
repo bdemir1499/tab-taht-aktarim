@@ -3085,7 +3085,8 @@ canvas.addEventListener('pointermove', (e) => {
     pointers.set(e.pointerId, e); 
 
     // --- TABLET/PARDUS: İKİ PARMAK ZOOM ---
-    if (pointers.size === 2 || (e.touches && e.touches.length === 2)) {
+    // 🚨 KESİN ÇÖZÜM: Yalnızca 'Taşı' (move) aracı seçiliyken iki parmakla yakınlaştırma (zoom) yapılabilir.
+    if ((pointers.size === 2 || (e.touches && e.touches.length === 2)) && window.currentTool === 'move') {
         let p1x, p1y, p2x, p2y;
         if (e.touches && e.touches.length === 2) { p1x = e.touches[0].clientX; p1y = e.touches[0].clientY; p2x = e.touches[1].clientX; p2y = e.touches[1].clientY; } 
         else { const p = Array.from(pointers.values()); p1x = p[0].clientX; p1y = p[0].clientY; p2x = p[1].clientX; p2y = p[1].clientY; }
@@ -3658,6 +3659,9 @@ canvas.addEventListener('wheel', (e) => {
     if (e.ctrlKey) {
         e.preventDefault();
         
+        // 🚨 KESİN ÇÖZÜM: Yalnızca 'Taşı' (move) aracı seçiliyken fare ile zoom yapılabilir
+        if (window.currentTool !== 'move') return;
+        
         const zoomStep = e.deltaY > 0 ? 0.95 : 1.05; 
 
         // SADECE ARKA PLANI (PDF/RESİM) BUL VE BÜYÜT/KÜÇÜLT
@@ -3913,6 +3917,9 @@ function addNewImageToCanvas(img, isPDF = false, pcKordinatlari = null) {
             kordinatlar: { x: newStroke.x, y: newStroke.y, width: newStroke.width, height: newStroke.height }
         });
     }
+
+    // 🚨 KESİN ÇÖZÜM: Yükleme işleminden sonra Taşı butonunun kendi kendine aktif olmasını engellemek için aracı Kalem'e sıfırla.
+    if (typeof setActiveTool === 'function') setActiveTool('pen');
 }
 
 
