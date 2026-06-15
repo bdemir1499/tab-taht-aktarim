@@ -5704,6 +5704,14 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
                         }
                         if (d.width) d.width = (parseFloat(d.width) * scaleX) + 'px';
                         if (d.height) d.height = (parseFloat(d.height) * scaleY) + 'px';
+                        
+                        // 🚨 ZIPLAMA SAVAR: Cetvel ve gönye üzerindeki sayıların bozulmasını önle! 🚨
+                        let targetTool = null;
+                        if (d.arac === 'ruler') targetTool = window.RulerTool;
+                        if (d.arac === 'gonye') targetTool = window.GonyeTool;
+                        if (targetTool) {
+                            targetTool.PIXELS_PER_CM = 30 * scaleX;
+                        }
                     }
 
                     if (d.type === 'aktif_onizleme' && d.payload) {
@@ -5718,6 +5726,14 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
                         if (p.y !== undefined) p.y = (p.y * scaleY) + dy;
                         if (p.ldx !== undefined) p.ldx *= scaleX;
                         if (p.ldy !== undefined) p.ldy *= scaleY;
+                        
+                        // 🚨 ZIPLAMA SAVAR: Canlı çizimde etiketlerin sıçramasını önle 🚨
+                        let targetTool = null;
+                        if (d.arac === 'ruler') targetTool = window.RulerTool;
+                        if (d.arac === 'gonye') targetTool = window.GonyeTool;
+                        if (targetTool) {
+                            targetTool.PIXELS_PER_CM = 30 * scaleX;
+                        }
                     }
                     
                     d.ignoreAdapt = true;
