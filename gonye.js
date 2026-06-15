@@ -456,6 +456,7 @@ window.GonyeTool = {
                 label2, 
                 lengthLabel: cmText, 
                 lengthLabelPos: midPoint,
+                isPhysicalTool: true,
                 id: Date.now() + Math.random() // <--- İŞTE BU KISIM ZOMBİ ÇİZİMLERİ BİTİRİR
             };
             

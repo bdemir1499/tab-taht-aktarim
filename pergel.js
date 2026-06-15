@@ -431,6 +431,7 @@ window.PergelTool = {
                 color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
                 width: 3,
                 label: centerLabel,
+                isPhysicalTool: true,
                 id: Date.now() + Math.random() // <--- ZOMBİ ÇİZİMLERİ BİTİREN KİMLİK
             };
 

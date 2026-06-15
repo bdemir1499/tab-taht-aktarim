@@ -5542,13 +5542,31 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
     if (!stroke || !senderW || !senderH) return stroke;
     
     // 🚨 3D ŞEKİL KORUMASI 🚨
-    // 3D şekiller WebGL (OrthographicCamera) içinde zaten normalize edilmiş koordinatlar (-1 ile 1 arası)
-    // ve sabit frustumSize (30) kullanır. Bu yüzden 2D canvas/css ölçeklendirmesinden (sx, sy, dpr) TAMAMEN MUAF tutulmalıdır.
-    // Aksi halde PC'ye geçerken çift ölçeklenerek devasa boyutlara ulaşırlar!
     if (stroke.type === '3d_shape' || stroke.shapeType) return stroke;
 
     const myW = window.innerWidth;
     const myH = window.innerHeight;
+    const canvasElm = document.getElementById('drawing-canvas');
+    const myCw = canvasElm ? canvasElm.width : myW;
+    const senderDpr = senderCw ? (senderCw / senderW) : 1;
+    const myDpr = canvasElm ? (myCw / myW) : 1;
+
+    // 🚨 FİZİKİ ARAÇ KORUMASI (Zıplama Engelleme) 🚨
+    // Fiziki araçların PC'de büyümemesi/küçülmemesi için ekranlara göre ölçeklenmesi engellenmelidir.
+    // Ancak farklı cihazların piksel yoğunluğu (DPR) farklı olabileceğinden sadece DPR farkı düzeltilir.
+    if (stroke.isPhysicalTool) {
+        const dprScale = myDpr / senderDpr;
+        if (dprScale !== 1) {
+            if (stroke.p1) { stroke.p1.x *= dprScale; stroke.p1.y *= dprScale; }
+            if (stroke.p2) { stroke.p2.x *= dprScale; stroke.p2.y *= dprScale; }
+            if (stroke.p3) { stroke.p3.x *= dprScale; stroke.p3.y *= dprScale; }
+            if (stroke.cx !== undefined) stroke.cx *= dprScale;
+            if (stroke.cy !== undefined) stroke.cy *= dprScale;
+            if (stroke.radius !== undefined) stroke.radius *= dprScale;
+            if (stroke.lengthLabelPos) { stroke.lengthLabelPos.x *= dprScale; stroke.lengthLabelPos.y *= dprScale; }
+        }
+        return stroke;
+    }
     
     const isLineType = ['pen', 'line', 'segment', 'ray', 'straightLine', 'polygon', 'point', 'arc'].includes(stroke.type);
 
@@ -5669,18 +5687,23 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
                 }
 
                 if (d.type === 'aktif_onizleme' && d.payload && !d.ignoreAdapt) {
-                    const p = d.payload;
-                    if (p.handleX !== undefined) p.handleX *= scale;
-                    if (p.handleY !== undefined) p.handleY *= scale;
-                    if (p.cx !== undefined) p.cx = mapX(p.cx);
-                    if (p.cy !== undefined) p.cy = mapY(p.cy);
-                    if (p.px !== undefined) p.px = mapX(p.px);
-                    if (p.py !== undefined) p.py = mapY(p.py);
-                    if (p.ldx !== undefined) p.ldx *= scale;
-                    if (p.ldy !== undefined) p.ldy *= scale;
-                    if (p.x !== undefined) p.x = mapX(p.x);
-                    if (p.y !== undefined) p.y = mapY(p.y);
-                    d.ignoreAdapt = true;
+                    const isPhysical = ['ruler', 'gonye', 'aciolcer', 'pergel'].includes(d.arac);
+                    if (isPhysical) {
+                        d.ignoreAdapt = true;
+                    } else {
+                        const p = d.payload;
+                        if (p.handleX !== undefined) p.handleX *= scale;
+                        if (p.handleY !== undefined) p.handleY *= scale;
+                        if (p.cx !== undefined) p.cx = mapX(p.cx);
+                        if (p.cy !== undefined) p.cy = mapY(p.cy);
+                        if (p.px !== undefined) p.px = mapX(p.px);
+                        if (p.py !== undefined) p.py = mapY(p.py);
+                        if (p.ldx !== undefined) p.ldx *= scale;
+                        if (p.ldy !== undefined) p.ldy *= scale;
+                        if (p.x !== undefined) p.x = mapX(p.x);
+                        if (p.y !== undefined) p.y = mapY(p.y);
+                        d.ignoreAdapt = true;
+                    }
                 }
             }
 

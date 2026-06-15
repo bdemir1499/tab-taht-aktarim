@@ -415,6 +415,7 @@ window.AciolcerTool = {
                 width: 3, 
                 label1: l1, 
                 label2: l2,
+                isPhysicalTool: true,
                 id: Date.now() + Math.random() // <--- ZOMBİ ÇİZİMLERİ BİTİREN ID
             };
 

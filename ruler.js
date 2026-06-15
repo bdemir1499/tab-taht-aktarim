@@ -487,6 +487,7 @@ window.RulerTool = {
                 width: 3,
                 lengthLabel: cmText, 
                 lengthLabelPos: midPoint,
+                isPhysicalTool: true,
                 id: Date.now() + Math.random() // <--- İŞTE KESİN ÇÖZÜM: ID Eklendi
             };
 
