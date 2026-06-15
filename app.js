@@ -3239,7 +3239,8 @@ canvas.addEventListener('pointermove', (e) => {
     if (currentTool === 'move' && isMoving && selectedItem) {
         // 🚨 MUTLAK ZIRH: Eğer ekranda birden fazla parmak varsa (Çoklu Dokunma), 
         // asla tek parmak kaydırmasına izin verme! Zıplamayı ENGELLEYEN en kilit satır burasıdır.
-        if (window.touchCount >= 2 || pointers.size >= 2) {
+        const gercekDokunusSayisi = Array.from(pointers.values()).filter(p => p.pointerType === 'touch').length;
+        if (window.touchCount >= 2 || gercekDokunusSayisi >= 2) {
             isMoving = false;
             return;
         }
@@ -5695,32 +5696,68 @@ function setupConnectionEvents() {
                     d.strokes.forEach(s => window.adaptStrokeToScreen(s, d.cssW, d.cssH, d.cw));
                 }
 
-                // Geometri kalibrasyonunu (1cm = 30px) ve sol panel mesafesini %100 korumak için ölçekleme İPTAL. Birebir 1:1 aktarım yapıyoruz.
-                const scale = 1;
-                const mapX = (x) => x;
-                const mapY = (y) => y;
+                if (d.type === 'sekil_guncelle') {
+                    if (!d.stroke) return;
+                    
+                    // 🚨 EKRAN SENKRONİZASYONU: Gelen stroke'u Kendi Ekranımıza (İç Piksellere) Çevir!
+                    const tempStroke = JSON.parse(JSON.stringify(d.stroke));
+                    if (typeof adaptStrokeToScreen === 'function') {
+                        const canvasElm = document.getElementById('drawing-canvas');
+                        const cw = canvasElm ? canvasElm.width : window.innerWidth;
+                        const ch = canvasElm ? canvasElm.height : window.innerHeight;
+                        adaptStrokeToScreen(tempStroke, d.cssW, d.cssH, cw, ch);
+                    }
+
+                    let index = -1;
+                    
+                    // 🚨 KİMLİK UYUŞMAZLIĞI ÇÖZÜMÜ: 
+                    // Gelen şekil arka plan (resim/PDF) ise, ID'ye bakmadan direkt bul!
+                    if (tempStroke.isBackground === true) {
+                        index = window.drawnStrokes.findIndex(s => s.isBackground === true);
+                    } else {
+                        if (!tempStroke.id) return;
+                        index = window.drawnStrokes.findIndex(s => s.id === tempStroke.id);
+                    }
+
+                    if (index !== -1) {
+                        const hedef = window.drawnStrokes[index];
+                        
+                        hedef.x = tempStroke.x;
+                        hedef.y = tempStroke.y;
+                        hedef.width = tempStroke.width;
+                        hedef.height = tempStroke.height;
+                        if (tempStroke.rotation !== undefined) hedef.rotation = tempStroke.rotation;
+                        
+                        if (tempStroke.radius !== undefined) hedef.radius = tempStroke.radius;
+                        if (tempStroke.cx !== undefined) hedef.cx = tempStroke.cx;
+                        if (tempStroke.cy !== undefined) hedef.cy = tempStroke.cy;
+                        if (tempStroke.center !== undefined) hedef.center = tempStroke.center;
+                    }
+                    if (window.redrawAllStrokes) window.redrawAllStrokes();
+                    return;
+                }
 
                 // Fiziki araçların (cetvel vb) uzaklık oranı korunarak taşınması
                 if (d.type === 'arac_senkron' && !d.ignoreAdapt) {
-                    if (d.left) d.left = mapX(parseFloat(d.left)) + 'px';
-                    if (d.top) d.top = mapY(parseFloat(d.top)) + 'px';
-                    if (d.width) d.width = (parseFloat(d.width) * scale) + 'px';
-                    if (d.height) d.height = (parseFloat(d.height) * scale) + 'px';
+                    if (d.left) d.left = d.left;
+                    if (d.top) d.top = d.top;
+                    if (d.width) d.width = d.width;
+                    if (d.height) d.height = d.height;
                     d.ignoreAdapt = true; // prevent double adapting
                 }
 
                 if (d.type === 'arac_state_senkron' && d.state && !d.ignoreAdapt) {
-                    if (d.state.x !== undefined) d.state.x = mapX(d.state.x);
-                    if (d.state.y !== undefined) d.state.y = mapY(d.state.y);
-                    if (d.state.width !== undefined) d.state.width *= scale;
-                    if (d.state.height !== undefined) d.state.height *= scale;
-                    if (d.state.radius !== undefined) d.state.radius *= scale;
+                    if (d.state.x !== undefined) d.state.x = d.state.x;
+                    if (d.state.y !== undefined) d.state.y = d.state.y;
+                    if (d.state.width !== undefined) d.state.width *= 1;
+                    if (d.state.height !== undefined) d.state.height *= 1;
+                    if (d.state.radius !== undefined) d.state.radius *= 1;
                     if (d.state.pivot) {
-                        d.state.pivot.x = mapX(d.state.pivot.x);
-                        d.state.pivot.y = mapY(d.state.pivot.y);
+                        d.state.pivot.x = d.state.pivot.x;
+                        d.state.pivot.y = d.state.pivot.y;
                     }
-                    if (d.width) d.width = (parseFloat(d.width) * scale) + 'px';
-                    if (d.height) d.height = (parseFloat(d.height) * scale) + 'px';
+                    if (d.width) d.width = d.width;
+                    if (d.height) d.height = d.height;
                     d.ignoreAdapt = true;
                 }
 
@@ -5931,30 +5968,39 @@ function setupConnectionEvents() {
         if (data.type === 'sekil_guncelle') {
             if (!data.stroke) return;
 
+            // 🚨 EKRAN SENKRONİZASYONU: Gelen stroke'u Kendi Ekranımıza (İç Piksellere) Çevir!
+            const tempStroke = JSON.parse(JSON.stringify(data.stroke));
+            if (typeof adaptStrokeToScreen === 'function') {
+                const canvasElm = document.getElementById('drawing-canvas');
+                const cw = canvasElm ? canvasElm.width : window.innerWidth;
+                const ch = canvasElm ? canvasElm.height : window.innerHeight;
+                adaptStrokeToScreen(tempStroke, data.cssW, data.cssH, cw, ch);
+            }
+
             let index = -1;
 
             // 🚨 KİMLİK UYUŞMAZLIĞI ÇÖZÜMÜ: 
             // Gelen şekil arka plan (resim/PDF) ise, ID'ye bakmadan direkt bul!
-            if (data.stroke.isBackground === true) {
+            if (tempStroke.isBackground === true) {
                 index = window.drawnStrokes.findIndex(s => s.isBackground === true);
             } else {
-                if (!data.stroke.id) return;
-                index = window.drawnStrokes.findIndex(s => s.id === data.stroke.id);
+                if (!tempStroke.id) return;
+                index = window.drawnStrokes.findIndex(s => s.id === tempStroke.id);
             }
 
             if (index !== -1) {
                 const hedef = window.drawnStrokes[index];
 
-                hedef.x = data.stroke.x;
-                hedef.y = data.stroke.y;
-                hedef.width = data.stroke.width;
-                hedef.height = data.stroke.height;
-                if (data.stroke.rotation !== undefined) hedef.rotation = data.stroke.rotation;
+                hedef.x = tempStroke.x;
+                hedef.y = tempStroke.y;
+                hedef.width = tempStroke.width;
+                hedef.height = tempStroke.height;
+                if (tempStroke.rotation !== undefined) hedef.rotation = tempStroke.rotation;
 
-                if (data.stroke.radius !== undefined) hedef.radius = data.stroke.radius;
-                if (data.stroke.cx !== undefined) hedef.cx = data.stroke.cx;
-                if (data.stroke.cy !== undefined) hedef.cy = data.stroke.cy;
-                if (data.stroke.center !== undefined) hedef.center = data.stroke.center;
+                if (tempStroke.radius !== undefined) hedef.radius = tempStroke.radius;
+                if (tempStroke.cx !== undefined) hedef.cx = tempStroke.cx;
+                if (tempStroke.cy !== undefined) hedef.cy = tempStroke.cy;
+                if (tempStroke.center !== undefined) hedef.center = tempStroke.center;
 
                 // 🚨 KESİN ÇÖZÜM: Tabletteki (Açı / Kenar uzunluğu / Çember formülü) etiketlerini PC'de de GÖSTER!
                 if (data.stroke.showEdgeLabels !== undefined) hedef.showEdgeLabels = data.stroke.showEdgeLabels;
