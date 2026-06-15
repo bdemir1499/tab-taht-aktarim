@@ -5450,13 +5450,8 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
     const isLineType = ['pen', 'line', 'segment', 'ray', 'straightLine', 'polygon', 'point', 'arc'].includes(stroke.type);
 
     const scale = Math.min(sx, sy);
-    const cx_tab = senderW / 2;
-    const cy_tab = senderH / 2;
-    const cx_pc = myW / 2;
-    const cy_pc = myH / 2;
-
-    const mapX = (x) => cx_pc + ((x - cx_tab) * scale);
-    const mapY = (y) => cy_pc + ((y - cy_tab) * scale);
+    const mapX = (x) => x * scale;
+    const mapY = (y) => y * scale;
 
     if (stroke.path) stroke.path.forEach(p => { p.x = mapX(p.x); p.y = mapY(p.y); });
     if (stroke.points) stroke.points.forEach(p => { p.x = mapX(p.x); p.y = mapY(p.y); });
@@ -5538,13 +5533,8 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
                 const sx = window.innerWidth / d.cssW;
                 const sy = window.innerHeight / d.cssH;
                 const scale = Math.min(sx, sy);
-                const cx_tab = d.cssW / 2;
-                const cy_tab = d.cssH / 2;
-                const cx_pc = window.innerWidth / 2;
-                const cy_pc = window.innerHeight / 2;
-
-                const mapX = (x) => cx_pc + ((x - cx_tab) * scale);
-                const mapY = (y) => cy_pc + ((y - cy_tab) * scale);
+                const mapX = (x) => x * scale;
+                const mapY = (y) => y * scale;
 
                 // Fiziki araçların (cetvel vb) uzaklık oranı korunarak taşınması
                 if (d.type === 'arac_senkron' && !d.ignoreAdapt) {
@@ -5595,26 +5585,18 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
                         sy = window.innerHeight / d.cssH;
                     }
                     
-                    // 🚨 KESİN ÇÖZÜM: Tablet yan çevrildiğinde veya oranlar farklıysa, şekli uzatıp sündürme!
-                    // Oranları koruyarak (Math.min) merkeze göre hizala.
+                    // Oranları koruyarak (Math.min) sol üstten hizala.
                     const scale = Math.min(sx, sy);
-                    const cx_tab = (d.cssW || window.innerWidth) / 2;
-                    const cy_tab = (d.cssH || window.innerHeight) / 2;
-                    const cx_pc = window.innerWidth / 2;
-                    const cy_pc = window.innerHeight / 2;
+                    const mapX = (x) => x * scale;
+                    const mapY = (y) => y * scale;
 
                     const bgStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
                     bgStrokes.forEach(bg => { 
                         if (d.width !== undefined && d.height !== undefined && d.x !== undefined && d.y !== undefined) {
-                            const img_cx_tab = d.x + (d.width / 2);
-                            const img_cy_tab = d.y + (d.height / 2);
-                            const dx = (img_cx_tab - cx_tab) * scale;
-                            const dy = (img_cy_tab - cy_tab) * scale;
-                            
                             bg.width = d.width * scale;
                             bg.height = d.height * scale;
-                            bg.x = (cx_pc + dx) - (bg.width / 2);
-                            bg.y = (cy_pc + dy) - (bg.height / 2);
+                            bg.x = mapX(d.x);
+                            bg.y = mapY(d.y);
                         }
                     });
                     if (window.redrawAllStrokes) window.redrawAllStrokes();
@@ -5660,22 +5642,15 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
                             sy = window.innerHeight / data.cssH;
                         }
                         
-                        // 🚨 KESİN ÇÖZÜM: Resmin sündürülmesini engelle ve ekranın tam merkezine orantılı oturt!
+                        // 🚨 KESİN ÇÖZÜM: Resmin sündürülmesini engelle ve sol üstten orantılı hizala!
                         const scale = Math.min(sx, sy);
-                        const cx_tab = (data.cssW || window.innerWidth) / 2;
-                        const cy_tab = (data.cssH || window.innerHeight) / 2;
-                        const cx_pc = window.innerWidth / 2;
-                        const cy_pc = window.innerHeight / 2;
-
-                        const img_cx_tab = data.kordinatlar.x + (data.kordinatlar.width / 2);
-                        const img_cy_tab = data.kordinatlar.y + (data.kordinatlar.height / 2);
-                        const dx = (img_cx_tab - cx_tab) * scale;
-                        const dy = (img_cy_tab - cy_tab) * scale;
+                        const mapX = (x) => x * scale;
+                        const mapY = (y) => y * scale;
 
                         zemin.width = data.kordinatlar.width * scale;
                         zemin.height = data.kordinatlar.height * scale;
-                        zemin.x = (cx_pc + dx) - (zemin.width / 2);
-                        zemin.y = (cy_pc + dy) - (zemin.height / 2);
+                        zemin.x = mapX(data.kordinatlar.x);
+                        zemin.y = mapY(data.kordinatlar.y);
                         
                         if (window.redrawAllStrokes) window.redrawAllStrokes();
                     }
@@ -5692,17 +5667,12 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
                         const sx = window.innerWidth / data.cssW;
                         const sy = window.innerHeight / data.cssH;
                         const scale = Math.min(sx, sy);
-                        const cx_tab = data.cssW / 2;
-                        const cy_tab = data.cssH / 2;
-                        const cx_pc = window.innerWidth / 2;
-                        const cy_pc = window.innerHeight / 2;
-                        
-                        const mapX = (x) => cx_pc + ((x - cx_tab) * scale);
-                        const mapY = (y) => cy_pc + ((y - cy_tab) * scale);
+                        const mapX = (x) => x * scale;
+                        const mapY = (y) => y * scale;
 
                         sonKoordinat = {
-                            x: mapX(data.kordinatlar.x + data.kordinatlar.width / 2) - (data.kordinatlar.width * scale) / 2,
-                            y: mapY(data.kordinatlar.y + data.kordinatlar.height / 2) - (data.kordinatlar.height * scale) / 2,
+                            x: mapX(data.kordinatlar.x),
+                            y: mapY(data.kordinatlar.y),
                             width: data.kordinatlar.width * scale,
                             height: data.kordinatlar.height * scale
                         };
@@ -5991,17 +5961,12 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
                         const sx = window.innerWidth / data.cssW;
                         const sy = window.innerHeight / data.cssH;
                         const scale = Math.min(sx, sy);
-                        const cx_tab = data.cssW / 2;
-                        const cy_tab = data.cssH / 2;
-                        const cx_pc = window.innerWidth / 2;
-                        const cy_pc = window.innerHeight / 2;
-                        
-                        const mapX = (x) => cx_pc + ((x - cx_tab) * scale);
-                        const mapY = (y) => cy_pc + ((y - cy_tab) * scale);
+                        const mapX = (x) => x * scale;
+                        const mapY = (y) => y * scale;
 
                         sonKoordinat = {
-                            x: mapX(data.kordinatlar.x + data.kordinatlar.width / 2) - (data.kordinatlar.width * scale) / 2,
-                            y: mapY(data.kordinatlar.y + data.kordinatlar.height / 2) - (data.kordinatlar.height * scale) / 2,
+                            x: mapX(data.kordinatlar.x),
+                            y: mapY(data.kordinatlar.y),
                             width: data.kordinatlar.width * scale,
                             height: data.kordinatlar.height * scale
                         };
