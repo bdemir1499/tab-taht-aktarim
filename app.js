@@ -3048,7 +3048,7 @@ canvas.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'touch' && isPenActive) return;
 
     // --- KRİTİK EKLENTİ: HAYALET PARMAK SIFIRLAYICI ---
-    if (e.pointerType === 'touch' && e.touches && e.touches.length === 1) {
+    if (e.pointerType === 'touch' && e.isPrimary) {
         pointers.clear();
         lastDist = 0;
     }
@@ -3068,7 +3068,7 @@ canvas.addEventListener('pointerdown', (e) => {
 
     // --- TABLET 3D ÇÖZÜMÜ: EKRANIN HAM PİKSELLERİNİ AL ---
     let rawX = e.clientX; let rawY = e.clientY;
-    if (e.targetTouches && e.targetTouches.length > 0) { rawX = e.targetTouches[0].clientX; rawY = e.targetTouches[0].clientY; }
+    if (window.touchCount > 0 && e.pointerType === 'touch') { rawX = e.clientX; rawY = e.clientY; } // PointerEvent uses clientX natively
 
     // --- 🚨 KÖPRÜ 1: 3D MOTORUNA DEVRET (HIRSIZLIK KORUMALI) ---
     if (window.Scene3D && window.Scene3D.isInit) {
