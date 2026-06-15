@@ -6702,12 +6702,6 @@ window.Scene3D = {
             this.previewMesh = new THREE.Mesh(previewGeo, new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true, transparent: true, opacity: 0.5 }));
             this.previewMesh.position.copy(this.startPoint);
             
-            // 🚨 Önizleme sırasında da İzometrik Duruşu (Döndürmeyi) uygula ki çizerken yamuk görünmesin!
-            if (this.activeTool.startsWith('prism_') || this.activeTool.startsWith('pyramid_')) {
-                this.previewMesh.rotation.z = -Math.PI / 4;
-                this.previewMesh.rotation.x = 0;
-            }
-            
             this.scene.add(this.previewMesh);
             return true;
         }
@@ -6817,12 +6811,6 @@ window.Scene3D = {
             
             // Şekli 3D uzaya tam senin bıraktığın yere yerleştir
             solidShape.position.copy(this.startPoint || new THREE.Vector3(0,0,0));
-            
-            // 🚨 STANDART DURUŞ (Resimlerdeki gibi İzometrik Görünüm)
-            if (this.activeTool.startsWith('prism_') || this.activeTool.startsWith('pyramid_')) {
-                solidShape.rotation.z = -Math.PI / 4; // -45 derece dönük (SAĞ yüz ve ÖN yüz eşit görünür)
-                solidShape.rotation.x = 0; // İleri doğru eğilme yok (Kamera zaten yukarıdan bakıyor)
-            }
             
             this.scene.add(solidShape);
             this.currentMesh = solidShape;
