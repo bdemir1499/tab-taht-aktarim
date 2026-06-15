@@ -6812,6 +6812,13 @@ window.Scene3D = {
             // Şekli 3D uzaya tam senin bıraktığın yere yerleştir
             solidShape.position.copy(this.startPoint || new THREE.Vector3(0,0,0));
             
+            // 🚨 ÇİZİM TAMAMLANDIĞINDA İZOMETRİK DURUŞ: Ön, Üst ve Sağ yüzlerin görünmesi için
+            if (this.activeTool.startsWith('prism_') || this.activeTool.startsWith('pyramid_')) {
+                // -Math.PI/6 (-30 derece) döndürüldüğünde Ön yüz daha geniş, Sağ yüz dar görünür (Klasik 3D görünüm)
+                solidShape.rotation.z = -Math.PI / 6; 
+                solidShape.rotation.x = 0; 
+            }
+            
             this.scene.add(solidShape);
             this.currentMesh = solidShape;
             this.updateHandlePositions();
