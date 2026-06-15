@@ -2939,9 +2939,10 @@ if (typeof animateButton !== 'undefined' && animateButton) {
 
 // 🚨 NİHAİ ÇÖZÜM: GERÇEK ÇOKLU DOKUNMATİK (MULTI-TOUCH) TAKİPÇİSİ
 window.touchCount = 0;
+window.lastTouchDist = 0;
 canvas.addEventListener('touchstart', (e) => { window.touchCount = e.touches.length; }, { passive: true });
-canvas.addEventListener('touchend', (e) => { window.touchCount = e.touches.length; if (window.touchCount < 2) lastDist = 0; }, { passive: true });
-canvas.addEventListener('touchcancel', (e) => { window.touchCount = e.touches.length; if (window.touchCount < 2) lastDist = 0; }, { passive: true });
+canvas.addEventListener('touchend', (e) => { window.touchCount = e.touches.length; if (window.touchCount < 2) window.lastTouchDist = 0; }, { passive: true });
+canvas.addEventListener('touchcancel', (e) => { window.touchCount = e.touches.length; if (window.touchCount < 2) window.lastTouchDist = 0; }, { passive: true });
 
 // 🚨 GERÇEK MULTI-TOUCH ZOOM MOTORU (Zıplamayı Engelleyen Ana Motor)
 canvas.addEventListener('touchmove', (e) => {
@@ -2954,8 +2955,8 @@ canvas.addEventListener('touchmove', (e) => {
         const p2x = e.touches[1].clientX; const p2y = e.touches[1].clientY;
         const currentDist = Math.hypot(p1x - p2x, p1y - p2y);
         
-        if (lastDist > 0) {
-            const delta = currentDist - lastDist; 
+        if (window.lastTouchDist > 0) {
+            const delta = currentDist - window.lastTouchDist; 
             const zoomStep = 1 + (delta * 0.003);
             const bgStrokes = drawnStrokes.filter(s => s.isBackground === true);
             if (bgStrokes.length > 0) {
@@ -2972,7 +2973,7 @@ canvas.addEventListener('touchmove', (e) => {
                 }
             }
         }
-        lastDist = currentDist;
+        window.lastTouchDist = currentDist;
     }
 }, { passive: false });
 canvas.addEventListener('pointerdown', (e) => {
@@ -3126,6 +3127,10 @@ canvas.addEventListener('pointermove', (e) => {
     // Eğer tarayıcı TouchEvent yerine PointerEvent gönderiyorsa:
     if (pointers.size >= 2 && window.currentTool === 'move') {
         isMoving = false; // Tek parmak sürüklemeyi zorla kapat
+        
+        // 🚨 ÇAKIŞMAYI ÖNLEYİCİ ZIRH: Eğer cihaz gerçek TouchEvent destekliyorsa (touchCount >= 2),
+        // yedek PointerEvent motorunu DURDUR! Aksi takdirde iki motor aynı anda çalışıp zoomu KİLİTLER!
+        if (window.touchCount >= 2) return;
         
         let p1x, p1y, p2x, p2y;
         const p = Array.from(pointers.values()); 
