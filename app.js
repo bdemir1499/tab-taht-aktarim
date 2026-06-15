@@ -2985,7 +2985,7 @@ canvas.addEventListener('touchmove', (e) => {
         e.stopPropagation();
         
         // 🚨 MUTLAK ZIRH: Eğer taşınan nesne Resim/PDF ise, avuç içi veya ikinci parmak değse bile taşımayı iptal etme!
-        if (!window.selectedItem || window.selectedItem.type !== 'image') {
+        if (typeof selectedItem === 'undefined' || !selectedItem || selectedItem.type !== 'image') {
             isMoving = false; // Tek parmakla sürüklemeyi kesinlikle İPTAL ET!
         }
 
@@ -3192,7 +3192,7 @@ canvas.addEventListener('pointermove', (e) => {
     // Eğer tarayıcı TouchEvent yerine PointerEvent gönderiyorsa:
     if (pointers.size >= 2 && currentTool === 'move') {
         // 🚨 MUTLAK ZIRH: Eğer taşınan nesne Resim/PDF ise taşımayı iptal etme!
-        if (!window.selectedItem || window.selectedItem.type !== 'image') {
+        if (typeof selectedItem === 'undefined' || !selectedItem || selectedItem.type !== 'image') {
             isMoving = false; // Tek parmak sürüklemeyi zorla kapat
         }
 
@@ -3997,7 +3997,7 @@ function addNewImageToCanvas(img, isPDF = false, pcKordinatlari = null) {
     let startWidth, startHeight, posX, posY;
 
     // Eğer PC isek, tabletin bize gönderdiği kusursuz koordinatları kullan!
-    if (pcKordinatlari) {
+    if (pcKordinatlari && !pcKordinatlari.center_me) {
         startWidth = pcKordinatlari.width;
         startHeight = pcKordinatlari.height;
         posX = pcKordinatlari.x;
@@ -5861,8 +5861,8 @@ function setupConnectionEvents() {
                 if (typeof addNewImageToCanvas === 'function') {
                     let sonKoordinat = data.kordinatlar;
                     // Tablette ortada çıkan resmin/pdf'in PC'de de tam ortada çıkması için 
-                    // PC'nin kendi ekran boyutlarına göre merkezleme yapmasını sağlıyoruz (null gönderiyoruz).
-                    addNewImageToCanvas(img, data.isPDF, null);
+                    // PC'nin kendi ekran boyutlarına göre merkezleme yapmasını sağlıyoruz (center_me flag).
+                    addNewImageToCanvas(img, data.isPDF, { center_me: true });
                     setTimeout(() => { if (window.redrawAllStrokes) window.redrawAllStrokes(); }, 100);
                 }
             };
