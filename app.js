@@ -3799,10 +3799,19 @@ async function renderPDFPage(num) {
     
     // --- BURASI DEĞİŞTİ: OTOMATİK VE YÜKSEK ÇÖZÜNÜRLÜK AYARI ---
     const dpr = window.devicePixelRatio || 1;
-    const KALITE_CARPANI = 3; 
+    const KALITE_CARPANI = 2; // Daha güvenli bir katsayı (3 çok yüksekti, donanıma çarpıyordu)
     const hdScale = dpr * KALITE_CARPANI;
     
-    const viewport = page.getViewport({ scale: hdScale }); 
+    let viewport = page.getViewport({ scale: hdScale }); 
+    
+    // GÜVENLİK ZIRHI: Mobil ve bazı PC tarayıcılarında canvas limiti 4096px'dir.
+    // Eğer sayfa çok büyükse (örneğin 5000px), ölçeği güvenli bir sınıra zorla düşür!
+    // Bu sayede "sayfa yarım geldi" veya "canvas dondu" hatalarını KÖKÜNDEN önleriz!
+    if (viewport.height > 3500 || viewport.width > 3500) {
+        const maxDim = Math.max(viewport.height, viewport.width);
+        const safeScale = hdScale * (3500 / maxDim);
+        viewport = page.getViewport({ scale: safeScale });
+    }
     // -----------------------------------------------------------
 
     const tempCanvas = document.createElement('canvas');
