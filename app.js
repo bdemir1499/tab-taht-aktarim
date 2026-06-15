@@ -6619,9 +6619,9 @@ window.Scene3D = {
             case 'prism_cube': return new THREE.BoxGeometry(size * 2, size * 2, size * 2);
             case 'prism_cylinder': return new THREE.CylinderGeometry(size, size, height, 32);
             case 'prism_3': return new THREE.CylinderGeometry(size, size, height, 3); 
-            case 'prism_4': return new THREE.BoxGeometry(size*1.5, size*1.5, height); 
-            case 'prism_square': return new THREE.BoxGeometry(size * 1.5, size * 1.5, size * 3); 
-            case 'prism_rect': return new THREE.BoxGeometry(size * 3, size * 1.5, size * 2.2); 
+            case 'prism_4': return new THREE.BoxGeometry(size*1.5, height, size*1.5); 
+            case 'prism_square': return new THREE.BoxGeometry(size * 1.5, size * 3, size * 1.5); 
+            case 'prism_rect': return new THREE.BoxGeometry(size * 3, size * 2.2, size * 1.5); 
             case 'prism_5': return new THREE.CylinderGeometry(size, size, height, 5); 
             case 'prism_6': return new THREE.CylinderGeometry(size, size, height, 6); 
             case 'pyramid_cone': return new THREE.ConeGeometry(size, height, 32);
