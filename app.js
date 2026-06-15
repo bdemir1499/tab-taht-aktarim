@@ -5951,30 +5951,24 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
         // 🚨 NİHAİ ÇÖZÜM: Yeni Sayfa veya Resim geldiğinde PC ekranına KUSURSUZ yansıt 🚨
         if (data.type === 'arka_plan_resmi_aktar') {
             // Eski "SADECE_KOORDINAT" hatasını yok say
-            if (data.imgData === "SADECE_KOORDINAT") return;
+            if (!data.imgData || data.imgData === "SADECE_KOORDINAT") return;
             
             const img = new Image();
             img.onload = () => { 
                 if (typeof addNewImageToCanvas === 'function') {
                     // Resmi tabletin bize yolladığı KESİN koordinatlarla oluştur!
                     let sonKoordinat = data.kordinatlar;
-                    // Eğer boyutlar geldiyse ve PC ekranı farklıysa, İLK ANDA BİLE orantıla!
-                    if (sonKoordinat && data.cssW && data.cssH && Math.abs(data.cssW - window.innerWidth) >= 5) {
-                        // Geometri kalibrasyonunu (1cm = 30px) ve sol panel mesafesini %100 korumak için birebir 1:1 aktarım.
-                        const scale = 1;
-                        const mapX = (x) => x;
-                        const mapY = (y) => y;
-
-                        sonKoordinat = {
-                            x: mapX(data.kordinatlar.x),
-                            y: mapY(data.kordinatlar.y),
-                            width: data.kordinatlar.width * scale,
-                            height: data.kordinatlar.height * scale
-                        };
+                    if (sonKoordinat) {
+                        addNewImageToCanvas(img, data.isPDF, sonKoordinat); 
+                    } else {
+                        addNewImageToCanvas(img, data.isPDF, null); 
                     }
-                    addNewImageToCanvas(img, data.isPDF, sonKoordinat); 
+                    
+                    // İşlem bittikten sonra emin olmak için ekranı zorla yenile
+                    setTimeout(() => { if (window.redrawAllStrokes) window.redrawAllStrokes(); }, 100);
                 }
             };
+            // Base64 aktarımı garanti altına al
             img.src = data.imgData;
         }
 
@@ -6252,8 +6246,13 @@ if (data.type === 'pdf_kapat') {
 // =========================================================
 // 7. GÜVENLİ VE KAYIPSIZ VERİ FIRLATMA FONKSİYONU (ZIRHLI VE BARKODLU VERSİYON)
 // =========================================================
+window.mySessionId = Date.now().toString() + Math.random().toString();
+
 window.sendNetworkData = function(dataPackage) {
     if (!dataPackage) return;
+    
+    // YANKI KORUMASI İÇİN KİMLİK DAMGASI
+    dataPackage.senderId = window.mySessionId;
     
     // Boyutları damgala (PC'de doğru hizalama için)
     const canvasElm = document.getElementById('drawing-canvas');
