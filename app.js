@@ -2991,9 +2991,11 @@ canvas.addEventListener('pointerdown', (e) => {
         while (window.drawnStrokes && window.drawnStrokes.length > 0) {
             const lastS = window.drawnStrokes[window.drawnStrokes.length - 1];
             if (lastS.type === 'pen' && lastS.pointerType === 'touch' && lastS.startTime && (Date.now() - lastS.startTime) < 1500) {
-                window.drawnStrokes.pop();
+                const popped = window.drawnStrokes.pop();
                 avucIciSilindi = true;
-                if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'geri_al' }); // PC'den de sil
+                if (typeof window.sendNetworkData === 'function' && popped && popped.id) {
+                     window.sendNetworkData({ type: 'sil_belirli', id: popped.id }); 
+                }
             } else {
                 break;
             }
@@ -5991,6 +5993,13 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
                 }
             }
             if (window.redrawAllStrokes) window.redrawAllStrokes(); 
+        }
+        else if (data.type === 'sil_belirli' && data.id) {
+            const index = window.drawnStrokes.findIndex(s => s.id === data.id);
+            if (index !== -1) {
+                window.drawnStrokes.splice(index, 1);
+                if (window.redrawAllStrokes) window.redrawAllStrokes();
+            }
         }
         else if (data.type === 'hepsini_sil') { 
             // PC İÇİN KESİN ÇÖZÜM: Hafıza bağlantısını koparmadan filtreleme yapıyoruz!
