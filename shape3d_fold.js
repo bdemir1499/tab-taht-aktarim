@@ -315,20 +315,16 @@ window.Foldable3D = {
             const tiltOffset = 0.25; 
 
             if (group.userData.shapeType.startsWith('pyramid_')) {
-                // Piramitleri normal düzlemde tut (Z yukarı bakar). Açıldığında arkaya değil ÖNE doğru eğilsin (Math.PI)
+                // Piramitler Y ekseninde inşa edildiği için dik durmaları için X ekseninde 90 derece dönmeleri gerekir
                 const qClosed = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
                 const qOuterInverse = group.quaternion.clone().invert();
                 const qOpenTarget = qOuterInverse.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI - tiltOffset));
-                
-                // Quaternion slerp ile pürüzsüz geçiş
                 inner.quaternion.copy(qClosed).slerp(qOpenTarget, openRatio);
             } else {
-                // Prizmalar vs için de aynı mantık: kapalıyken dik dursun, açıldıkça kameraya dönsün
-                const qClosed = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+                // Prizmalar Z ekseninde inşa edildiği için zaten dik duruyorlar! qClosed = 0 olmalı.
+                const qClosed = new THREE.Quaternion(); // Identity (0 rotasyon)
                 const qOuterInverse = group.quaternion.clone().invert();
                 const qOpenTarget = qOuterInverse.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI - tiltOffset));
-                
-                // Quaternion slerp ile pürüzsüz geçiş
                 inner.quaternion.copy(qClosed).slerp(qOpenTarget, openRatio);
             }
 
