@@ -6703,8 +6703,8 @@ window.Scene3D = {
             
             // 🚨 Önizleme sırasında da İzometrik Duruşu (Döndürmeyi) uygula ki çizerken yamuk görünmesin!
             if (this.activeTool.startsWith('prism_') || this.activeTool.startsWith('pyramid_')) {
-                this.previewMesh.rotation.z = -Math.PI / 6;
-                this.previewMesh.rotation.x = Math.PI / 6;
+                this.previewMesh.rotation.z = -Math.PI / 4;
+                this.previewMesh.rotation.x = 0;
             }
             
             this.scene.add(this.previewMesh);
@@ -6817,8 +6817,8 @@ window.Scene3D = {
             
             // 🚨 STANDART DURUŞ (Resimlerdeki gibi İzometrik Görünüm)
             if (this.activeTool.startsWith('prism_') || this.activeTool.startsWith('pyramid_')) {
-                solidShape.rotation.z = -Math.PI / 6; // -30 derece sağa dönük (SAĞ yüz net görünür)
-                solidShape.rotation.x = Math.PI / 6; // 30 derece öne eğik (ÜST yüz net görünür)
+                solidShape.rotation.z = -Math.PI / 4; // -45 derece dönük (SAĞ yüz ve ÖN yüz eşit görünür)
+                solidShape.rotation.x = 0; // İleri doğru eğilme yok (Kamera zaten yukarıdan bakıyor)
             }
             
             this.scene.add(solidShape);
