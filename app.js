@@ -2951,6 +2951,10 @@ canvas.addEventListener('touchmove', (e) => {
         e.stopPropagation();
         isMoving = false; // Tek parmakla sürüklemeyi kesinlikle İPTAL ET!
         
+        window.isZooming = true;
+        clearTimeout(window.zoomTimer);
+        window.zoomTimer = setTimeout(() => { window.isZooming = false; }, 500);
+
         const p1x = e.touches[0].clientX; const p1y = e.touches[0].clientY;
         const p2x = e.touches[1].clientX; const p2y = e.touches[1].clientY;
         const currentDist = Math.hypot(p1x - p2x, p1y - p2y);
@@ -3131,6 +3135,10 @@ canvas.addEventListener('pointermove', (e) => {
         // 🚨 ÇAKIŞMAYI ÖNLEYİCİ ZIRH: Eğer cihaz gerçek TouchEvent destekliyorsa (touchCount >= 2),
         // yedek PointerEvent motorunu DURDUR! Aksi takdirde iki motor aynı anda çalışıp zoomu KİLİTLER!
         if (window.touchCount >= 2) return;
+
+        window.isZooming = true;
+        clearTimeout(window.zoomTimer);
+        window.zoomTimer = setTimeout(() => { window.isZooming = false; }, 500);
         
         let p1x, p1y, p2x, p2y;
         const p = Array.from(pointers.values()); 
@@ -5648,7 +5656,7 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
             if (d.type === 'zoom_senkron') {
                 // 🚨 YANKI (ECHO) KORUMASI: Eğer tablet tarafında kullanıcı bizzat iki parmağıyla zoom yapıyorsa,
                 // PC'den sekip geri gelen gecikmeli zoom verilerini REDDET. Yoksa sayfa titrer ve zıplar!
-                if (typeof pointers !== 'undefined' && pointers.size >= 2) return;
+                if ((typeof pointers !== 'undefined' && pointers.size >= 2) || window.touchCount >= 2 || window.isZooming) return;
                 
                 if (window.drawnStrokes) {
                     // Geometri kalibrasyonunu (1cm = 30px) ve sol panel mesafesini %100 korumak için birebir 1:1 aktarım.
