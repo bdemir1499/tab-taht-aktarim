@@ -6516,7 +6516,7 @@ window.Scene3D = {
 
         const styleBtn = (btn, isRotate) => {
             btn.style.position = 'absolute'; btn.style.width = '32px'; btn.style.height = '32px';
-            btn.style.borderRadius = '50%'; btn.style.backgroundColor = isRotate ? '#ff007f' : '#00ffcc';
+            btn.style.borderRadius = '50%'; btn.style.backgroundColor = isRotate ? '#00ffcc' : '#ff007f';
             btn.style.color = 'white'; btn.style.fontSize = '16px';
             btn.style.display = 'none'; btn.style.justifyContent = 'center'; btn.style.alignItems = 'center';
             btn.style.cursor = 'pointer'; btn.style.zIndex = '1000';
@@ -6579,13 +6579,15 @@ window.Scene3D = {
         
         this.handles.center = { x: px, y: py };
         
+        const scale = this.currentMesh.scale.x || 1;
+        
         this.rotateHandleBtn.style.display = 'flex';
-        this.rotateHandleBtn.style.left = (px + 30) + 'px';
-        this.rotateHandleBtn.style.top = (py - 60) + 'px';
+        this.rotateHandleBtn.style.left = (px + (30 * scale)) + 'px';
+        this.rotateHandleBtn.style.top = (py - (60 * scale)) + 'px';
         
         this.resizeHandleBtn.style.display = 'flex';
-        this.resizeHandleBtn.style.left = (px - 70) + 'px';
-        this.resizeHandleBtn.style.top = (py + 30) + 'px';
+        this.resizeHandleBtn.style.left = (px - (70 * scale)) + 'px';
+        this.resizeHandleBtn.style.top = (py + (30 * scale)) + 'px';
     },
 
     animate: function() {
