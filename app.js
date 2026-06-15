@@ -6576,19 +6576,6 @@ window.Scene3D = {
         this.rotateHandleBtn.style.top = (py - 60) + 'px';
         
         this.resizeHandleBtn.style.display = 'flex';
-        const geometry = this.createGeometry(this.activeTool, 0.1);
-        if(this.activeTool.startsWith('prism') || this.activeTool.startsWith('pyramid')) geometry.rotateX(Math.PI / 2);
-        const material = new THREE.MeshPhongMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.5 });
-        this.previewMesh = new THREE.Mesh(geometry, material);
-        this.previewMesh.position.copy(this.startPoint);
-        
-        // Önizleme sırasında da izometrik duruşu göster!
-        if (this.activeTool.startsWith('prism_') || this.activeTool.startsWith('pyramid_')) {
-            this.previewMesh.rotation.z = Math.PI / 6;
-            this.previewMesh.rotation.x = Math.PI / 6;
-        }
-        
-        this.scene.add(this.previewMesh);
         this.resizeHandleBtn.style.left = (px - 70) + 'px';
         this.resizeHandleBtn.style.top = (py + 30) + 'px';
     },
