@@ -2937,8 +2937,44 @@ if (typeof animateButton !== 'undefined' && animateButton) {
 }
 // <--- KOD DOSYASI TAM OLARAK BU PARANTEZLE BİTMELİDİR!
 
+// 🚨 NİHAİ ÇÖZÜM: GERÇEK ÇOKLU DOKUNMATİK (MULTI-TOUCH) TAKİPÇİSİ
+window.touchCount = 0;
+canvas.addEventListener('touchstart', (e) => { window.touchCount = e.touches.length; }, { passive: true });
+canvas.addEventListener('touchend', (e) => { window.touchCount = e.touches.length; if (window.touchCount < 2) lastDist = 0; }, { passive: true });
+canvas.addEventListener('touchcancel', (e) => { window.touchCount = e.touches.length; if (window.touchCount < 2) lastDist = 0; }, { passive: true });
 
-
+// 🚨 GERÇEK MULTI-TOUCH ZOOM MOTORU (Zıplamayı Engelleyen Ana Motor)
+canvas.addEventListener('touchmove', (e) => {
+    if (window.currentTool === 'move' && e.touches && e.touches.length >= 2) {
+        e.preventDefault();
+        e.stopPropagation();
+        isMoving = false; // Tek parmakla sürüklemeyi kesinlikle İPTAL ET!
+        
+        const p1x = e.touches[0].clientX; const p1y = e.touches[0].clientY;
+        const p2x = e.touches[1].clientX; const p2y = e.touches[1].clientY;
+        const currentDist = Math.hypot(p1x - p2x, p1y - p2y);
+        
+        if (lastDist > 0) {
+            const delta = currentDist - lastDist; 
+            const zoomStep = 1 + (delta * 0.003);
+            const bgStrokes = drawnStrokes.filter(s => s.isBackground === true);
+            if (bgStrokes.length > 0) {
+                bgStrokes.forEach(bg => { 
+                    const newW = bg.width * zoomStep; 
+                    const newH = bg.height * zoomStep; 
+                    bg.x -= (newW - bg.width) / 2; 
+                    bg.y -= (newH - bg.height) / 2; 
+                    bg.width = newW; bg.height = newH; 
+                });
+                redrawAllStrokes();
+                if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+                    window.sendNetworkData({ type: 'zoom_senkron', x: bgStrokes[0].x, y: bgStrokes[0].y, width: bgStrokes[0].width, height: bgStrokes[0].height });
+                }
+            }
+        }
+        lastDist = currentDist;
+    }
+}, { passive: false });
 canvas.addEventListener('pointerdown', (e) => {
     // 🚨 SİHİRLİ DOKUNUŞ 1: Ne olursa olsun ÖNCE tarayıcının yerleşik kaydırmasını (titremeyi) kilitliyoruz!
     if (e.cancelable) e.preventDefault();
@@ -3086,15 +3122,18 @@ canvas.addEventListener('pointermove', (e) => {
     pointers.set(e.pointerId, e); 
 
     // --- TABLET/PARDUS: İKİ PARMAK ZOOM ---
-    // 🚨 KESİN ÇÖZÜM: Yalnızca 'Taşı' (move) aracı seçiliyken iki parmakla yakınlaştırma (zoom) yapılabilir.
-    if ((pointers.size === 2 || (e.touches && e.touches.length === 2)) && window.currentTool === 'move') {
-        // 🚨 KESİN ÇÖZÜM: İki parmakla zoom yapıldığında, taşıma (sürükleme) durumunu iptal et! 
-        // Aksi takdirde parmaklardan biri kalktığında sayfa eski koordinatlarına ŞİDDETLE ZIPLAR.
-        isMoving = false;
+    // --- TABLET/PARDUS: İKİ PARMAK ZOOM (Yedek PointerEvent Motoru) ---
+    // Eğer tarayıcı TouchEvent yerine PointerEvent gönderiyorsa:
+    if (pointers.size >= 2 && window.currentTool === 'move') {
+        isMoving = false; // Tek parmak sürüklemeyi zorla kapat
         
         let p1x, p1y, p2x, p2y;
-        if (e.touches && e.touches.length === 2) { p1x = e.touches[0].clientX; p1y = e.touches[0].clientY; p2x = e.touches[1].clientX; p2y = e.touches[1].clientY; } 
-        else { const p = Array.from(pointers.values()); p1x = p[0].clientX; p1y = p[0].clientY; p2x = p[1].clientX; p2y = p[1].clientY; }
+        const p = Array.from(pointers.values()); 
+        if (p.length >= 2) {
+            p1x = p[0].clientX; p1y = p[0].clientY; p2x = p[1].clientX; p2y = p[1].clientY;
+        } else {
+            return;
+        }
         const currentDist = Math.hypot(p1x - p2x, p1y - p2y);
         if (lastDist > 0) {
             const delta = currentDist - lastDist; const zoomStep = 1 + (delta * 0.003);
@@ -3128,6 +3167,13 @@ canvas.addEventListener('pointermove', (e) => {
     if (window.isImageResizing && selectedItem) { const cX = selectedItem.x + selectedItem.width / 2; const cY = selectedItem.y + selectedItem.height / 2; const ratio = Math.hypot(pos.x - cX, pos.y - cY) / window.startImageDistance; selectedItem.width = window.startImageWidth * ratio; selectedItem.height = window.startImageHeight * ratio; selectedItem.x = cX - selectedItem.width / 2; selectedItem.y = cY - selectedItem.height / 2; window.sendNetworkData({ type: 'arac_senkron', selector: '.yuzen-kopya-container', width: selectedItem.width + 'px', height: selectedItem.height + 'px' }); window.sendNetworkData({ type: 'sekil_guncelle', stroke: selectedItem }); if (window.redrawAllStrokes) window.redrawAllStrokes(); return; }
 
     if (currentTool === 'move' && isMoving && selectedItem) {
+        // 🚨 MUTLAK ZIRH: Eğer ekranda birden fazla parmak varsa (Çoklu Dokunma), 
+        // asla tek parmak kaydırmasına izin verme! Zıplamayı ENGELLEYEN en kilit satır burasıdır.
+        if (window.touchCount >= 2 || pointers.size >= 2) {
+            isMoving = false;
+            return;
+        }
+
         const dx = pos.x - dragStartPos.x; const dy = pos.y - dragStartPos.y;
         if (selectedPointKey === 'self' || selectedPointKey === 'center') { if (selectedItem.type === 'arc') { selectedItem.cx = originalStartPos.x + dx; selectedItem.cy = originalStartPos.y + dy; } else if (selectedItem.center) { selectedItem.center.x = originalStartPos.x + dx; selectedItem.center.y = originalStartPos.y + dy; } else { selectedItem.x = (originalStartPos.x || 0) + dx; selectedItem.y = (originalStartPos.y || 0) + dy; } if (selectedItem.vertices) selectedItem.vertices = null; } 
 
