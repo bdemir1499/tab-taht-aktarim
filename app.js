@@ -2311,6 +2311,14 @@ if (typeof snapshotOptions !== 'undefined' && snapshotOptions) {
     // 2. Yeni aracı aktif et
     currentTool = tool;
 
+    // 🚨 KESİN ÇÖZÜM: Seçilen araç 3D değilse, 3D modunu tamamen kapat! (Çokgen çizerken 3D çizmesini engeller)
+    if (!tool || !tool.startsWith('draw_3d_')) {
+        window.active3DShapeTool = null;
+        if (window.Scene3D) {
+            window.Scene3D.activeTool = 'none';
+        }
+    }
+
     if (tool === 'pen') {
         penButton.classList.add('active');
         body.classList.add('cursor-pen');
