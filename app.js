@@ -1462,9 +1462,8 @@ function redrawAllStrokes() {
                     if (canvasElm) {
                         const cx = stroke.x + (stroke.width / 2);
                         const cy = stroke.y + (stroke.height / 2);
-                        // KESİN ÇÖZÜM: canvasElm.width yerine window.innerWidth (CSS pikseli) kullanılmalı!
-                        const nx = (cx / window.innerWidth) * 2 - 1;
-                        const ny = -(cy / window.innerHeight) * 2 + 1;
+                        const nx = (cx / canvasElm.clientWidth) * 2 - 1;
+                        const ny = -(cy / canvasElm.clientHeight) * 2 + 1;
                         
                         const raycaster = new THREE.Raycaster();
                         raycaster.setFromCamera(new THREE.Vector2(nx, ny), window.Scene3D.camera);
@@ -6345,6 +6344,15 @@ if (data.type === 'pdf_kapat') {
         }
         
         console.log("PC'ye tüm pencerelerin durum eşitlemesi gönderiliyor... (Deneme: " + (denemeSayisi + 1) + ")");
+           getNormalizedCoords: function(x, y) {
+        const canvasEl = document.getElementById('drawing-canvas');
+        const w = canvasEl ? canvasEl.clientWidth : window.innerWidth;
+        const h = canvasEl ? canvasEl.clientHeight : window.innerHeight;
+        return {
+            x: (x / w) * 2 - 1,
+            y: -(y / h) * 2 + 1
+        };
+    },
         
         denemeSayisi++;
         if (denemeSayisi >= 4) clearInterval(pencereSyncTimer); // 4 saniye boyunca tahtayı bombalar, sonra durur
@@ -6595,13 +6603,14 @@ window.Scene3D = {
         if (this.scene && this.renderer && this.camera) this.renderer.render(this.scene, this.camera);
     },
 
-   // 🚨 3D TABLET HATASI ÇÖZÜMÜ: Ekranın tamamı değil, çizim kutusunun gerçek sınırları baz alınır!
+    // 🚨 3D TABLET HATASI ÇÖZÜMÜ: Ekranın tamamı değil, çizim kutusunun gerçek sınırları baz alınır!
     getNormalizedCoords: function(clientX, clientY) {
-        // clientX ve clientY zaten canvas'a göre (rect.left çıkarılmış) gelir!
-        // O yüzden sadece CSS genişliğine (window.innerWidth) bölmek yeterlidir.
+        const canvasEl = document.getElementById('drawing-canvas');
+        const w = canvasEl ? canvasEl.clientWidth : window.innerWidth;
+        const h = canvasEl ? canvasEl.clientHeight : window.innerHeight;
         return {
-            x: (clientX / window.innerWidth) * 2 - 1,
-            y: -(clientY / window.innerHeight) * 2 + 1
+            x: (clientX / w) * 2 - 1,
+            y: -(clientY / h) * 2 + 1
         };
     },
 
@@ -6763,7 +6772,9 @@ window.Scene3D = {
                     // 2D Merkez noktasını (x,y) Formül kutusu için de güncelle
                     const vec = this.currentMesh.position.clone();
                     vec.project(this.camera);
-                    const w = window.innerWidth / 2, h = window.innerHeight / 2;
+                    const canvasEl = document.getElementById('drawing-canvas');
+                    const w = canvasEl ? (canvasEl.clientWidth / 2) : (window.innerWidth / 2);
+                    const h = canvasEl ? (canvasEl.clientHeight / 2) : (window.innerHeight / 2);
                     sd.x = ((vec.x * w) + w) - (sd.width / 2);
                     sd.y = (-(vec.y * h) + h) - (sd.height / 2);
                     
@@ -6829,8 +6840,9 @@ window.Scene3D = {
             // 🚨 SİHİRLİ DOKUNUŞ: 3D Şeklin 2D Çizim Noktasını Tam İsabet Hesapla! (Ortaya kaçmaz)
             const vec = solidShape.position.clone();
             vec.project(this.camera);
-            const w = window.innerWidth / 2;
-            const h = window.innerHeight / 2;
+            const canvasEl = document.getElementById('drawing-canvas');
+            const w = canvasEl ? (canvasEl.clientWidth / 2) : (window.innerWidth / 2);
+            const h = canvasEl ? (canvasEl.clientHeight / 2) : (window.innerHeight / 2);
             const screenX = (vec.x * w) + w;
             const screenY = -(vec.y * h) + h;
 
@@ -7211,8 +7223,8 @@ canvasKatmanZirhi.innerHTML = `
     /* Çizim tahtasını 3D cisimlerin üstüne çıkarıyoruz */
     #drawing-canvas { position: relative !important; z-index: 50 !important; }
     
-    /* 3D uzay sahnesini çizimlerin arkasına itiyoruz */
-    #three-container { position: absolute !important; z-index: 10 !important; pointer-events: none !important; }
+    /* 3D uzay sahnesini çizimlerin üstüne çıkarıyoruz (PDF'lerin altında kalmaması için) */
+    #three-container { position: absolute !important; z-index: 60 !important; pointer-events: none !important; }
     
     /* 🔴 BUTONLARIN GERİ GELMESİNİ SAĞLAYAN EN ÜST KATMAN KORUMASI 🔴 */
     .panel, .panel *, button, .tool-button, .tool-button-sub, .tool-options, 
