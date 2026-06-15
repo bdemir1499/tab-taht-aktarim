@@ -3997,6 +3997,13 @@ function addNewImageToCanvas(img, isPDF = false, pcKordinatlari = null) {
         if (img.width < startWidth) startWidth = img.width; 
         let scaleFactor = startWidth / img.width;
         startHeight = img.height * scaleFactor;
+
+        if (startHeight > canvas.height * 0.8) {
+            startHeight = canvas.height * 0.8;
+            let scaleFactorH = startHeight / img.height;
+            startWidth = img.width * scaleFactorH;
+        }
+
         posX = (canvas.width / 2) - (startWidth / 2);
         posY = (canvas.height / 2) - (startHeight / 2);
     }
@@ -4042,7 +4049,9 @@ function addNewImageToCanvas(img, isPDF = false, pcKordinatlari = null) {
             type: 'arka_plan_resmi_aktar', 
             imgData: img.src,
             isPDF: isPDF,
-            kordinatlar: { x: newStroke.x, y: newStroke.y, width: newStroke.width, height: newStroke.height }
+            kordinatlar: { x: newStroke.x, y: newStroke.y, width: newStroke.width, height: newStroke.height },
+            canvasW: canvas.width,
+            canvasH: canvas.height
         });
     }
 
@@ -5789,56 +5798,32 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
 
 // 🚨 YENİ ALICI: TABLETTEN GELEN KUSURSUZ RESMİ VE PDF'İ EKRANA ÇİZER
         if (data.type === 'arka_plan_resmi_aktar') {
-            // PDF sayfaları için devasa resim gelmez, sadece hizalama koordinatları gelir!
-            if (data.isPDF && data.imgData === "SADECE_KOORDINAT") {
-                setTimeout(() => {
-                    let zemin = window.drawnStrokes.find(s => s.isBackground === true);
-                    if (zemin && data.kordinatlar) {
-                        const senderW = data.cssW || window.innerWidth;
-                        const senderH = data.cssH || window.innerHeight;
-                        const scale = Math.min(window.innerWidth / senderW, window.innerHeight / senderH);
-                        const offsetX = (window.innerWidth - (senderW * scale)) / 2;
-                        const offsetY = (window.innerHeight - (senderH * scale)) / 2;
-                        const mapX = (x) => (x * scale) + offsetX;
-                        const mapY = (y) => (y * scale) + offsetY;
-
-                        zemin.width = data.kordinatlar.width * scale;
-                        zemin.height = data.kordinatlar.height * scale;
-                        zemin.x = mapX(data.kordinatlar.x);
-                        zemin.y = mapY(data.kordinatlar.y);
-                        
-                        if (window.redrawAllStrokes) window.redrawAllStrokes();
-                    }
-                }, 200); // PC'nin kendi PDF'ini çizmesi için mini bir an bekleyip koordinatları kitleriz
-                return;
-            }
-
-            // Normal JPG/PNG resimler aynen aktarılır
+            // Tablet üzerinden gelen yüksek çözünürlüklü resmi ve koordinatları işle
             const img = new Image();
             img.onload = () => { 
                 if (typeof addNewImageToCanvas === 'function') {
                     let sonKoordinat = data.kordinatlar;
-                    if (sonKoordinat && data.cssW && data.cssH && Math.abs(data.cssW - window.innerWidth) >= 5) {
-                        const senderW = data.cssW || window.innerWidth;
-                        const senderH = data.cssH || window.innerHeight;
-                        const scale = Math.min(window.innerWidth / senderW, window.innerHeight / senderH);
-                        const offsetX = (window.innerWidth - (senderW * scale)) / 2;
-                        const offsetY = (window.innerHeight - (senderH * scale)) / 2;
-                        const mapX = (x) => (x * scale) + offsetX;
-                        const mapY = (y) => (y * scale) + offsetY;
+                    // Eğer tablet kendi canvas boyutunu da yollamışsa, PC'nin canvas boyutuna göre oranla
+                    if (sonKoordinat && data.canvasW && data.canvasH) {
+                        const senderW = data.canvasW;
+                        const senderH = data.canvasH;
+                        const scale = Math.min(canvas.width / senderW, canvas.height / senderH);
+                        const offsetX = (canvas.width - (senderW * scale)) / 2;
+                        const offsetY = (canvas.height - (senderH * scale)) / 2;
 
                         sonKoordinat = {
-                            x: mapX(data.kordinatlar.x),
-                            y: mapY(data.kordinatlar.y),
+                            x: (data.kordinatlar.x * scale) + offsetX,
+                            y: (data.kordinatlar.y * scale) + offsetY,
                             width: data.kordinatlar.width * scale,
                             height: data.kordinatlar.height * scale
                         };
                     }
                     addNewImageToCanvas(img, data.isPDF, sonKoordinat); 
+                    setTimeout(() => { if (window.redrawAllStrokes) window.redrawAllStrokes(); }, 100);
                 }
             };
             img.src = data.imgData;
-            return; // İşlemi bitir
+            return;
         }        if (!data || !data.type) return;
         if (!window.drawnStrokes) window.drawnStrokes = [];
 
@@ -6113,29 +6098,7 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
 
         if (data.type === 'pdf_sayfa_degis') { window.currentPDFPage = data.sayfa; if (typeof renderPDFPage === 'function') renderPDFPage(window.currentPDFPage); }
         
-        // 🚨 NİHAİ ÇÖZÜM: Yeni Sayfa veya Resim geldiğinde PC ekranına KUSURSUZ yansıt 🚨
-        if (data.type === 'arka_plan_resmi_aktar') {
-            // Eski "SADECE_KOORDINAT" hatasını yok say
-            if (!data.imgData || data.imgData === "SADECE_KOORDINAT") return;
-            
-            const img = new Image();
-            img.onload = () => { 
-                if (typeof addNewImageToCanvas === 'function') {
-                    // Resmi tabletin bize yolladığı KESİN koordinatlarla oluştur!
-                    let sonKoordinat = data.kordinatlar;
-                    if (sonKoordinat) {
-                        addNewImageToCanvas(img, data.isPDF, sonKoordinat); 
-                    } else {
-                        addNewImageToCanvas(img, data.isPDF, null); 
-                    }
-                    
-                    // İşlem bittikten sonra emin olmak için ekranı zorla yenile
-                    setTimeout(() => { if (window.redrawAllStrokes) window.redrawAllStrokes(); }, 100);
-                }
-            };
-            // Base64 aktarımı garanti altına al
-            img.src = data.imgData;
-        }
+        // (İkinci kopya arka_plan_resmi_aktar alıcısı silindi, yukarıdaki ana alıcı kullanılıyor)
 
 // 🚨 YENİ EKLENEN BÖLÜM: PC'NİN PDF KAPATMA EMRİNİ ALDIĞI YER 🚨
 if (data.type === 'pdf_kapat') {
