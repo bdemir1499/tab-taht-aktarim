@@ -2523,10 +2523,10 @@ if (uploadButton && fileInput) {
                 // 1. AĞA GÖNDERMEK İÇİN (Base64 Metni Olarak)
                 const base64String = this.result; 
 
-                // 🚨 KESİN ÇÖZÜM: Koca PDF dosyasını PC'nin kendi okuması için ağa fırlat!
-                if (typeof isConnected !== 'undefined' && isConnected) {
-                    window.sendNetworkData({ type: 'pdf_yukle', pdfData: base64String });
-                }
+                // 🚨 KESİN ÇÖZÜM: Koca PDF dosyasını PC'nin kendi okuması için ağa fırlatmak yerine, 
+                // Tabletin çizdiği o anki yüksek çözünürlüklü sayfayı (resim olarak) yollayacağız.
+                // Bu yüzden pdf_yukle komutunu AĞA GÖNDERMEYİ İPTAL EDİYORUZ. 
+                // PC, PDF.js yüküne girmek zorunda kalmayacak.
                 
                 // 2. TABLET EKRANI İÇİN (PDF.js'in anladığı formata geri çeviriyoruz)
                 const base64Data = base64String.split(',')[1];
@@ -3917,7 +3917,7 @@ function addNewImageToCanvas(img, isPDF = false, pcKordinatlari = null) {
     if (!pcKordinatlari && typeof isConnected !== 'undefined' && isConnected) {
         window.sendNetworkData({
             type: 'arka_plan_resmi_aktar', 
-            imgData: isPDF ? "SADECE_KOORDINAT" : img.src,
+            imgData: img.src,
             isPDF: isPDF,
             kordinatlar: { x: newStroke.x, y: newStroke.y, width: newStroke.width, height: newStroke.height }
         });
@@ -5586,6 +5586,10 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
 
             // 1. ZOOM VE PDF SENKRONİZASYONU
             if (d.type === 'zoom_senkron') {
+                // 🚨 YANKI (ECHO) KORUMASI: Eğer tablet tarafında kullanıcı bizzat iki parmağıyla zoom yapıyorsa,
+                // PC'den sekip geri gelen gecikmeli zoom verilerini REDDET. Yoksa sayfa titrer ve zıplar!
+                if (typeof pointers !== 'undefined' && pointers.size >= 2) return;
+                
                 if (window.drawnStrokes) {
                     // Geometri kalibrasyonunu (1cm = 30px) ve sol panel mesafesini %100 korumak için birebir 1:1 aktarım.
                     const scale = 1;
@@ -5946,6 +5950,9 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
         
         // 🚨 NİHAİ ÇÖZÜM: Yeni Sayfa veya Resim geldiğinde PC ekranına KUSURSUZ yansıt 🚨
         if (data.type === 'arka_plan_resmi_aktar') {
+            // Eski "SADECE_KOORDINAT" hatasını yok say
+            if (data.imgData === "SADECE_KOORDINAT") return;
+            
             const img = new Image();
             img.onload = () => { 
                 if (typeof addNewImageToCanvas === 'function') {
