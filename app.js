@@ -5573,22 +5573,18 @@ function setupConnectionEvents() {
 // =========================================================
 // EKRANLAR ARASI ORANTISAL ADAPTASYON (ÇÖZÜNÜRLÜK SENKRONU)
 // =========================================================
-window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
+window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw, senderCh) {
     if (!stroke || !senderW || !senderH) return stroke;
     
-    // 🚨 3D ŞEKİL KORUMASI 🚨
-    if (stroke.type === '3d_shape' || stroke.shapeType) return stroke;
-
     const myW = window.innerWidth;
     const myH = window.innerHeight;
     const canvasElm = document.getElementById('drawing-canvas');
     const myCw = canvasElm ? canvasElm.width : myW;
+    const myCh = canvasElm ? canvasElm.height : myH;
     const senderDpr = senderCw ? (senderCw / senderW) : 1;
     const myDpr = canvasElm ? (myCw / myW) : 1;
 
     // 🚨 FİZİKİ ARAÇ KORUMASI (Zıplama Engelleme) 🚨
-    // Fiziki araçların PC'de büyümemesi/küçülmemesi için ekranlara göre ölçeklenmesi engellenmelidir.
-    // Ancak farklı cihazların piksel yoğunluğu (DPR) farklı olabileceğinden sadece DPR farkı düzeltilir.
     if (stroke.isPhysicalTool) {
         const dprScale = myDpr / senderDpr;
         if (dprScale !== 1) {
@@ -5603,14 +5599,28 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
         return stroke;
     }
     
+    // 🚨 3D ŞEKİLLER CSS PİKSELLERİNDE YAŞAR 🚨
+    if (stroke.type === '3d_shape' || stroke.shapeType) {
+        const cssScale = Math.min(myW / senderW, myH / senderH);
+        const cssOffsetX = (myW - (senderW * cssScale)) / 2;
+        const cssOffsetY = (myH - (senderH * cssScale)) / 2;
+
+        if (stroke.x !== undefined) stroke.x = (stroke.x * cssScale) + cssOffsetX;
+        if (stroke.y !== undefined) stroke.y = (stroke.y * cssScale) + cssOffsetY;
+        if (stroke.width !== undefined) stroke.width *= cssScale;
+        if (stroke.height !== undefined) stroke.height *= cssScale;
+        return stroke;
+    }
+    
     const isLineType = ['pen', 'line', 'segment', 'ray', 'straightLine', 'polygon', 'point', 'arc'].includes(stroke.type);
 
-    // YENİ VE NİHAİ ÇÖZÜM: Aspect Ratio (En-Boy Oranı) Korumalı Merkezi Ölçeklendirme
-    // Tablet ekranını PC ekranının tam ortasına ve maksimum sığacak şekilde orantılıyoruz.
-    // Cetvel ve diğer tüm araçlar aynı 'scale' ve 'offset' ile haritalandığı için hizalama KUSURSUZ olacaktır.
-    const scale = Math.min(myW / senderW, myH / senderH);
-    const offsetX = (myW - (senderW * scale)) / 2;
-    const offsetY = (myH - (senderH * scale)) / 2;
+    // DİĞER TÜM ÇİZİMLER (Pen, Çokgen, vb.) İÇ (INTERNAL) CANVAS PİKSELLERİNDE YAŞAR!
+    const effectiveSenderW = senderCw || senderW;
+    const effectiveSenderH = senderCh || senderH;
+    
+    const scale = Math.min(myCw / effectiveSenderW, myCh / effectiveSenderH);
+    const offsetX = (myCw - (effectiveSenderW * scale)) / 2;
+    const offsetY = (myCh - (effectiveSenderH * scale)) / 2;
 
     const mapX = (x) => (x * scale) + offsetX;
     const mapY = (y) => (y * scale) + offsetY;
@@ -5686,10 +5696,13 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
             // --- EKRANLAR ARASI ÇÖZÜNÜRLÜK ADAPTASYONU ---
             if (d.cssW && d.cssH && typeof window.adaptStrokeToScreen === 'function') {
                 if (d.stroke) {
-                    window.adaptStrokeToScreen(d.stroke, d.cssW, d.cssH, d.cw);
+                    window.adaptStrokeToScreen(d.stroke, d.cssW, d.cssH, d.cw, d.ch);
                 }
                 if (d.strokes && Array.isArray(d.strokes)) {
-                    d.strokes.forEach(s => window.adaptStrokeToScreen(s, d.cssW, d.cssH, d.cw));
+                    d.strokes.forEach(s => window.adaptStrokeToScreen(s, d.cssW, d.cssH, d.cw, d.ch));
+                }
+                if (d.cizgiler && Array.isArray(d.cizgiler)) {
+                    d.cizgiler.forEach(s => window.adaptStrokeToScreen(s, d.cssW, d.cssH, d.cw, d.ch));
                 }
                 
                 // Geometri kalibrasyonunu (1cm = 30px) ve sol panel mesafesini %100 korumak için ölçekleme İPTAL. Birebir 1:1 aktarım yapıyoruz.
