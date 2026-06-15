@@ -50,10 +50,11 @@ html, body {
     overscroll-behavior: none !important; 
     touch-action: none !important; 
     
-    /* GÖZ YORMAYAN YENİ TEMA: Koyu Füme/Antrasit */
     font-family: 'Fredoka', 'Arial', sans-serif;
-    background-color: #181825; 
+    background-color: #1e1e2e; 
     color: #cdd6f4; 
+    background-image: radial-gradient(rgba(205, 214, 244, 0.15) 2px, transparent 2px);
+    background-size: 30px 30px;
 }
 
 /* =========================================
@@ -61,14 +62,8 @@ html, body {
    ========================================= */
 #drawing-canvas {
     display: block; width: 100vw; height: 100vh;
-    
-    /* Zemin Rengi */
-    background-color: #1e1e2e; 
-    
-    /* 🚨 SİHİRLİ DOKUNUŞ: 30 Piksellik (1cm) Geometri Noktaları! 🚨 */
-    background-image: radial-gradient(rgba(205, 214, 244, 0.15) 2px, transparent 2px);
-    background-size: 30px 30px; /* Sizin 30px = 1cm kalibrasyonunuza birebir uyar! */
-    
+    background-color: transparent; 
+    background-image: none;
     touch-action: none !important; 
 }
 

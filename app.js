@@ -740,6 +740,12 @@ function setupCanvasResolution() {
     // Kanvasın iç piksel sayısını, ekranın gerçek HD çözünürlüğü ile eşitle
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
+
+    const bgCanvas = document.getElementById('bg-canvas');
+    if (bgCanvas) {
+        bgCanvas.width = canvas.width;
+        bgCanvas.height = canvas.height;
+    }
     
     if (typeof redrawAllStrokes === 'function') {
         redrawAllStrokes();
@@ -1120,6 +1126,13 @@ function redrawAllStrokes() {
     // 1. ÖNCE KOORDİNATLARI SIFIRLA VE TÜM EKRANI SİL
     ctx.setTransform(1, 0, 0, 1, 0, 0); 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const bgCanvas = document.getElementById('bg-canvas');
+    const bgCtx = bgCanvas ? bgCanvas.getContext('2d') : null;
+    if (bgCtx) {
+        bgCtx.setTransform(1, 0, 0, 1, 0, 0);
+        bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+    }
     
     // GÜVENLİK KİLİDİ
     if (!window.drawnStrokes || window.drawnStrokes.length === 0) return;
