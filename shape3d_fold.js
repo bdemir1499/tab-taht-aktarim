@@ -43,7 +43,7 @@ window.Foldable3D = {
                 widths = [W, W, W, W];
                 apothems = [W/2, W/2, W/2, W/2];
             } else if (type === 'prism_rect') { 
-                sides = 4; heights = size * 1.5; isCustom = true;
+                sides = 4; heights = size * 2.2; isCustom = true;
                 const W = size * 3; // Uzun kenar (Front/Back)
                 const D = size * 1.5; // Kısa kenar (Left/Right)
                 widths = [W, D, W, D];
