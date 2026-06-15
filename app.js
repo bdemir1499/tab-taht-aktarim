@@ -5572,6 +5572,60 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
                     if (d.height) d.height = (parseFloat(d.height) * sy) + 'px';
                     d.ignoreAdapt = true; // prevent double adapting
                 }
+
+                // 🚨 FİZİKSEL ARAÇLARIN KOORDİNAT ADAPTASYONU (Zıplama Hatası Kesin Çözümü) 🚨
+                if ((d.type === 'arac_state_senkron' || d.type === 'aktif_onizleme') && !d.ignoreAdapt) {
+                    const sx = window.innerWidth / d.cssW;
+                    const sy = window.innerHeight / d.cssH;
+                    
+                    const hasBackground = window.drawnStrokes && window.drawnStrokes.some(s => s.isBackground === true);
+                    let scaleX = sx;
+                    let scaleY = sy;
+                    let dx = 0;
+                    let dy = 0;
+
+                    if (hasBackground) {
+                        const scale = Math.min(sx, sy);
+                        scaleX = scale;
+                        scaleY = scale;
+                        const cx_tab = d.cssW / 2;
+                        const cy_tab = d.cssH / 2;
+                        const cx_pc = window.innerWidth / 2;
+                        const cy_pc = window.innerHeight / 2;
+                        dx = cx_pc - (cx_tab * scale);
+                        dy = cy_pc - (cy_tab * scale);
+                    }
+
+                    if (d.type === 'arac_state_senkron' && d.state) {
+                        if (d.state.x !== undefined) d.state.x = (d.state.x * scaleX) + dx;
+                        if (d.state.y !== undefined) d.state.y = (d.state.y * scaleY) + dy;
+                        if (d.state.width !== undefined) d.state.width *= scaleX;
+                        if (d.state.height !== undefined) d.state.height *= scaleY;
+                        if (d.state.radius !== undefined) d.state.radius *= scaleX;
+                        if (d.state.pivot) {
+                            d.state.pivot.x = (d.state.pivot.x * scaleX) + dx;
+                            d.state.pivot.y = (d.state.pivot.y * scaleY) + dy;
+                        }
+                        if (d.width) d.width = (parseFloat(d.width) * scaleX) + 'px';
+                        if (d.height) d.height = (parseFloat(d.height) * scaleY) + 'px';
+                    }
+
+                    if (d.type === 'aktif_onizleme' && d.payload) {
+                        const p = d.payload;
+                        if (p.handleX !== undefined) p.handleX *= scaleX;
+                        if (p.handleY !== undefined) p.handleY *= scaleY;
+                        if (p.cx !== undefined) p.cx = (p.cx * scaleX) + dx;
+                        if (p.cy !== undefined) p.cy = (p.cy * scaleY) + dy;
+                        if (p.px !== undefined) p.px = (p.px * scaleX) + dx;
+                        if (p.py !== undefined) p.py = (p.py * scaleY) + dy;
+                        if (p.x !== undefined) p.x = (p.x * scaleX) + dx;
+                        if (p.y !== undefined) p.y = (p.y * scaleY) + dy;
+                        if (p.ldx !== undefined) p.ldx *= scaleX;
+                        if (p.ldy !== undefined) p.ldy *= scaleY;
+                    }
+                    
+                    d.ignoreAdapt = true;
+                }
             }
 
             // 1. ZOOM VE PDF SENKRONİZASYONU
@@ -5611,9 +5665,6 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
             }
 
             // 🚨 2. SİHİRLİ MATEMATİK: Cihazlar arası piksel yoğunluğu (DPR) farkını çözen motor!
-            // CSS koordinatları ile çalıştığımız için, sx/sy ile ölçeklenen cizimlerin üzerine 
-            // ekstra DPR carpimi yapmaya gerek yoktur, aksi taktirde cizimler PC'de tasarip cikar!
-            // Bu kisimdaki eski d.stroke *= cssCarpan iptal edilmistir. Sadece fiziksel araclar scale edilir.
             if (d.cw && d.cssW) {
                 const canvasElm = document.getElementById('drawing-canvas');
                 const dpr_tablet = d.cw / d.cssW;
@@ -5626,35 +5677,6 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
                         if (d.top) d.top = (parseFloat(d.top) * cssCarpan) + 'px';
                         if (d.width) d.width = (parseFloat(d.width) * cssCarpan) + 'px';
                         if (d.height) d.height = (parseFloat(d.height) * cssCarpan) + 'px';
-                    }
-                    else if (d.type === 'arac_state_senkron' && d.state) {
-                        if (d.state.x !== undefined) d.state.x *= cssCarpan;
-                        if (d.state.y !== undefined) d.state.y *= cssCarpan;
-                        if (d.state.width !== undefined) d.state.width *= cssCarpan;
-                        if (d.state.height !== undefined) d.state.height *= cssCarpan;
-                        if (d.state.radius !== undefined) d.state.radius *= cssCarpan;
-                        if (d.state.pivot) {
-                            d.state.pivot.x *= cssCarpan;
-                            d.state.pivot.y *= cssCarpan;
-                        }
-                        if (d.width) d.width = (parseFloat(d.width) * cssCarpan) + 'px';
-                        if (d.height) d.height = (parseFloat(d.height) * cssCarpan) + 'px';
-                    }
-                    else if (d.type === 'aktif_onizleme' && d.payload) {
-                        // Sadece fiziksel araçların önizlemeleri CSS pikselleriyle gelir, onları HD'ye hizala
-                        if (d.arac === 'ruler' || d.arac === 'gonye' || d.arac === 'aciolcer' || d.arac === 'lazer') {
-                            const p = d.payload;
-                            if (p.handleX !== undefined) p.handleX *= cssCarpan;
-                            if (p.handleY !== undefined) p.handleY *= cssCarpan;
-                            if (p.cx !== undefined) p.cx *= cssCarpan;
-                            if (p.cy !== undefined) p.cy *= cssCarpan;
-                            if (p.px !== undefined) p.px *= cssCarpan;
-                            if (p.py !== undefined) p.py *= cssCarpan;
-                            if (p.ldx !== undefined) p.ldx *= cssCarpan;
-                            if (p.ldy !== undefined) p.ldy *= cssCarpan;
-                            if (p.x !== undefined) p.x *= cssCarpan; 
-                            if (p.y !== undefined) p.y *= cssCarpan; 
-                        }
                     }
                 }
             }
