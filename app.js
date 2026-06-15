@@ -2983,7 +2983,11 @@ canvas.addEventListener('touchmove', (e) => {
     if (currentTool === 'move' && e.touches && e.touches.length >= 2) {
         e.preventDefault();
         e.stopPropagation();
-        isMoving = false; // Tek parmakla sürüklemeyi kesinlikle İPTAL ET!
+        
+        // 🚨 MUTLAK ZIRH: Eğer taşınan nesne Resim/PDF ise, avuç içi veya ikinci parmak değse bile taşımayı iptal etme!
+        if (!window.selectedItem || window.selectedItem.type !== 'image') {
+            isMoving = false; // Tek parmakla sürüklemeyi kesinlikle İPTAL ET!
+        }
 
         window.isZooming = true;
         clearTimeout(window.zoomTimer);
@@ -3187,7 +3191,10 @@ canvas.addEventListener('pointermove', (e) => {
     // --- TABLET/PARDUS: İKİ PARMAK ZOOM (Yedek PointerEvent Motoru) ---
     // Eğer tarayıcı TouchEvent yerine PointerEvent gönderiyorsa:
     if (pointers.size >= 2 && currentTool === 'move') {
-        isMoving = false; // Tek parmak sürüklemeyi zorla kapat
+        // 🚨 MUTLAK ZIRH: Eğer taşınan nesne Resim/PDF ise taşımayı iptal etme!
+        if (!window.selectedItem || window.selectedItem.type !== 'image') {
+            isMoving = false; // Tek parmak sürüklemeyi zorla kapat
+        }
 
         // 🚨 ÇAKIŞMAYI ÖNLEYİCİ ZIRH: Eğer cihaz gerçek TouchEvent destekliyorsa (touchCount >= 2),
         // yedek PointerEvent motorunu DURDUR! Aksi takdirde iki motor aynı anda çalışıp zoomu KİLİTLER!
@@ -5578,7 +5585,7 @@ function setupConnectionEvents() {
     // =========================================================
     // EKRANLAR ARASI ORANTISAL ADAPTASYON (ÇÖZÜNÜRLÜK SENKRONU)
     // =========================================================
-    window.adaptStrokeToScreen = function (stroke, senderW, senderH, senderCw) {
+    window.adaptStrokeToScreen = function (stroke, senderW, senderH, senderCw, senderCh) {
         if (!stroke || !senderW || !senderH) return stroke;
 
         // 🚨 3D ŞEKİL KORUMASI 🚨
@@ -5588,6 +5595,7 @@ function setupConnectionEvents() {
         const myH = window.innerHeight;
         const canvasElm = document.getElementById('drawing-canvas');
         const myCw = canvasElm ? canvasElm.width : myW;
+        const myCh = canvasElm ? canvasElm.height : myH;
         const senderDpr = senderCw ? (senderCw / senderW) : 1;
         const myDpr = canvasElm ? (myCw / myW) : 1;
 
@@ -5852,22 +5860,9 @@ function setupConnectionEvents() {
             img.onload = () => {
                 if (typeof addNewImageToCanvas === 'function') {
                     let sonKoordinat = data.kordinatlar;
-                    // Eğer tablet kendi canvas boyutunu da yollamışsa, PC'nin canvas boyutuna göre oranla
-                    if (sonKoordinat && data.canvasW && data.canvasH) {
-                        const senderW = data.canvasW;
-                        const senderH = data.canvasH;
-                        const scale = Math.min(canvas.width / senderW, canvas.height / senderH);
-                        const offsetX = (canvas.width - (senderW * scale)) / 2;
-                        const offsetY = (canvas.height - (senderH * scale)) / 2;
-
-                        sonKoordinat = {
-                            x: (data.kordinatlar.x * scale) + offsetX,
-                            y: (data.kordinatlar.y * scale) + offsetY,
-                            width: data.kordinatlar.width * scale,
-                            height: data.kordinatlar.height * scale
-                        };
-                    }
-                    addNewImageToCanvas(img, data.isPDF, sonKoordinat);
+                    // Tablette ortada çıkan resmin/pdf'in PC'de de tam ortada çıkması için 
+                    // PC'nin kendi ekran boyutlarına göre merkezleme yapmasını sağlıyoruz (null gönderiyoruz).
+                    addNewImageToCanvas(img, data.isPDF, null);
                     setTimeout(() => { if (window.redrawAllStrokes) window.redrawAllStrokes(); }, 100);
                 }
             };
