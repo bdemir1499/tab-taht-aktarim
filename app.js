@@ -3048,7 +3048,7 @@ canvas.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'touch' && isPenActive) return;
 
     // --- KRİTİK EKLENTİ: HAYALET PARMAK SIFIRLAYICI ---
-    if (e.pointerType === 'touch' && e.isPrimary) {
+    if (e.isPrimary) {
         pointers.clear();
         lastDist = 0;
     }
@@ -4405,8 +4405,8 @@ window.addEventListener('touchmove', function (e) {
 // =========================================================
 function lockScreenSize() {
     // Ekranın o anki gerçek piksel boyutunu al
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    let w = window.innerWidth || document.documentElement.clientWidth || window.screen.width || 1024;
+    let h = window.innerHeight || document.documentElement.clientHeight || window.screen.height || 768;
     const dpr = window.devicePixelRatio || 1; // 🚨 HD Oranı
 
     // Kanvası ve body'yi bu piksel değerine beton gibi sabitle (100vh yerine px kullan)
@@ -5913,9 +5913,22 @@ function setupConnectionEvents() {
             const stroke = data.stroke;
             if (!stroke) return;
 
+            // 🚨 EKRAN SENKRONİZASYONU: Gelen stroke'u Kendi Ekranımıza (İç Piksellere) Çevir!
+            // EĞER BUNU YAPMAZSAK, ÇİZİMLER FARKLI EKRANLARDA PDF İLE UYUŞMAZ!
+            const isArr = Array.isArray(stroke);
+            const strokesArr = isArr ? stroke : [stroke];
+            
+            strokesArr.forEach(s => {
+                if (typeof adaptStrokeToScreen === 'function') {
+                    const senderCw = data.cw || data.cssW;
+                    const senderCh = data.ch || data.cssH;
+                    adaptStrokeToScreen(s, data.cssW, data.cssH, senderCw, senderCh);
+                }
+            });
+
             // Eğer veride bir anormallik olup dizi (array) gelirse diye güvenlik önlemi
-            if (Array.isArray(stroke)) {
-                stroke.forEach(s => {
+            if (isArr) {
+                strokesArr.forEach(s => {
                     const isExist = s.id && window.drawnStrokes.some(ex => ex.id === s.id);
                     if (!isExist) window.drawnStrokes.push(s);
                 });
