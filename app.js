@@ -1455,8 +1455,9 @@ function redrawAllStrokes() {
             if (window.Scene3D && window.Scene3D.scene) {
                 const sceneMesh = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === stroke.id);
                 if (sceneMesh) {
-                    sceneMesh.rotation.z = -(stroke.rotation || 0) * Math.PI / 180;
-                    
+                    if (stroke.rotationX !== undefined) sceneMesh.rotation.x = stroke.rotationX;
+                    if (stroke.rotationY !== undefined) sceneMesh.rotation.y = stroke.rotationY;
+                    if (stroke.rotationZ !== undefined) sceneMesh.rotation.z = stroke.rotationZ;
                     const canvasElm = document.getElementById('drawing-canvas');
                     if (canvasElm) {
                         const cx = stroke.x + (stroke.width / 2);
