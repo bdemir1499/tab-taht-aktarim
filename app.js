@@ -5446,78 +5446,51 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
     const sx = myW / senderW;
     const sy = myH / senderH;
 
-    // 🚨 KESİN ÇÖZÜM: Arka plan varsa, tüm çizim evrenini "Orantılı Ölçekle" (Aspect Ratio Korunur)
-    const hasBackground = window.drawnStrokes && window.drawnStrokes.some(s => s.isBackground === true);
+    // HER ZAMAN Orantılı Ölçekle (Aspect Ratio Korunur)
     const isLineType = ['pen', 'line', 'segment', 'ray', 'straightLine', 'polygon', 'point', 'arc'].includes(stroke.type);
 
-    if (stroke.isBackground === true || hasBackground) {
-        const scale = Math.min(sx, sy);
-        const cx_tab = senderW / 2;
-        const cy_tab = senderH / 2;
-        const cx_pc = myW / 2;
-        const cy_pc = myH / 2;
+    const scale = Math.min(sx, sy);
+    const cx_tab = senderW / 2;
+    const cy_tab = senderH / 2;
+    const cx_pc = myW / 2;
+    const cy_pc = myH / 2;
 
-        const mapX = (x) => cx_pc + ((x - cx_tab) * scale);
-        const mapY = (y) => cy_pc + ((y - cy_tab) * scale);
+    const mapX = (x) => cx_pc + ((x - cx_tab) * scale);
+    const mapY = (y) => cy_pc + ((y - cy_tab) * scale);
 
-        if (stroke.path) stroke.path.forEach(p => { p.x = mapX(p.x); p.y = mapY(p.y); });
-        if (stroke.points) stroke.points.forEach(p => { p.x = mapX(p.x); p.y = mapY(p.y); });
+    if (stroke.path) stroke.path.forEach(p => { p.x = mapX(p.x); p.y = mapY(p.y); });
+    if (stroke.points) stroke.points.forEach(p => { p.x = mapX(p.x); p.y = mapY(p.y); });
 
-        if (stroke.x !== undefined && stroke.width !== undefined && !isLineType) {
-            const center_x = mapX(stroke.x + stroke.width / 2);
-            stroke.width *= scale;
-            stroke.x = center_x - stroke.width / 2;
-        } else if (stroke.x !== undefined) {
-            stroke.x = mapX(stroke.x);
-            if (stroke.width !== undefined && !isLineType) stroke.width *= scale;
-        }
-
-        if (stroke.y !== undefined && stroke.height !== undefined && !isLineType) {
-            const center_y = mapY(stroke.y + stroke.height / 2);
-            stroke.height *= scale;
-            stroke.y = center_y - stroke.height / 2;
-        } else if (stroke.y !== undefined) {
-            stroke.y = mapY(stroke.y);
-            if (stroke.height !== undefined && !isLineType) stroke.height *= scale;
-        }
-        
-        if (stroke.cx !== undefined) stroke.cx = mapX(stroke.cx);
-        if (stroke.cy !== undefined) stroke.cy = mapY(stroke.cy);
-        if (stroke.center) {
-            if (stroke.center.x !== undefined) stroke.center.x = mapX(stroke.center.x);
-            if (stroke.center.y !== undefined) stroke.center.y = mapY(stroke.center.y);
-        }
-        if (stroke.radius !== undefined) stroke.radius *= scale;
-        if (stroke.p1) { stroke.p1.x = mapX(stroke.p1.x); stroke.p1.y = mapY(stroke.p1.y); }
-        if (stroke.p2) { stroke.p2.x = mapX(stroke.p2.x); stroke.p2.y = mapY(stroke.p2.y); }
-        if (stroke.p3) { stroke.p3.x = mapX(stroke.p3.x); stroke.p3.y = mapY(stroke.p3.y); }
-        
-        if (stroke.type === 'text' && stroke.fontSize) stroke.fontSize *= scale;
-
-    } else {
-        // ESKİ MANTIK: Arka plan yoksa (beyaz tahta), ekrana sündürerek yay (Kusursuz oran kopyalama)
-        if (stroke.path) stroke.path.forEach(p => { p.x *= sx; p.y *= sy; });
-        if (stroke.points) stroke.points.forEach(p => { p.x *= sx; p.y *= sy; });
-        
-        if (stroke.x !== undefined) stroke.x *= sx;
-        if (stroke.y !== undefined) stroke.y *= sy;
-        
-        if (stroke.width !== undefined && !isLineType) stroke.width *= sx;
-        if (stroke.height !== undefined && !isLineType) stroke.height *= sy;
-        
-        if (stroke.cx !== undefined) stroke.cx *= sx;
-        if (stroke.cy !== undefined) stroke.cy *= sy;
-        if (stroke.center) {
-            if (stroke.center.x !== undefined) stroke.center.x *= sx;
-            if (stroke.center.y !== undefined) stroke.center.y *= sy;
-        }
-        if (stroke.radius !== undefined) stroke.radius *= sx; 
-        if (stroke.p1) { stroke.p1.x *= sx; stroke.p1.y *= sy; }
-        if (stroke.p2) { stroke.p2.x *= sx; stroke.p2.y *= sy; }
-        if (stroke.p3) { stroke.p3.x *= sx; stroke.p3.y *= sy; }
-        
-        if (stroke.type === 'text' && stroke.fontSize) stroke.fontSize *= Math.min(sx, sy);
+    if (stroke.x !== undefined && stroke.width !== undefined && !isLineType) {
+        const center_x = mapX(stroke.x + stroke.width / 2);
+        stroke.width *= scale;
+        stroke.x = center_x - stroke.width / 2;
+    } else if (stroke.x !== undefined) {
+        stroke.x = mapX(stroke.x);
+        if (stroke.width !== undefined && !isLineType) stroke.width *= scale;
     }
+
+    if (stroke.y !== undefined && stroke.height !== undefined && !isLineType) {
+        const center_y = mapY(stroke.y + stroke.height / 2);
+        stroke.height *= scale;
+        stroke.y = center_y - stroke.height / 2;
+    } else if (stroke.y !== undefined) {
+        stroke.y = mapY(stroke.y);
+        if (stroke.height !== undefined && !isLineType) stroke.height *= scale;
+    }
+    
+    if (stroke.cx !== undefined) stroke.cx = mapX(stroke.cx);
+    if (stroke.cy !== undefined) stroke.cy = mapY(stroke.cy);
+    if (stroke.center) {
+        if (stroke.center.x !== undefined) stroke.center.x = mapX(stroke.center.x);
+        if (stroke.center.y !== undefined) stroke.center.y = mapY(stroke.center.y);
+    }
+    if (stroke.radius !== undefined) stroke.radius *= scale;
+    if (stroke.p1) { stroke.p1.x = mapX(stroke.p1.x); stroke.p1.y = mapY(stroke.p1.y); }
+    if (stroke.p2) { stroke.p2.x = mapX(stroke.p2.x); stroke.p2.y = mapY(stroke.p2.y); }
+    if (stroke.p3) { stroke.p3.x = mapX(stroke.p3.x); stroke.p3.y = mapY(stroke.p3.y); }
+    
+    if (stroke.type === 'text' && stroke.fontSize) stroke.fontSize *= scale;
     
     // Kalınlık hesaplaması (Çizgilerin çok ince veya çok kalın olmasını engeller)
     if (stroke.width !== undefined && isLineType) {
@@ -5562,15 +5535,54 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
                     d.strokes.forEach(s => window.adaptStrokeToScreen(s, d.cssW, d.cssH, d.cw));
                 }
                 
+                const sx = window.innerWidth / d.cssW;
+                const sy = window.innerHeight / d.cssH;
+                const scale = Math.min(sx, sy);
+                const cx_tab = d.cssW / 2;
+                const cy_tab = d.cssH / 2;
+                const cx_pc = window.innerWidth / 2;
+                const cy_pc = window.innerHeight / 2;
+
+                const mapX = (x) => cx_pc + ((x - cx_tab) * scale);
+                const mapY = (y) => cy_pc + ((y - cy_tab) * scale);
+
                 // Fiziki araçların (cetvel vb) uzaklık oranı korunarak taşınması
                 if (d.type === 'arac_senkron' && !d.ignoreAdapt) {
-                    const sx = window.innerWidth / d.cssW;
-                    const sy = window.innerHeight / d.cssH;
-                    if (d.left) d.left = (parseFloat(d.left) * sx) + 'px';
-                    if (d.top) d.top = (parseFloat(d.top) * sy) + 'px';
-                    if (d.width) d.width = (parseFloat(d.width) * sx) + 'px';
-                    if (d.height) d.height = (parseFloat(d.height) * sy) + 'px';
+                    if (d.left) d.left = mapX(parseFloat(d.left)) + 'px';
+                    if (d.top) d.top = mapY(parseFloat(d.top)) + 'px';
+                    if (d.width) d.width = (parseFloat(d.width) * scale) + 'px';
+                    if (d.height) d.height = (parseFloat(d.height) * scale) + 'px';
                     d.ignoreAdapt = true; // prevent double adapting
+                }
+                
+                if (d.type === 'arac_state_senkron' && d.state && !d.ignoreAdapt) {
+                    if (d.state.x !== undefined) d.state.x = mapX(d.state.x);
+                    if (d.state.y !== undefined) d.state.y = mapY(d.state.y);
+                    if (d.state.width !== undefined) d.state.width *= scale;
+                    if (d.state.height !== undefined) d.state.height *= scale;
+                    if (d.state.radius !== undefined) d.state.radius *= scale;
+                    if (d.state.pivot) {
+                        d.state.pivot.x = mapX(d.state.pivot.x);
+                        d.state.pivot.y = mapY(d.state.pivot.y);
+                    }
+                    if (d.width) d.width = (parseFloat(d.width) * scale) + 'px';
+                    if (d.height) d.height = (parseFloat(d.height) * scale) + 'px';
+                    d.ignoreAdapt = true;
+                }
+
+                if (d.type === 'aktif_onizleme' && d.payload && !d.ignoreAdapt) {
+                    const p = d.payload;
+                    if (p.handleX !== undefined) p.handleX *= scale;
+                    if (p.handleY !== undefined) p.handleY *= scale;
+                    if (p.cx !== undefined) p.cx = mapX(p.cx);
+                    if (p.cy !== undefined) p.cy = mapY(p.cy);
+                    if (p.px !== undefined) p.px = mapX(p.px);
+                    if (p.py !== undefined) p.py = mapY(p.py);
+                    if (p.ldx !== undefined) p.ldx *= scale;
+                    if (p.ldy !== undefined) p.ldy *= scale;
+                    if (p.x !== undefined) p.x = mapX(p.x);
+                    if (p.y !== undefined) p.y = mapY(p.y);
+                    d.ignoreAdapt = true;
                 }
             }
 
@@ -5610,54 +5622,9 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
                 return;
             }
 
-            // 🚨 2. SİHİRLİ MATEMATİK: Cihazlar arası piksel yoğunluğu (DPR) farkını çözen motor!
-            // CSS koordinatları ile çalıştığımız için, sx/sy ile ölçeklenen cizimlerin üzerine 
-            // ekstra DPR carpimi yapmaya gerek yoktur, aksi taktirde cizimler PC'de tasarip cikar!
-            // Bu kisimdaki eski d.stroke *= cssCarpan iptal edilmistir. Sadece fiziksel araclar scale edilir.
-            if (d.cw && d.cssW) {
-                const canvasElm = document.getElementById('drawing-canvas');
-                const dpr_tablet = d.cw / d.cssW;
-                const dpr_pc = canvasElm ? (canvasElm.width / window.innerWidth) : 1;
-                const cssCarpan = dpr_tablet / dpr_pc;
-
-                if (Math.abs(cssCarpan - 1) > 0.05) {
-                    if (d.type === 'arac_senkron') {
-                        if (d.left) d.left = (parseFloat(d.left) * cssCarpan) + 'px';
-                        if (d.top) d.top = (parseFloat(d.top) * cssCarpan) + 'px';
-                        if (d.width) d.width = (parseFloat(d.width) * cssCarpan) + 'px';
-                        if (d.height) d.height = (parseFloat(d.height) * cssCarpan) + 'px';
-                    }
-                    else if (d.type === 'arac_state_senkron' && d.state) {
-                        if (d.state.x !== undefined) d.state.x *= cssCarpan;
-                        if (d.state.y !== undefined) d.state.y *= cssCarpan;
-                        if (d.state.width !== undefined) d.state.width *= cssCarpan;
-                        if (d.state.height !== undefined) d.state.height *= cssCarpan;
-                        if (d.state.radius !== undefined) d.state.radius *= cssCarpan;
-                        if (d.state.pivot) {
-                            d.state.pivot.x *= cssCarpan;
-                            d.state.pivot.y *= cssCarpan;
-                        }
-                        if (d.width) d.width = (parseFloat(d.width) * cssCarpan) + 'px';
-                        if (d.height) d.height = (parseFloat(d.height) * cssCarpan) + 'px';
-                    }
-                    else if (d.type === 'aktif_onizleme' && d.payload) {
-                        // Sadece fiziksel araçların önizlemeleri CSS pikselleriyle gelir, onları HD'ye hizala
-                        if (d.arac === 'ruler' || d.arac === 'gonye' || d.arac === 'aciolcer' || d.arac === 'lazer') {
-                            const p = d.payload;
-                            if (p.handleX !== undefined) p.handleX *= cssCarpan;
-                            if (p.handleY !== undefined) p.handleY *= cssCarpan;
-                            if (p.cx !== undefined) p.cx *= cssCarpan;
-                            if (p.cy !== undefined) p.cy *= cssCarpan;
-                            if (p.px !== undefined) p.px *= cssCarpan;
-                            if (p.py !== undefined) p.py *= cssCarpan;
-                            if (p.ldx !== undefined) p.ldx *= cssCarpan;
-                            if (p.ldy !== undefined) p.ldy *= cssCarpan;
-                            if (p.x !== undefined) p.x *= cssCarpan; 
-                            if (p.y !== undefined) p.y *= cssCarpan; 
-                        }
-                    }
-                }
-            }
+            // DPR farklılıkları HD Canvas üzerinde halledildiği için,
+            // CSS objeleri üzerinde DPR çarpanı (cssCarpan) uygulanması hatalıdır.
+            // Bu kısım kaldırıldı. Tüm CSS / Screen koordinatları orantılı ölçekle (Math.min(sx, sy)) ayarlandı.
 
             if (typeof processData === 'function') processData(d);
         }
@@ -5724,11 +5691,20 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
                     if (sonKoordinat && data.cssW && data.cssH && Math.abs(data.cssW - window.innerWidth) >= 5) {
                         const sx = window.innerWidth / data.cssW;
                         const sy = window.innerHeight / data.cssH;
+                        const scale = Math.min(sx, sy);
+                        const cx_tab = data.cssW / 2;
+                        const cy_tab = data.cssH / 2;
+                        const cx_pc = window.innerWidth / 2;
+                        const cy_pc = window.innerHeight / 2;
+                        
+                        const mapX = (x) => cx_pc + ((x - cx_tab) * scale);
+                        const mapY = (y) => cy_pc + ((y - cy_tab) * scale);
+
                         sonKoordinat = {
-                            x: data.kordinatlar.x * sx,
-                            y: data.kordinatlar.y * sy,
-                            width: data.kordinatlar.width * sx,
-                            height: data.kordinatlar.height * sy
+                            x: mapX(data.kordinatlar.x + data.kordinatlar.width / 2) - (data.kordinatlar.width * scale) / 2,
+                            y: mapY(data.kordinatlar.y + data.kordinatlar.height / 2) - (data.kordinatlar.height * scale) / 2,
+                            width: data.kordinatlar.width * scale,
+                            height: data.kordinatlar.height * scale
                         };
                     }
                     addNewImageToCanvas(img, data.isPDF, sonKoordinat); 
@@ -6014,11 +5990,20 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
                     if (sonKoordinat && data.cssW && data.cssH && Math.abs(data.cssW - window.innerWidth) >= 5) {
                         const sx = window.innerWidth / data.cssW;
                         const sy = window.innerHeight / data.cssH;
+                        const scale = Math.min(sx, sy);
+                        const cx_tab = data.cssW / 2;
+                        const cy_tab = data.cssH / 2;
+                        const cx_pc = window.innerWidth / 2;
+                        const cy_pc = window.innerHeight / 2;
+                        
+                        const mapX = (x) => cx_pc + ((x - cx_tab) * scale);
+                        const mapY = (y) => cy_pc + ((y - cy_tab) * scale);
+
                         sonKoordinat = {
-                            x: data.kordinatlar.x * sx,
-                            y: data.kordinatlar.y * sy,
-                            width: data.kordinatlar.width * sx,
-                            height: data.kordinatlar.height * sy
+                            x: mapX(data.kordinatlar.x + data.kordinatlar.width / 2) - (data.kordinatlar.width * scale) / 2,
+                            y: mapY(data.kordinatlar.y + data.kordinatlar.height / 2) - (data.kordinatlar.height * scale) / 2,
+                            width: data.kordinatlar.width * scale,
+                            height: data.kordinatlar.height * scale
                         };
                     }
                     addNewImageToCanvas(img, data.isPDF, sonKoordinat); 
