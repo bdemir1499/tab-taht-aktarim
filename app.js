@@ -3237,11 +3237,12 @@ canvas.addEventListener('pointermove', (e) => {
     if (window.isImageResizing && selectedItem) { const cX = selectedItem.x + selectedItem.width / 2; const cY = selectedItem.y + selectedItem.height / 2; const ratio = Math.hypot(pos.x - cX, pos.y - cY) / window.startImageDistance; selectedItem.width = window.startImageWidth * ratio; selectedItem.height = window.startImageHeight * ratio; selectedItem.x = cX - selectedItem.width / 2; selectedItem.y = cY - selectedItem.height / 2; window.sendNetworkData({ type: 'arac_senkron', selector: '.yuzen-kopya-container', width: selectedItem.width + 'px', height: selectedItem.height + 'px' }); window.sendNetworkData({ type: 'sekil_guncelle', stroke: selectedItem }); if (window.redrawAllStrokes) window.redrawAllStrokes(); return; }
 
     if (currentTool === 'move' && isMoving && selectedItem) {
-        // 🚨 MUTLAK ZIRH: Eğer ekranda birden fazla parmak varsa (Çoklu Dokunma), 
-        // asla tek parmak kaydırmasına izin verme! Zıplamayı ENGELLEYEN en kilit satır burasıdır.
-        if (window.touchCount >= 2 || pointers.size >= 2) {
-            isMoving = false;
-            return;
+        // 🚨 MUTLAK ZIRH: Resim/PDF taşıyorsak ÇOKLU DOKUNMAYI GÖRMEZDEN GEL! Asla kaydırmayı kesme!
+        if (selectedItem.type !== 'image') {
+            if (window.touchCount >= 2 || pointers.size >= 2) {
+                isMoving = false;
+                return;
+            }
         }
 
         const dx = pos.x - dragStartPos.x; const dy = pos.y - dragStartPos.y;
@@ -4015,6 +4016,7 @@ function addNewImageToCanvas(img, isPDF = false, pcKordinatlari = null) {
         type: 'image',
         id: Date.now() + Math.random(),
         img: img,
+        imgData: img.src, // 🚨 KESİN ÇÖZÜM: PDF'in tahta_durumu ile ağdan geçerken kaybolmaması için imgData eklendi!
         x: posX,
         y: posY,
         width: startWidth,
@@ -5608,12 +5610,15 @@ function setupConnectionEvents() {
 
         const isLineType = ['pen', 'line', 'segment', 'ray', 'straightLine', 'polygon', 'point', 'arc'].includes(stroke.type);
 
-        // YENİ VE NİHAİ ÇÖZÜM: Aspect Ratio (En-Boy Oranı) Korumalı Merkezi Ölçeklendirme
-        // Tablet ekranını PC ekranının tam ortasına ve maksimum sığacak şekilde orantılıyoruz.
-        // Cetvel ve diğer tüm araçlar aynı 'scale' ve 'offset' ile haritalandığı için hizalama KUSURSUZ olacaktır.
-        const scale = Math.min(myW / senderW, myH / senderH);
-        const offsetX = (myW - (senderW * scale)) / 2;
-        const offsetY = (myH - (senderH * scale)) / 2;
+        // 🚨 YENİ VE NİHAİ ÇÖZÜM: Çizimler İÇ (INTERNAL) CANVAS PİKSELLERİNDE Yaşar!
+        // Eğer CSS piksellerini (myW) kullanırsanız, şekiller HD canvas içinde küçücük kalır ve sola kayar!
+        // Bu yüzden DAİMA myCw ve myCh (Yani canvas.width / canvas.height) kullanılmalıdır.
+        const effectiveSenderW = senderCw || senderW;
+        const effectiveSenderH = senderCh || senderH;
+        
+        const scale = Math.min(myCw / effectiveSenderW, myCh / effectiveSenderH);
+        const offsetX = (myCw - (effectiveSenderW * scale)) / 2;
+        const offsetY = (myCh - (effectiveSenderH * scale)) / 2;
 
         const mapX = (x) => (x * scale) + offsetX;
         const mapY = (y) => (y * scale) + offsetY;
@@ -5832,8 +5837,13 @@ function setupConnectionEvents() {
     });
 
 
-    // --- VERİ İŞLEME MERKEZİ ---
     function processData(data) {
+
+        // 🚨 KORUMA ZIRHI: Canvas henüz başlatılmadıysa (örn. 300px ise) ağı işlemeden önce tam boyuta getir!
+        const cnv = document.getElementById('drawing-canvas');
+        if (cnv && cnv.width <= 300 && typeof lockScreenSize === 'function') {
+            lockScreenSize();
+        }
 
         // 🚨 YENİ ALICI: TABLETTEN GELEN KUSURSUZ RESMİ VE PDF'İ EKRANA ÇİZER
         if (data.type === 'arka_plan_resmi_aktar') {
