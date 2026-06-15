@@ -6344,15 +6344,6 @@ if (data.type === 'pdf_kapat') {
         }
         
         console.log("PC'ye tüm pencerelerin durum eşitlemesi gönderiliyor... (Deneme: " + (denemeSayisi + 1) + ")");
-           getNormalizedCoords: function(x, y) {
-        const canvasEl = document.getElementById('drawing-canvas');
-        const w = canvasEl ? canvasEl.clientWidth : window.innerWidth;
-        const h = canvasEl ? canvasEl.clientHeight : window.innerHeight;
-        return {
-            x: (x / w) * 2 - 1,
-            y: -(y / h) * 2 + 1
-        };
-    },
         
         denemeSayisi++;
         if (denemeSayisi >= 4) clearInterval(pencereSyncTimer); // 4 saniye boyunca tahtayı bombalar, sonra durur
