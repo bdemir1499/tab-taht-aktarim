@@ -4272,8 +4272,6 @@ function resizeCanvas() {
 
     // Gerçekten ekran döndüyse veya boyut değiştiyse güncelle
     lastWindowWidth = newWidth;
-    canvas.width = newWidth;
-    canvas.height = newHeight;
 
     if (window.Scene3D && window.Scene3D.camera) {
         const aspect = newWidth / newHeight;
@@ -5037,11 +5035,7 @@ function setLanguage(lang) {
 }
 
 // --- BU FONKSİYON SETLANGUAGE'İN DIŞINA/ALTINA GELİYOR ---
-function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    if (window.redrawAllStrokes) window.redrawAllStrokes();
-}
+// İkinci kopya resizeCanvas kaldırıldı çünkü koordinat senkronizasyonunu bozuyordu.
 
 // ================================================================
 // DİL SEÇİMİ VE AĞA FIRLATMA MOTORU
