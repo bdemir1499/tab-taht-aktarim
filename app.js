@@ -5523,12 +5523,15 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
     
     const isLineType = ['pen', 'line', 'segment', 'ray', 'straightLine', 'polygon', 'point', 'arc'].includes(stroke.type);
 
-    // 🚨 KESİN ÇÖZÜM: Geometri araçları (cetvel vb.) 1:1 aktarılırken çizimler sx/sy oranında büyüyordu.
-    // Bu yüzden cetvel kenarına çizilen çizgi PC'ye geçerken fırlayıp zıplıyordu!
-    // Tüm koordinat ölçeklendirmesini iptal edip SIFIR sapma ile 1:1 (Birebir) haritalama (mapping) uyguluyoruz.
-    const scale = 1;
-    const mapX = (x) => x;
-    const mapY = (y) => y;
+    // YENİ VE NİHAİ ÇÖZÜM: Aspect Ratio (En-Boy Oranı) Korumalı Merkezi Ölçeklendirme
+    // Tablet ekranını PC ekranının tam ortasına ve maksimum sığacak şekilde orantılıyoruz.
+    // Cetvel ve diğer tüm araçlar aynı 'scale' ve 'offset' ile haritalandığı için hizalama KUSURSUZ olacaktır.
+    const scale = Math.min(myW / senderW, myH / senderH);
+    const offsetX = (myW - (senderW * scale)) / 2;
+    const offsetY = (myH - (senderH * scale)) / 2;
+
+    const mapX = (x) => (x * scale) + offsetX;
+    const mapY = (y) => (y * scale) + offsetY;
 
     if (stroke.path) stroke.path.forEach(p => { p.x = mapX(p.x); p.y = mapY(p.y); });
     if (stroke.points) stroke.points.forEach(p => { p.x = mapX(p.x); p.y = mapY(p.y); });
@@ -5659,10 +5662,13 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
                 if ((typeof pointers !== 'undefined' && pointers.size >= 2) || window.touchCount >= 2 || window.isZooming) return;
                 
                 if (window.drawnStrokes) {
-                    // Geometri kalibrasyonunu (1cm = 30px) ve sol panel mesafesini %100 korumak için birebir 1:1 aktarım.
-                    const scale = 1;
-                    const mapX = (x) => x;
-                    const mapY = (y) => y;
+                    const senderW = d.cssW || window.innerWidth;
+                    const senderH = d.cssH || window.innerHeight;
+                    const scale = Math.min(window.innerWidth / senderW, window.innerHeight / senderH);
+                    const offsetX = (window.innerWidth - (senderW * scale)) / 2;
+                    const offsetY = (window.innerHeight - (senderH * scale)) / 2;
+                    const mapX = (x) => (x * scale) + offsetX;
+                    const mapY = (y) => (y * scale) + offsetY;
 
                     const bgStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
                     bgStrokes.forEach(bg => { 
@@ -5710,10 +5716,13 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
                 setTimeout(() => {
                     let zemin = window.drawnStrokes.find(s => s.isBackground === true);
                     if (zemin && data.kordinatlar) {
-                        // Geometri kalibrasyonunu (1cm = 30px) ve sol panel mesafesini %100 korumak için birebir 1:1 aktarım.
-                        const scale = 1;
-                        const mapX = (x) => x;
-                        const mapY = (y) => y;
+                        const senderW = data.cssW || window.innerWidth;
+                        const senderH = data.cssH || window.innerHeight;
+                        const scale = Math.min(window.innerWidth / senderW, window.innerHeight / senderH);
+                        const offsetX = (window.innerWidth - (senderW * scale)) / 2;
+                        const offsetY = (window.innerHeight - (senderH * scale)) / 2;
+                        const mapX = (x) => (x * scale) + offsetX;
+                        const mapY = (y) => (y * scale) + offsetY;
 
                         zemin.width = data.kordinatlar.width * scale;
                         zemin.height = data.kordinatlar.height * scale;
@@ -5732,10 +5741,13 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
                 if (typeof addNewImageToCanvas === 'function') {
                     let sonKoordinat = data.kordinatlar;
                     if (sonKoordinat && data.cssW && data.cssH && Math.abs(data.cssW - window.innerWidth) >= 5) {
-                        // Geometri kalibrasyonunu (1cm = 30px) ve sol panel mesafesini %100 korumak için birebir 1:1 aktarım.
-                        const scale = 1;
-                        const mapX = (x) => x;
-                        const mapY = (y) => y;
+                        const senderW = data.cssW || window.innerWidth;
+                        const senderH = data.cssH || window.innerHeight;
+                        const scale = Math.min(window.innerWidth / senderW, window.innerHeight / senderH);
+                        const offsetX = (window.innerWidth - (senderW * scale)) / 2;
+                        const offsetY = (window.innerHeight - (senderH * scale)) / 2;
+                        const mapX = (x) => (x * scale) + offsetX;
+                        const mapY = (y) => (y * scale) + offsetY;
 
                         sonKoordinat = {
                             x: mapX(data.kordinatlar.x),
