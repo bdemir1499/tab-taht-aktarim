@@ -3088,6 +3088,10 @@ canvas.addEventListener('pointermove', (e) => {
     // --- TABLET/PARDUS: İKİ PARMAK ZOOM ---
     // 🚨 KESİN ÇÖZÜM: Yalnızca 'Taşı' (move) aracı seçiliyken iki parmakla yakınlaştırma (zoom) yapılabilir.
     if ((pointers.size === 2 || (e.touches && e.touches.length === 2)) && window.currentTool === 'move') {
+        // 🚨 KESİN ÇÖZÜM: İki parmakla zoom yapıldığında, taşıma (sürükleme) durumunu iptal et! 
+        // Aksi takdirde parmaklardan biri kalktığında sayfa eski koordinatlarına ŞİDDETLE ZIPLAR.
+        isMoving = false;
+        
         let p1x, p1y, p2x, p2y;
         if (e.touches && e.touches.length === 2) { p1x = e.touches[0].clientX; p1y = e.touches[0].clientY; p2x = e.touches[1].clientX; p2y = e.touches[1].clientY; } 
         else { const p = Array.from(pointers.values()); p1x = p[0].clientX; p1y = p[0].clientY; p2x = p[1].clientX; p2y = p[1].clientY; }
