@@ -2903,7 +2903,7 @@ katmanZirhi.innerHTML = `
     #drawing-canvas { position: relative !important; z-index: 50 !important; background-color: transparent !important; }
     
     /* 2. 3D Sahnesi: Kalemin altında kalmalı ki üstüne çizilebilsin */
-    #three-container { position: absolute !important; z-index: 40 !important; pointer-events: none !important; display: block !important; }
+    #three-container { position: absolute !important; z-index: 10 !important; pointer-events: none !important; display: block !important; }
     
     /* 3. Arayüz ve Butonlar: Asla kaybolmamaları için en üst seviyeye sabitlendi */
     .panel, .panel *, button, .tool-button, .tool-button-sub, .tool-options,
@@ -7257,10 +7257,10 @@ window.broadcastPreview = function(toolType, stateData) {
 const canvasKatmanZirhi = document.createElement('style');
 canvasKatmanZirhi.innerHTML = `
     /* Çizim tahtasını 3D cisimlerin üstüne çıkarıyoruz */
-    #drawing-canvas { position: relative !important; z-index: 50 !important; }
+    #drawing-canvas { position: relative !important; z-index: 50 !important; background-color: transparent !important; }
     
-    /* 3D uzay sahnesini çizimlerin üstüne çıkarıyoruz (PDF'lerin altında kalmaması için) */
-    #three-container { position: absolute !important; z-index: 60 !important; pointer-events: none !important; }
+    /* 3D uzay sahnesi bg-canvas'ın üstünde (10), çizimlerin altında (50) kalmalı */
+    #three-container { position: absolute !important; z-index: 10 !important; pointer-events: none !important; }
     
     /* 🔴 BUTONLARIN GERİ GELMESİNİ SAĞLAYAN EN ÜST KATMAN KORUMASI 🔴 */
     .panel, .panel *, button, .tool-button, .tool-button-sub, .tool-options, 
