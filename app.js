@@ -3239,8 +3239,7 @@ canvas.addEventListener('pointermove', (e) => {
     if (currentTool === 'move' && isMoving && selectedItem) {
         // 🚨 MUTLAK ZIRH: Eğer ekranda birden fazla parmak varsa (Çoklu Dokunma), 
         // asla tek parmak kaydırmasına izin verme! Zıplamayı ENGELLEYEN en kilit satır burasıdır.
-        const gercekDokunusSayisi = Array.from(pointers.values()).filter(p => p.pointerType === 'touch').length;
-        if (window.touchCount >= 2 || gercekDokunusSayisi >= 2) {
+        if (window.touchCount >= 2 || pointers.size >= 2) {
             isMoving = false;
             return;
         }
@@ -5971,10 +5970,10 @@ function setupConnectionEvents() {
             // 🚨 EKRAN SENKRONİZASYONU: Gelen stroke'u Kendi Ekranımıza (İç Piksellere) Çevir!
             const tempStroke = JSON.parse(JSON.stringify(data.stroke));
             if (typeof adaptStrokeToScreen === 'function') {
-                const canvasElm = document.getElementById('drawing-canvas');
-                const cw = canvasElm ? canvasElm.width : window.innerWidth;
-                const ch = canvasElm ? canvasElm.height : window.innerHeight;
-                adaptStrokeToScreen(tempStroke, data.cssW, data.cssH, cw, ch);
+                // Burada GÖNDERİCİNİN ekran çözünürlüğünü kullanmalıyız (data.cw ve data.ch)
+                const senderCw = data.cw || data.cssW;
+                const senderCh = data.ch || data.cssH;
+                adaptStrokeToScreen(tempStroke, data.cssW, data.cssH, senderCw, senderCh);
             }
 
             let index = -1;
