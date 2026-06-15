@@ -2946,7 +2946,7 @@ canvas.addEventListener('touchcancel', (e) => { window.touchCount = e.touches.le
 
 // 🚨 GERÇEK MULTI-TOUCH ZOOM MOTORU (Zıplamayı Engelleyen Ana Motor)
 canvas.addEventListener('touchmove', (e) => {
-    if (window.currentTool === 'move' && e.touches && e.touches.length >= 2) {
+    if (currentTool === 'move' && e.touches && e.touches.length >= 2) {
         e.preventDefault();
         e.stopPropagation();
         isMoving = false; // Tek parmakla sürüklemeyi kesinlikle İPTAL ET!
@@ -3129,7 +3129,7 @@ canvas.addEventListener('pointermove', (e) => {
     // --- TABLET/PARDUS: İKİ PARMAK ZOOM ---
     // --- TABLET/PARDUS: İKİ PARMAK ZOOM (Yedek PointerEvent Motoru) ---
     // Eğer tarayıcı TouchEvent yerine PointerEvent gönderiyorsa:
-    if (pointers.size >= 2 && window.currentTool === 'move') {
+    if (pointers.size >= 2 && currentTool === 'move') {
         isMoving = false; // Tek parmak sürüklemeyi zorla kapat
         
         // 🚨 ÇAKIŞMAYI ÖNLEYİCİ ZIRH: Eğer cihaz gerçek TouchEvent destekliyorsa (touchCount >= 2),
@@ -3724,7 +3724,7 @@ canvas.addEventListener('wheel', (e) => {
         e.preventDefault();
         
         // 🚨 KESİN ÇÖZÜM: Yalnızca 'Taşı' (move) aracı seçiliyken fare ile zoom yapılabilir
-        if (window.currentTool !== 'move') return;
+        if (currentTool !== 'move') return;
         
         const zoomStep = e.deltaY > 0 ? 0.95 : 1.05; 
 
