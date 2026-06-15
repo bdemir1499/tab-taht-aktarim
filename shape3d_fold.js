@@ -92,8 +92,8 @@ window.Foldable3D = {
 
                 currentParent = hinge;
 
-                const middleIndex = Math.floor((sides - 1) / 2);
-                if (i === middleIndex) {
+                let attachIndex = isCustom ? 0 : Math.floor((sides - 1) / 2);
+                if (i === attachIndex) {
                     // Üst kapak
                     const topHinge = new THREE.Group();
                     topHinge.position.set(actualSideWidth / 2, heights / 2, 0);
@@ -104,8 +104,7 @@ window.Foldable3D = {
                         const capW = widths[0]; // Front genişliği W
                         const capH = widths[1]; // Yan genişlik D
                         topGeo = new THREE.PlaneGeometry(capW, capH);
-                        topGeo.rotateZ(Math.PI / 2); // Menteşeye (capH) uyumlu olması için döndür
-                        topGeo.translate(0, -capW / 2, 0); // Pivot'u alt kenara al
+                        topGeo.translate(0, -capH / 2, 0); // Pivot'u alt kenara al
                         topGeo.rotateX(-Math.PI / 2); // Yukarıya doğru (Z eksenine) katla
                     } else {
                         let r = size;
@@ -139,8 +138,7 @@ window.Foldable3D = {
                         const capW = widths[0]; // W
                         const capH = widths[1]; // D
                         bottomGeo = new THREE.PlaneGeometry(capW, capH);
-                        bottomGeo.rotateZ(Math.PI / 2);
-                        bottomGeo.translate(0, capW / 2, 0); 
+                        bottomGeo.translate(0, capH / 2, 0); 
                         bottomGeo.rotateX(Math.PI / 2);
                     } else {
                         let r = size;

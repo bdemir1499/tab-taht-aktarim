@@ -6808,6 +6808,12 @@ window.Scene3D = {
             // Şekli 3D uzaya tam senin bıraktığın yere yerleştir
             solidShape.position.copy(this.startPoint || new THREE.Vector3(0,0,0));
             
+            // 🚨 STANDART DURUŞ (Resimlerdeki gibi İzometrik Görünüm)
+            if (this.activeTool.startsWith('prism_') || this.activeTool.startsWith('pyramid_')) {
+                solidShape.rotation.z = Math.PI / 8; // Hafif sağa dönük (sağ yüz görünür)
+                solidShape.rotation.x = Math.PI / 16; // Hafif öne eğik (üst yüz daha iyi görünür)
+            }
+            
             this.scene.add(solidShape);
             this.currentMesh = solidShape;
             this.updateHandlePositions();
