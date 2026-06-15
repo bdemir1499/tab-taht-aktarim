@@ -6576,6 +6576,19 @@ window.Scene3D = {
         this.rotateHandleBtn.style.top = (py - 60) + 'px';
         
         this.resizeHandleBtn.style.display = 'flex';
+        const geometry = this.createGeometry(this.activeTool, 0.1);
+        if(this.activeTool.startsWith('prism') || this.activeTool.startsWith('pyramid')) geometry.rotateX(Math.PI / 2);
+        const material = new THREE.MeshPhongMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.5 });
+        this.previewMesh = new THREE.Mesh(geometry, material);
+        this.previewMesh.position.copy(this.startPoint);
+        
+        // Önizleme sırasında da izometrik duruşu göster!
+        if (this.activeTool.startsWith('prism_') || this.activeTool.startsWith('pyramid_')) {
+            this.previewMesh.rotation.z = Math.PI / 6;
+            this.previewMesh.rotation.x = Math.PI / 6;
+        }
+        
+        this.scene.add(this.previewMesh);
         this.resizeHandleBtn.style.left = (px - 70) + 'px';
         this.resizeHandleBtn.style.top = (py + 30) + 'px';
     },
@@ -6700,6 +6713,13 @@ window.Scene3D = {
             if(this.activeTool.startsWith('prism') || this.activeTool.startsWith('pyramid')) previewGeo.rotateX(Math.PI / 2);
             this.previewMesh = new THREE.Mesh(previewGeo, new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true, transparent: true, opacity: 0.5 }));
             this.previewMesh.position.copy(this.startPoint);
+            
+            // 🚨 Önizleme sırasında da İzometrik Duruşu (Döndürmeyi) uygula ki çizerken yamuk görünmesin!
+            if (this.activeTool.startsWith('prism_') || this.activeTool.startsWith('pyramid_')) {
+                this.previewMesh.rotation.z = Math.PI / 6;
+                this.previewMesh.rotation.x = Math.PI / 6;
+            }
+            
             this.scene.add(this.previewMesh);
             return true;
         }
@@ -6810,8 +6830,8 @@ window.Scene3D = {
             
             // 🚨 STANDART DURUŞ (Resimlerdeki gibi İzometrik Görünüm)
             if (this.activeTool.startsWith('prism_') || this.activeTool.startsWith('pyramid_')) {
-                solidShape.rotation.z = Math.PI / 8; // Hafif sağa dönük (sağ yüz görünür)
-                solidShape.rotation.x = Math.PI / 16; // Hafif öne eğik (üst yüz daha iyi görünür)
+                solidShape.rotation.z = Math.PI / 6; // 30 derece sağa dönük (sağ yüz net görünür)
+                solidShape.rotation.x = Math.PI / 6; // 30 derece öne eğik (üst yüz net görünür)
             }
             
             this.scene.add(solidShape);
