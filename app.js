@@ -5449,17 +5449,14 @@ window.adaptStrokeToScreen = function(stroke, senderW, senderH, senderCw) {
     const myW = window.innerWidth;
     const myH = window.innerHeight;
     
-    if (Math.abs(senderW - myW) < 5 && Math.abs(senderH - myH) < 5) return stroke;
-
-    const sx = myW / senderW;
-    const sy = myH / senderH;
-
-    // HER ZAMAN Orantılı Ölçekle (Aspect Ratio Korunur)
     const isLineType = ['pen', 'line', 'segment', 'ray', 'straightLine', 'polygon', 'point', 'arc'].includes(stroke.type);
 
-    const scale = Math.min(sx, sy);
-    const mapX = (x) => x * scale;
-    const mapY = (y) => y * scale;
+    // 🚨 KESİN ÇÖZÜM: Geometri araçları (cetvel vb.) 1:1 aktarılırken çizimler sx/sy oranında büyüyordu.
+    // Bu yüzden cetvel kenarına çizilen çizgi PC'ye geçerken fırlayıp zıplıyordu!
+    // Tüm koordinat ölçeklendirmesini iptal edip SIFIR sapma ile 1:1 (Birebir) haritalama (mapping) uyguluyoruz.
+    const scale = 1;
+    const mapX = (x) => x;
+    const mapY = (y) => y;
 
     if (stroke.path) stroke.path.forEach(p => { p.x = mapX(p.x); p.y = mapY(p.y); });
     if (stroke.points) stroke.points.forEach(p => { p.x = mapX(p.x); p.y = mapY(p.y); });
