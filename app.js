@@ -3996,8 +3996,8 @@ async function renderPDFPage(num) {
 function addNewImageToCanvas(img, isPDF = false, pcKordinatlari = null) {
     let startWidth, startHeight, posX, posY;
 
-    // Eğer PC isek, tabletin bize gönderdiği kusursuz koordinatları kullan!
-    if (pcKordinatlari && !pcKordinatlari.center_me) {
+    // Eğer PC isek, tabletin bize gönderdiği adaptStrokeToScreen'den geçmiş kusursuz koordinatları kullan!
+    if (pcKordinatlari) {
         startWidth = pcKordinatlari.width;
         startHeight = pcKordinatlari.height;
         posX = pcKordinatlari.x;
@@ -5853,10 +5853,21 @@ function setupConnectionEvents() {
             const img = new Image();
             img.onload = () => {
                 if (typeof addNewImageToCanvas === 'function') {
-                    let sonKoordinat = data.kordinatlar;
-                    // Tablette ortada çıkan resmin/pdf'in PC'de de tam ortada çıkması için 
-                    // PC'nin kendi ekran boyutlarına göre merkezleme yapmasını sağlıyoruz (center_me flag).
-                    addNewImageToCanvas(img, data.isPDF, { center_me: true });
+                    let sonKoordinat = null;
+                    if (data.kordinatlar && data.canvasW && data.canvasH) {
+                        let dummyStroke = {
+                            x: data.kordinatlar.x,
+                            y: data.kordinatlar.y,
+                            width: data.kordinatlar.width,
+                            height: data.kordinatlar.height
+                        };
+                        dummyStroke = window.adaptStrokeToScreen(dummyStroke, data.canvasW, data.canvasH, data.canvasW, data.canvasH);
+                        sonKoordinat = dummyStroke;
+                        // Not: sonKoordinat gönderildiği için addNewImageToCanvas bu resmi tabletin hesabına göre konumlandıracak 
+                        // ve ağa tekrar göndermeyecek (sonsuz döngü olmayacak).
+                    }
+                    
+                    addNewImageToCanvas(img, data.isPDF, sonKoordinat);
                     setTimeout(() => { if (window.redrawAllStrokes) window.redrawAllStrokes(); }, 100);
                 }
             };
