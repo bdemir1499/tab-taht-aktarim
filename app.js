@@ -5588,7 +5588,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 myConnection.on('open', () => {
                     console.log("Tablet: Connection Open tetiklendi!");
                     isConnected = true;
-                    window.isConnected = true; // 🚨 EKLENDİ: Cetvel ve Pergel'e "Bağlandık" mesajı gönderir
+                    window.isConnected = true; 
                     window.baglantiOnaylandi = true;
                     document.getElementById('connection-status').innerText = "BAĞLANDI 🟢";
                     document.getElementById('connection-status').style.color = "#00ffcc";
@@ -5720,7 +5720,7 @@ function setupConnectionEvents() {
         let scale, offsetX, offsetY;
         const myBg = window.drawnStrokes ? window.drawnStrokes.find(s => s.isBackground === true) : null;
 
-        if (data && data.bgW > 0 && myBg && myBg.width > 0) {
+        if (data && data.bgW > 0 && myBg && myBg.width > 0 && stroke.isBackground !== true) {
             scale = myBg.width / data.bgW;
             offsetX = myBg.x - (data.bgX * scale);
             offsetY = myBg.y - (data.bgY * scale);
@@ -5813,7 +5813,7 @@ function setupConnectionEvents() {
             const senderH = d.ch || d.cssH || window.innerHeight;
             let scale, offsetX, offsetY;
             const myBg = window.drawnStrokes ? window.drawnStrokes.find(s => s.isBackground === true) : null;
-            if (d.bgW > 0 && myBg && myBg.width > 0) {
+            if (d.bgW > 0 && myBg && myBg.width > 0 && d.type !== 'zoom_senkron' && d.type !== 'hepsini_tasi' && d.type !== 'sekil_guncelle') {
                 scale = myBg.width / d.bgW;
                 offsetX = myBg.x - (d.bgX * scale);
                 offsetY = myBg.y - (d.bgY * scale);
