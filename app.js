@@ -6587,6 +6587,7 @@ window.sendNetworkData = function (dataPackage) {
         dataPackage.ch = canvasElm.height;
         dataPackage.cssW = window.innerWidth;
         dataPackage.cssH = window.innerHeight;
+        dataPackage.dpr = window.devicePixelRatio || 1;
     }
 
     // Güvence: Çizim gönderiliyorsa ve ID'si yoksa ID ata!
