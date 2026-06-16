@@ -5712,22 +5712,9 @@ function setupConnectionEvents() {
         const myDpr = canvasElm ? (myCw / myW) : 1;
 
         // 🚨 FİZİKİ ARAÇ KORUMASI (Zıplama Engelleme) 🚨
-        // Fiziki araçların PC'de büyümemesi/küçülmemesi için ekranlara göre ölçeklenmesi engellenmelidir.
-        // Ancak farklı cihazların piksel yoğunluğu (DPR) farklı olabileceğinden sadece DPR farkı düzeltilir.
-        if (stroke.isPhysicalTool) {
-            const dprScale = myDpr / senderDpr;
-            if (dprScale !== 1) {
-                if (stroke.p1) { stroke.p1.x *= dprScale; stroke.p1.y *= dprScale; }
-                if (stroke.p2) { stroke.p2.x *= dprScale; stroke.p2.y *= dprScale; }
-                if (stroke.p3) { stroke.p3.x *= dprScale; stroke.p3.y *= dprScale; }
-                if (stroke.cx !== undefined) stroke.cx *= dprScale;
-                if (stroke.cy !== undefined) stroke.cy *= dprScale;
-                if (stroke.radius !== undefined) stroke.radius *= dprScale;
-                if (stroke.lengthLabelPos) { stroke.lengthLabelPos.x *= dprScale; stroke.lengthLabelPos.y *= dprScale; }
-            }
-            return stroke;
-        }
-
+        // Fiziki araçların PC'de çizdiği şekiller (çizgi, yay) de tıpkı diğer kalem çizimleri gibi
+        // sayfanın boyutuna göre ölçeklenmek ve kaydırılmak ZORUNDADIR. (Bu yüzden isPhysicalTool kısıtlaması kaldırıldı).
+        
         const isLineType = ['pen', 'line', 'segment', 'ray', 'straightLine', 'polygon', 'point', 'arc'].includes(stroke.type);
 
         // 🚨 YENİ VE NİHAİ ÇÖZÜM: Çizimler İÇ (INTERNAL) CANVAS PİKSELLERİNDE Yaşar!
@@ -5774,6 +5761,7 @@ function setupConnectionEvents() {
         if (stroke.p1) { stroke.p1.x = mapX(stroke.p1.x); stroke.p1.y = mapY(stroke.p1.y); }
         if (stroke.p2) { stroke.p2.x = mapX(stroke.p2.x); stroke.p2.y = mapY(stroke.p2.y); }
         if (stroke.p3) { stroke.p3.x = mapX(stroke.p3.x); stroke.p3.y = mapY(stroke.p3.y); }
+        if (stroke.lengthLabelPos) { stroke.lengthLabelPos.x = mapX(stroke.lengthLabelPos.x); stroke.lengthLabelPos.y = mapY(stroke.lengthLabelPos.y); }
 
         if (stroke.type === 'text' && stroke.fontSize) stroke.fontSize *= scale;
 
