@@ -5737,6 +5737,12 @@ function setupConnectionEvents() {
             offsetY = pcBg.y - (stroke.bgY * scale);
         }
 
+        if (stroke.isBackground) {
+            stroke.networkScale = scale;
+            stroke.networkOffsetX = offsetX;
+            stroke.networkOffsetY = offsetY;
+        }
+
         const mapX = (x) => (x * scale) + offsetX;
         const mapY = (y) => (y * scale) + offsetY;
 
@@ -5905,10 +5911,16 @@ function setupConnectionEvents() {
                     const bgStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
                     bgStrokes.forEach(bg => {
                         if (d.width !== undefined && d.height !== undefined && d.x !== undefined && d.y !== undefined) {
+                            // 🌟 KUSURSUZ ZOOM HİZALAMASI: PDF ilk yüklendiğinde hesaplanan Orijinal Scale/Offset'i kullan!
+                            // Böylece tablet dönse de çözünürlük değişse de PC'deki hesaplama ASLA sapmaz!
+                            const scale = bg.networkScale !== undefined ? bg.networkScale : Math.min(myCw / senderW, myCh / senderH);
+                            const offsetX = bg.networkOffsetX !== undefined ? bg.networkOffsetX : (myCw - (senderW * scale)) / 2;
+                            const offsetY = bg.networkOffsetY !== undefined ? bg.networkOffsetY : (myCh - (senderH * scale)) / 2;
+
                             const newW = d.width * scale;
                             const newH = d.height * scale;
-                            const newX = mapX(d.x);
-                            const newY = mapY(d.y);
+                            const newX = (d.x * scale) + offsetX;
+                            const newY = (d.y * scale) + offsetY;
 
                             const oldW = bg.width;
                             const oldX = bg.x;
