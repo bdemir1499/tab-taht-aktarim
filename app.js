@@ -5708,10 +5708,9 @@ function setupConnectionEvents() {
                     // 🚨 EKRAN SENKRONİZASYONU: Gelen stroke'u Kendi Ekranımıza (İç Piksellere) Çevir!
                     const tempStroke = JSON.parse(JSON.stringify(d.stroke));
                     if (typeof adaptStrokeToScreen === 'function') {
-                        const canvasElm = document.getElementById('drawing-canvas');
-                        const cw = canvasElm ? canvasElm.width : window.innerWidth;
-                        const ch = canvasElm ? canvasElm.height : window.innerHeight;
-                        adaptStrokeToScreen(tempStroke, d.cssW, d.cssH, cw, ch);
+                        const senderCw = d.cw || d.cssW;
+                        const senderCh = d.ch || d.cssH;
+                        adaptStrokeToScreen(tempStroke, d.cssW, d.cssH, senderCw, senderCh);
                     }
 
                     let index = -1;
