@@ -5733,6 +5733,32 @@ function setupConnectionEvents() {
             offsetY = (myCh - (effectiveSenderH * scale)) / 2;
         }
 
+        // ARKA PLANA GÖRECELİ KOORDİNAT ÇEVİRİCİ
+        // Eğer gelen çizim normalize edilmişse (nx,ny alanları varsa) ve PC'de arka plan yüklüyse,
+        // koordinatları canvas/ekran boyutuna bakılmaksızın doğrudan PC'nin arka planına göre yerleştir.
+        if (data && data.bgW > 0 && myBg && myBg.width > 0 && stroke.isBackground !== true) {
+            const pbx = myBg.x, pby = myBg.y, pbw = myBg.width, pbh = myBg.height;
+            const dn = (nx) => pbx + nx * pbw;
+            const dnY = (ny) => pby + ny * pbh;
+            if (stroke.path && stroke.path.length > 0 && stroke.path[0].nx !== undefined) {
+                stroke.path.forEach(p => { p.x = dn(p.nx); p.y = dnY(p.ny); });
+            }
+            if (stroke.points && stroke.points.length > 0 && stroke.points[0].nx !== undefined) {
+                stroke.points.forEach(p => { p.x = dn(p.nx); p.y = dnY(p.ny); });
+            }
+            if (stroke.p1 && stroke.p1.nx !== undefined) { stroke.p1.x = dn(stroke.p1.nx); stroke.p1.y = dnY(stroke.p1.ny); }
+            if (stroke.p2 && stroke.p2.nx !== undefined) { stroke.p2.x = dn(stroke.p2.nx); stroke.p2.y = dnY(stroke.p2.ny); }
+            if (stroke.p3 && stroke.p3.nx !== undefined) { stroke.p3.x = dn(stroke.p3.nx); stroke.p3.y = dnY(stroke.p3.ny); }
+            if (stroke.ncx !== undefined) { stroke.cx = dn(stroke.ncx); stroke.cy = dnY(stroke.ncy); }
+            if (stroke.center && stroke.center.nx !== undefined) { stroke.center.x = dn(stroke.center.nx); stroke.center.y = dnY(stroke.center.ny); }
+            if (stroke.nx !== undefined) { stroke.x = dn(stroke.nx); stroke.y = dnY(stroke.ny); }
+            if (stroke.nradius !== undefined) stroke.radius = stroke.nradius * pbw;
+            if (stroke.nbaseWidth !== undefined) stroke.baseWidth = stroke.nbaseWidth * pbw;
+            if (stroke.nwidth !== undefined) { stroke.width = stroke.nwidth * pbw; }
+            if (stroke.nheight !== undefined) { stroke.height = stroke.nheight * pbh; }
+            return stroke;
+        }
+
         const mapX = (x) => (x * scale) + offsetX;
         const mapY = (y) => (y * scale) + offsetY;
 
@@ -6615,6 +6641,38 @@ window.sendNetworkData = function (dataPackage) {
     // Güvence: Çizim gönderiliyorsa ve ID'si yoksa ID ata!
     if (dataPackage.type === 'yeni_cizim' && dataPackage.stroke && !dataPackage.stroke.id) {
         dataPackage.stroke.id = Date.now() + Math.random();
+    }
+
+    // ARKA PLANA GÖRECELİ KOORDİNAT DAMGASI
+    // Tablet tarafında: çizim koordinatlarını arka plan (PDF/resim) üzerindeki 0-1 arası
+    // göreceli konuma çevir. PC tarafı bunu alıp kendi arka planına göre geri çevirir.
+    if (dataPackage.bgW > 0) {
+        const normStroke = (s) => {
+            if (!s || s.isBackground) return;
+            const bx = dataPackage.bgX, by = dataPackage.bgY;
+            const bw = dataPackage.bgW, bh = dataPackage.bgH;
+            if (!bw || !bh) return;
+            const nx = (x) => (x - bx) / bw;
+            const ny = (y) => (y - by) / bh;
+            if (s.path) s.path.forEach(p => { p.nx = nx(p.x); p.ny = ny(p.y); });
+            if (s.points) s.points.forEach(p => { p.nx = nx(p.x); p.ny = ny(p.y); });
+            if (s.p1) { s.p1.nx = nx(s.p1.x); s.p1.ny = ny(s.p1.y); }
+            if (s.p2) { s.p2.nx = nx(s.p2.x); s.p2.ny = ny(s.p2.y); }
+            if (s.p3) { s.p3.nx = nx(s.p3.x); s.p3.ny = ny(s.p3.y); }
+            if (s.cx !== undefined) { s.ncx = nx(s.cx); s.ncy = ny(s.cy); }
+            if (s.center) { s.center.nx = nx(s.center.x); s.center.ny = ny(s.center.y); }
+            if (s.x !== undefined) { s.nx = nx(s.x); s.ny = ny(s.y); }
+            if (s.radius !== undefined && bw > 0) s.nradius = s.radius / bw;
+            if (s.baseWidth !== undefined && bw > 0) s.nbaseWidth = s.baseWidth / bw;
+            if (s.width !== undefined && bw > 0 && !['pen','line','segment','ray','straightLine','polygon','point','arc'].includes(s.type)) s.nwidth = s.width / bw;
+            if (s.height !== undefined && bh > 0 && !['pen','line','segment','ray','straightLine','polygon','point','arc'].includes(s.type)) s.nheight = s.height / bh;
+        };
+        if (dataPackage.type === 'yeni_cizim') {
+            const arr = Array.isArray(dataPackage.stroke) ? dataPackage.stroke : [dataPackage.stroke];
+            arr.forEach(normStroke);
+        } else if (dataPackage.type === 'akilli_sekil_toplu' && dataPackage.strokes) {
+            dataPackage.strokes.forEach(normStroke);
+        }
     }
 
     const dataString = JSON.stringify(dataPackage);
