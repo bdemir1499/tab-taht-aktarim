@@ -3002,6 +3002,8 @@ canvas.addEventListener('touchmove', (e) => {
             const zoomStep = 1 + (delta * 0.003);
             const bgStrokes = drawnStrokes.filter(s => s.isBackground === true);
             if (bgStrokes.length > 0) {
+                const cx = bgStrokes[0].x + bgStrokes[0].width / 2;
+                const cy = bgStrokes[0].y + bgStrokes[0].height / 2;
                 bgStrokes.forEach(bg => {
                     const newW = bg.width * zoomStep;
                     const newH = bg.height * zoomStep;
@@ -3009,6 +3011,13 @@ canvas.addEventListener('touchmove', (e) => {
                     bg.y -= (newH - bg.height) / 2;
                     bg.width = newW; bg.height = newH;
                 });
+                if (window.drawnStrokes) {
+                    window.drawnStrokes.forEach(s => {
+                        if (!s.isBackground && typeof window.zoomStroke === 'function') {
+                            window.zoomStroke(s, zoomStep, cx, cy);
+                        }
+                    });
+                }
                 redrawAllStrokes();
                 if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
                     window.sendNetworkData({ type: 'zoom_senkron', x: bgStrokes[0].x, y: bgStrokes[0].y, width: bgStrokes[0].width, height: bgStrokes[0].height });
@@ -3216,7 +3225,10 @@ canvas.addEventListener('pointermove', (e) => {
             const delta = currentDist - lastDist; const zoomStep = 1 + (delta * 0.003);
             const bgStrokes = drawnStrokes.filter(s => s.isBackground === true);
             if (bgStrokes.length > 0) {
+                const cx = bgStrokes[0].x + bgStrokes[0].width / 2;
+                const cy = bgStrokes[0].y + bgStrokes[0].height / 2;
                 bgStrokes.forEach(bg => { const newW = bg.width * zoomStep; const newH = bg.height * zoomStep; bg.x -= (newW - bg.width) / 2; bg.y -= (newH - bg.height) / 2; bg.width = newW; bg.height = newH; });
+                if (window.drawnStrokes) window.drawnStrokes.forEach(s => { if (!s.isBackground && typeof window.zoomStroke === 'function') window.zoomStroke(s, zoomStep, cx, cy); });
                 redrawAllStrokes();
                 if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) window.sendNetworkData({ type: 'zoom_senkron', x: bgStrokes[0].x, y: bgStrokes[0].y, width: bgStrokes[0].width, height: bgStrokes[0].height });
             }
@@ -3253,7 +3265,35 @@ canvas.addEventListener('pointermove', (e) => {
         }
 
         const dx = pos.x - dragStartPos.x; const dy = pos.y - dragStartPos.y;
-        if (selectedPointKey === 'self' || selectedPointKey === 'center') { if (selectedItem.type === 'arc') { selectedItem.cx = originalStartPos.x + dx; selectedItem.cy = originalStartPos.y + dy; } else if (selectedItem.center) { selectedItem.center.x = originalStartPos.x + dx; selectedItem.center.y = originalStartPos.y + dy; } else { selectedItem.x = (originalStartPos.x || 0) + dx; selectedItem.y = (originalStartPos.y || 0) + dy; } if (selectedItem.vertices) selectedItem.vertices = null; }
+        if (selectedPointKey === 'self' || selectedPointKey === 'center') { 
+            let oldX = 0, oldY = 0, newX = 0, newY = 0;
+            if (selectedItem.type === 'arc') { 
+                oldX = selectedItem.cx; oldY = selectedItem.cy;
+                selectedItem.cx = originalStartPos.x + dx; selectedItem.cy = originalStartPos.y + dy; 
+                newX = selectedItem.cx; newY = selectedItem.cy;
+            } else if (selectedItem.center) { 
+                oldX = selectedItem.center.x; oldY = selectedItem.center.y;
+                selectedItem.center.x = originalStartPos.x + dx; selectedItem.center.y = originalStartPos.y + dy; 
+                newX = selectedItem.center.x; newY = selectedItem.center.y;
+            } else { 
+                oldX = selectedItem.x; oldY = selectedItem.y;
+                selectedItem.x = (originalStartPos.x || 0) + dx; selectedItem.y = (originalStartPos.y || 0) + dy; 
+                newX = selectedItem.x; newY = selectedItem.y;
+            } 
+            if (selectedItem.vertices) selectedItem.vertices = null; 
+
+            if (selectedItem.isBackground === true) {
+                const diffX = newX - oldX;
+                const diffY = newY - oldY;
+                if (window.drawnStrokes) {
+                    window.drawnStrokes.forEach(s => {
+                        if (s !== selectedItem && !s.isBackground) {
+                            if (typeof window.moveStroke === 'function') window.moveStroke(s, diffX, diffY);
+                        }
+                    });
+                }
+            }
+        }
 
 
         else if (selectedPointKey === 'rotate' || selectedPointKey === 'image_rotate') {
@@ -3796,6 +3836,8 @@ canvas.addEventListener('wheel', (e) => {
         // SADECE ARKA PLANI (PDF/RESİM) BUL VE BÜYÜT/KÜÇÜLT
         const bgStrokes = drawnStrokes.filter(s => s.isBackground === true);
         if (bgStrokes.length > 0) {
+            const cx = bgStrokes[0].x + bgStrokes[0].width / 2;
+            const cy = bgStrokes[0].y + bgStrokes[0].height / 2;
             bgStrokes.forEach(bg => {
                 const newW = bg.width * zoomStep;
                 const newH = bg.height * zoomStep;
@@ -3805,6 +3847,11 @@ canvas.addEventListener('wheel', (e) => {
                 bg.width = newW;
                 bg.height = newH;
             });
+            if (window.drawnStrokes) {
+                window.drawnStrokes.forEach(s => {
+                    if (!s.isBackground && typeof window.zoomStroke === 'function') window.zoomStroke(s, zoomStep, cx, cy);
+                });
+            }
 
             redrawAllStrokes();
 
@@ -5579,6 +5626,77 @@ function setupConnectionEvents() {
     // =========================================================
     // EKRANLAR ARASI ORANTISAL ADAPTASYON (ÇÖZÜNÜRLÜK SENKRONU)
     // =========================================================
+
+    window.moveStroke = function(stroke, dx, dy) {
+        if (!stroke) return;
+        if (stroke.type === '3d_shape' || stroke.shapeType) return; // 3D excluded for now
+
+        const isLineType = ['pen', 'line', 'segment', 'ray', 'straightLine', 'polygon', 'point', 'arc'].includes(stroke.type);
+
+        if (stroke.path) stroke.path.forEach(p => { p.x += dx; p.y += dy; });
+        if (stroke.points) stroke.points.forEach(p => { p.x += dx; p.y += dy; });
+
+        if (stroke.x !== undefined) stroke.x += dx;
+        if (stroke.y !== undefined) stroke.y += dy;
+        if (stroke.cx !== undefined) stroke.cx += dx;
+        if (stroke.cy !== undefined) stroke.cy += dy;
+        
+        if (stroke.center) {
+            if (stroke.center.x !== undefined) stroke.center.x += dx;
+            if (stroke.center.y !== undefined) stroke.center.y += dy;
+        }
+
+        if (stroke.p1) { stroke.p1.x += dx; stroke.p1.y += dy; }
+        if (stroke.p2) { stroke.p2.x += dx; stroke.p2.y += dy; }
+        if (stroke.p3) { stroke.p3.x += dx; stroke.p3.y += dy; }
+    };
+
+    window.zoomStroke = function(stroke, scale, cx, cy) {
+        if (!stroke) return;
+        if (stroke.type === '3d_shape' || stroke.shapeType) return;
+
+        const mapX = (x) => cx + (x - cx) * scale;
+        const mapY = (y) => cy + (y - cy) * scale;
+        const isLineType = ['pen', 'line', 'segment', 'ray', 'straightLine', 'polygon', 'point', 'arc'].includes(stroke.type);
+
+        if (stroke.path) stroke.path.forEach(p => { p.x = mapX(p.x); p.y = mapY(p.y); });
+        if (stroke.points) stroke.points.forEach(p => { p.x = mapX(p.x); p.y = mapY(p.y); });
+
+        if (stroke.x !== undefined && stroke.width !== undefined && !isLineType) {
+            const center_x = mapX(stroke.x + stroke.width / 2);
+            stroke.width *= scale;
+            stroke.x = center_x - stroke.width / 2;
+        } else if (stroke.x !== undefined) {
+            stroke.x = mapX(stroke.x);
+            if (stroke.width !== undefined && !isLineType) stroke.width *= scale;
+        }
+
+        if (stroke.y !== undefined && stroke.height !== undefined && !isLineType) {
+            const center_y = mapY(stroke.y + stroke.height / 2);
+            stroke.height *= scale;
+            stroke.y = center_y - stroke.height / 2;
+        } else if (stroke.y !== undefined) {
+            stroke.y = mapY(stroke.y);
+            if (stroke.height !== undefined && !isLineType) stroke.height *= scale;
+        }
+
+        if (stroke.cx !== undefined) stroke.cx = mapX(stroke.cx);
+        if (stroke.cy !== undefined) stroke.cy = mapY(stroke.cy);
+        
+        if (stroke.center) {
+            if (stroke.center.x !== undefined) stroke.center.x = mapX(stroke.center.x);
+            if (stroke.center.y !== undefined) stroke.center.y = mapY(stroke.center.y);
+        }
+
+        if (stroke.radius !== undefined) stroke.radius *= scale;
+        if (stroke.p1) { stroke.p1.x = mapX(stroke.p1.x); stroke.p1.y = mapY(stroke.p1.y); }
+        if (stroke.p2) { stroke.p2.x = mapX(stroke.p2.x); stroke.p2.y = mapY(stroke.p2.y); }
+        if (stroke.p3) { stroke.p3.x = mapX(stroke.p3.x); stroke.p3.y = mapY(stroke.p3.y); }
+        
+        if (stroke.type === 'text' && stroke.fontSize) stroke.fontSize *= scale;
+        if (stroke.baseWidth && !isLineType) stroke.baseWidth *= scale;
+    };
+
     window.adaptStrokeToScreen = function (stroke, senderW, senderH, senderCw, senderCh) {
         if (!stroke || !senderW || !senderH) return stroke;
 
@@ -5727,6 +5845,18 @@ function setupConnectionEvents() {
                     if (index !== -1) {
                         const hedef = window.drawnStrokes[index];
                         
+                        if (hedef.isBackground === true) {
+                            const diffX = tempStroke.x - hedef.x;
+                            const diffY = tempStroke.y - hedef.y;
+                            if (window.drawnStrokes) {
+                                window.drawnStrokes.forEach(s => {
+                                    if (s !== hedef && !s.isBackground) {
+                                        if (typeof window.moveStroke === 'function') window.moveStroke(s, diffX, diffY);
+                                    }
+                                });
+                            }
+                        }
+
                         hedef.x = tempStroke.x;
                         hedef.y = tempStroke.y;
                         hedef.width = tempStroke.width;
@@ -5809,10 +5939,30 @@ function setupConnectionEvents() {
                     const bgStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
                     bgStrokes.forEach(bg => {
                         if (d.width !== undefined && d.height !== undefined && d.x !== undefined && d.y !== undefined) {
-                            bg.width = d.width * scale;
-                            bg.height = d.height * scale;
-                            bg.x = mapX(d.x);
-                            bg.y = mapY(d.y);
+                            const newW = d.width * scale;
+                            const newH = d.height * scale;
+                            const newX = mapX(d.x);
+                            const newY = mapY(d.y);
+
+                            const oldW = bg.width;
+                            const oldX = bg.x;
+                            const oldY = bg.y;
+
+                            if (oldW > 0) {
+                                const zoomRatio = newW / oldW;
+                                const cx = oldX + oldW / 2;
+                                const cy = oldY + bg.height / 2;
+                                window.drawnStrokes.forEach(s => {
+                                    if (!s.isBackground && typeof window.zoomStroke === 'function') {
+                                        window.zoomStroke(s, zoomRatio, cx, cy);
+                                    }
+                                });
+                            }
+
+                            bg.width = newW;
+                            bg.height = newH;
+                            bg.x = newX;
+                            bg.y = newY;
                         }
                     });
                     if (window.redrawAllStrokes) window.redrawAllStrokes();
@@ -6015,6 +6165,18 @@ function setupConnectionEvents() {
 
             if (index !== -1) {
                 const hedef = window.drawnStrokes[index];
+
+                if (hedef.isBackground === true) {
+                    const diffX = tempStroke.x - hedef.x;
+                    const diffY = tempStroke.y - hedef.y;
+                    if (window.drawnStrokes) {
+                        window.drawnStrokes.forEach(s => {
+                            if (s !== hedef && !s.isBackground) {
+                                if (typeof window.moveStroke === 'function') window.moveStroke(s, diffX, diffY);
+                            }
+                        });
+                    }
+                }
 
                 hedef.x = tempStroke.x;
                 hedef.y = tempStroke.y;
