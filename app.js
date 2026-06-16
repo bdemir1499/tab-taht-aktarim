@@ -5714,7 +5714,9 @@ function setupConnectionEvents() {
         // 🚨 FİZİKİ ARAÇ KORUMASI (Zıplama Engelleme) 🚨
         // Fiziki araçların PC'de büyümemesi/küçülmemesi için ekranlara göre ölçeklenmesi engellenmelidir.
         // Ancak farklı cihazların piksel yoğunluğu (DPR) farklı olabileceğinden sadece DPR farkı düzeltilir.
-        if (stroke.isPhysicalTool) {
+        // YENİ: Ancak eğer ekranda bir arka plan resmi/PDF varsa, çizim resme GÖRE hizalanmalıdır!
+        const hasBackground = window.drawnStrokes && window.drawnStrokes.some(s => s.isBackground === true);
+        if (stroke.isPhysicalTool && !hasBackground) {
             const dprScale = myDpr / senderDpr;
             if (dprScale !== 1) {
                 if (stroke.p1) { stroke.p1.x *= dprScale; stroke.p1.y *= dprScale; }
