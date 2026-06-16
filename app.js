@@ -5723,9 +5723,19 @@ function setupConnectionEvents() {
         const effectiveSenderW = senderCw || senderW;
         const effectiveSenderH = senderCh || senderH;
         
-        const scale = Math.min(myCw / effectiveSenderW, myCh / effectiveSenderH);
-        const offsetX = (myCw - (effectiveSenderW * scale)) / 2;
-        const offsetY = (myCh - (effectiveSenderH * scale)) / 2;
+        let scale = Math.min(myCw / effectiveSenderW, myCh / effectiveSenderH);
+        let offsetX = (myCw - (effectiveSenderW * scale)) / 2;
+        let offsetY = (myCh - (effectiveSenderH * scale)) / 2;
+
+        // 🌟 KUSURSUZ HİZALAMA: Eğer arkaplan (PDF/Resim) varsa ve tablet arkaplanın kendi koordinatlarını
+        // gönderdiyse, canvas/ekran çözünürlüklerini YOK SAY. Çizimi doğrudan PDF'e oranla hizala!
+        const bgStrokes = window.drawnStrokes ? window.drawnStrokes.filter(s => s.isBackground === true) : [];
+        if (bgStrokes.length > 0 && stroke.bgW !== undefined && stroke.bgW > 0) {
+            const pcBg = bgStrokes[0];
+            scale = pcBg.width / stroke.bgW;
+            offsetX = pcBg.x - (stroke.bgX * scale);
+            offsetY = pcBg.y - (stroke.bgY * scale);
+        }
 
         const mapX = (x) => (x * scale) + offsetX;
         const mapY = (y) => (y * scale) + offsetY;
@@ -6008,6 +6018,9 @@ function setupConnectionEvents() {
         if (data.type === 'akilli_sekil_toplu') {
             if (data.strokes && Array.isArray(data.strokes)) {
                 data.strokes.forEach(s => {
+                    if (data.bgW !== undefined) {
+                        s.bgX = data.bgX; s.bgY = data.bgY; s.bgW = data.bgW; s.bgH = data.bgH;
+                    }
                     if (typeof adaptStrokeToScreen === 'function') {
                         const senderCw = data.cw || data.cssW;
                         const senderCh = data.ch || data.cssH;
@@ -6033,6 +6046,10 @@ function setupConnectionEvents() {
             const strokesArr = isArr ? stroke : [stroke];
             
             strokesArr.forEach(s => {
+                // SİHİRLİ BAĞLANTI: Tabletin arkaplan koordinatlarını stroke objesine iliştir
+                if (data.bgW !== undefined) {
+                    s.bgX = data.bgX; s.bgY = data.bgY; s.bgW = data.bgW; s.bgH = data.bgH;
+                }
                 if (typeof adaptStrokeToScreen === 'function') {
                     const senderCw = data.cw || data.cssW;
                     const senderCh = data.ch || data.cssH;
@@ -6102,35 +6119,36 @@ function setupConnectionEvents() {
         window.isConnected = true;
 
         if (data.type === 'sekil_guncelle') {
-            if (!data.stroke) return;
-
-            // 🚨 EKRAN SENKRONİZASYONU: Gelen stroke'u Kendi Ekranımıza (İç Piksellere) Çevir!
-            const tempStroke = JSON.parse(JSON.stringify(data.stroke));
+            const stroke = data.stroke;
+            if (!stroke) return;
+            if (data.bgW !== undefined) {
+                stroke.bgX = data.bgX; stroke.bgY = data.bgY; stroke.bgW = data.bgW; stroke.bgH = data.bgH;
+            }
             if (typeof adaptStrokeToScreen === 'function') {
                 const senderCw = data.cw || data.cssW;
                 const senderCh = data.ch || data.cssH;
                 const senderW = data.cw || data.cssW;
                 const senderH = data.ch || data.cssH;
-                adaptStrokeToScreen(tempStroke, senderW, senderH, senderCw, senderCh);
+                adaptStrokeToScreen(stroke, senderW, senderH, senderCw, senderCh);
             }
 
             let index = -1;
 
             // 🚨 KİMLİK UYUŞMAZLIĞI ÇÖZÜMÜ: 
             // Gelen şekil arka plan (resim/PDF) ise, ID'ye bakmadan direkt bul!
-            if (tempStroke.isBackground === true) {
+            if (stroke.isBackground === true) {
                 index = window.drawnStrokes.findIndex(s => s.isBackground === true);
             } else {
-                if (!tempStroke.id) return;
-                index = window.drawnStrokes.findIndex(s => s.id === tempStroke.id);
+                if (!stroke.id) return;
+                index = window.drawnStrokes.findIndex(s => s.id === stroke.id);
             }
 
             if (index !== -1) {
                 const hedef = window.drawnStrokes[index];
 
                 if (hedef.isBackground === true) {
-                    const diffX = tempStroke.x - hedef.x;
-                    const diffY = tempStroke.y - hedef.y;
+                    const diffX = stroke.x - hedef.x;
+                    const diffY = stroke.y - hedef.y;
                     if (window.drawnStrokes) {
                         window.drawnStrokes.forEach(s => {
                             if (s !== hedef && !s.isBackground) {
@@ -6140,16 +6158,16 @@ function setupConnectionEvents() {
                     }
                 }
 
-                hedef.x = tempStroke.x;
-                hedef.y = tempStroke.y;
-                hedef.width = tempStroke.width;
-                hedef.height = tempStroke.height;
-                if (tempStroke.rotation !== undefined) hedef.rotation = tempStroke.rotation;
+                hedef.x = stroke.x;
+                hedef.y = stroke.y;
+                hedef.width = stroke.width;
+                hedef.height = stroke.height;
+                if (stroke.rotation !== undefined) hedef.rotation = stroke.rotation;
 
-                if (tempStroke.radius !== undefined) hedef.radius = tempStroke.radius;
-                if (tempStroke.cx !== undefined) hedef.cx = tempStroke.cx;
-                if (tempStroke.cy !== undefined) hedef.cy = tempStroke.cy;
-                if (tempStroke.center !== undefined) hedef.center = tempStroke.center;
+                if (stroke.radius !== undefined) hedef.radius = stroke.radius;
+                if (stroke.cx !== undefined) hedef.cx = stroke.cx;
+                if (stroke.cy !== undefined) hedef.cy = stroke.cy;
+                if (stroke.center !== undefined) hedef.center = stroke.center;
 
                 // 🚨 KESİN ÇÖZÜM: Tabletteki (Açı / Kenar uzunluğu / Çember formülü) etiketlerini PC'de de GÖSTER!
                 if (data.stroke.showEdgeLabels !== undefined) hedef.showEdgeLabels = data.stroke.showEdgeLabels;
