@@ -86,8 +86,8 @@ window.PolygonTool = {
         const rect = mainCanvas.getBoundingClientRect();
         
         const centerOnCanvas = {
-            x: center.x - rect.left,
-            y: center.y - rect.top
+            x: center.x,
+            y: center.y
         };
         
         if (window.drawnStrokes && window.redrawAllStrokes) {
@@ -131,8 +131,8 @@ window.PolygonTool = {
         const rect = mainCanvas.getBoundingClientRect();
         
         const centerOnCanvas = {
-            x: center.x - rect.left,
-            y: center.y - rect.top
+            x: center.x,
+            y: center.y
         };
         
         if (window.drawnStrokes && window.redrawAllStrokes) {

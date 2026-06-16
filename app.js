@@ -5697,7 +5697,7 @@ function setupConnectionEvents() {
         if (stroke.baseWidth && !isLineType) stroke.baseWidth *= scale;
     };
 
-    window.adaptStrokeToScreen = function (stroke, senderW, senderH, senderCw, senderCh) {
+    window.adaptStrokeToScreen = function (stroke, senderW, senderH, senderCw, senderCh, data) {
         if (!stroke || !senderW || !senderH) return stroke;
 
         // 🚨 3D ŞEKİL KORUMASI 🚨
@@ -5717,30 +5717,20 @@ function setupConnectionEvents() {
         
         const isLineType = ['pen', 'line', 'segment', 'ray', 'straightLine', 'polygon', 'point', 'arc'].includes(stroke.type);
 
-        // 🚨 YENİ VE NİHAİ ÇÖZÜM: Çizimler İÇ (INTERNAL) CANVAS PİKSELLERİNDE Yaşar!
-        // Eğer CSS piksellerini (myW) kullanırsanız, şekiller HD canvas içinde küçücük kalır ve sola kayar!
-        // Bu yüzden DAİMA myCw ve myCh (Yani canvas.width / canvas.height) kullanılmalıdır.
-        const effectiveSenderW = senderCw || senderW;
-        const effectiveSenderH = senderCh || senderH;
-        
-        let scale = Math.min(myCw / effectiveSenderW, myCh / effectiveSenderH);
-        let offsetX = (myCw - (effectiveSenderW * scale)) / 2;
-        let offsetY = (myCh - (effectiveSenderH * scale)) / 2;
+        let scale, offsetX, offsetY;
+        const myBg = window.drawnStrokes ? window.drawnStrokes.find(s => s.isBackground === true) : null;
 
-        // 🌟 KUSURSUZ HİZALAMA: Eğer arkaplan (PDF/Resim) varsa ve tablet arkaplanın kendi koordinatlarını
-        // gönderdiyse, canvas/ekran çözünürlüklerini YOK SAY. Çizimi doğrudan PDF'e oranla hizala!
-        const bgStrokes = window.drawnStrokes ? window.drawnStrokes.filter(s => s.isBackground === true) : [];
-        if (bgStrokes.length > 0 && stroke.bgW !== undefined && stroke.bgW > 0) {
-            const pcBg = bgStrokes[0];
-            scale = pcBg.width / stroke.bgW;
-            offsetX = pcBg.x - (stroke.bgX * scale);
-            offsetY = pcBg.y - (stroke.bgY * scale);
-        }
-
-        if (stroke.isBackground) {
-            stroke.networkScale = scale;
-            stroke.networkOffsetX = offsetX;
-            stroke.networkOffsetY = offsetY;
+        if (data && data.bgW > 0 && myBg && myBg.width > 0) {
+            scale = myBg.width / data.bgW;
+            offsetX = myBg.x - (data.bgX * scale);
+            offsetY = myBg.y - (data.bgY * scale);
+        } else {
+            const effectiveSenderW = senderCw || senderW;
+            const effectiveSenderH = senderCh || senderH;
+            
+            scale = Math.min(myCw / effectiveSenderW, myCh / effectiveSenderH);
+            offsetX = (myCw - (effectiveSenderW * scale)) / 2;
+            offsetY = (myCh - (effectiveSenderH * scale)) / 2;
         }
 
         const mapX = (x) => (x * scale) + offsetX;
@@ -5821,9 +5811,17 @@ function setupConnectionEvents() {
             const myCh = canvasElm ? canvasElm.height : window.innerHeight;
             const senderW = d.cw || d.cssW || window.innerWidth;
             const senderH = d.ch || d.cssH || window.innerHeight;
-            const scale = Math.min(myCw / senderW, myCh / senderH);
-            const offsetX = (myCw - (senderW * scale)) / 2;
-            const offsetY = (myCh - (senderH * scale)) / 2;
+            let scale, offsetX, offsetY;
+            const myBg = window.drawnStrokes ? window.drawnStrokes.find(s => s.isBackground === true) : null;
+            if (d.bgW > 0 && myBg && myBg.width > 0) {
+                scale = myBg.width / d.bgW;
+                offsetX = myBg.x - (d.bgX * scale);
+                offsetY = myBg.y - (d.bgY * scale);
+            } else {
+                scale = Math.min(myCw / senderW, myCh / senderH);
+                offsetX = (myCw - (senderW * scale)) / 2;
+                offsetY = (myCh - (senderH * scale)) / 2;
+            }
             const senderDpr = d.dpr || 1;
             const myDpr = window.devicePixelRatio || 1;
 
@@ -5911,16 +5909,10 @@ function setupConnectionEvents() {
                     const bgStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
                     bgStrokes.forEach(bg => {
                         if (d.width !== undefined && d.height !== undefined && d.x !== undefined && d.y !== undefined) {
-                            // 🌟 KUSURSUZ ZOOM HİZALAMASI: PDF ilk yüklendiğinde hesaplanan Orijinal Scale/Offset'i kullan!
-                            // Böylece tablet dönse de çözünürlük değişse de PC'deki hesaplama ASLA sapmaz!
-                            const scale = bg.networkScale !== undefined ? bg.networkScale : Math.min(myCw / senderW, myCh / senderH);
-                            const offsetX = bg.networkOffsetX !== undefined ? bg.networkOffsetX : (myCw - (senderW * scale)) / 2;
-                            const offsetY = bg.networkOffsetY !== undefined ? bg.networkOffsetY : (myCh - (senderH * scale)) / 2;
-
                             const newW = d.width * scale;
                             const newH = d.height * scale;
-                            const newX = (d.x * scale) + offsetX;
-                            const newY = (d.y * scale) + offsetY;
+                            const newX = mapX(d.x);
+                            const newY = mapY(d.y);
 
                             const oldW = bg.width;
                             const oldX = bg.x;
@@ -5992,7 +5984,7 @@ function setupConnectionEvents() {
                             width: data.kordinatlar.width,
                             height: data.kordinatlar.height
                         };
-                        dummyStroke = window.adaptStrokeToScreen(dummyStroke, data.canvasW, data.canvasH, data.canvasW, data.canvasH);
+                        dummyStroke = window.adaptStrokeToScreen(dummyStroke, data.canvasW, data.canvasH, data.canvasW, data.canvasH, data);
                         sonKoordinat = dummyStroke;
                         // Not: sonKoordinat gönderildiği için addNewImageToCanvas bu resmi tabletin hesabına göre konumlandıracak 
                         // ve ağa tekrar göndermeyecek (sonsuz döngü olmayacak).
@@ -6030,13 +6022,10 @@ function setupConnectionEvents() {
         if (data.type === 'akilli_sekil_toplu') {
             if (data.strokes && Array.isArray(data.strokes)) {
                 data.strokes.forEach(s => {
-                    if (data.bgW !== undefined) {
-                        s.bgX = data.bgX; s.bgY = data.bgY; s.bgW = data.bgW; s.bgH = data.bgH;
-                    }
                     if (typeof adaptStrokeToScreen === 'function') {
                         const senderCw = data.cw || data.cssW;
                         const senderCh = data.ch || data.cssH;
-                        adaptStrokeToScreen(s, data.cssW, data.cssH, senderCw, senderCh);
+                        adaptStrokeToScreen(s, data.cssW, data.cssH, senderCw, senderCh, data);
                     }
                     const isDuplicate = s.id && window.drawnStrokes.some(ds => ds.id === s.id);
                     if (!isDuplicate) window.drawnStrokes.push(s);
@@ -6058,14 +6047,10 @@ function setupConnectionEvents() {
             const strokesArr = isArr ? stroke : [stroke];
             
             strokesArr.forEach(s => {
-                // SİHİRLİ BAĞLANTI: Tabletin arkaplan koordinatlarını stroke objesine iliştir
-                if (data.bgW !== undefined) {
-                    s.bgX = data.bgX; s.bgY = data.bgY; s.bgW = data.bgW; s.bgH = data.bgH;
-                }
                 if (typeof adaptStrokeToScreen === 'function') {
                     const senderCw = data.cw || data.cssW;
                     const senderCh = data.ch || data.cssH;
-                    adaptStrokeToScreen(s, data.cssW, data.cssH, senderCw, senderCh);
+                    adaptStrokeToScreen(s, data.cssW, data.cssH, senderCw, senderCh, data);
                 }
             });
 
@@ -6133,15 +6118,12 @@ function setupConnectionEvents() {
         if (data.type === 'sekil_guncelle') {
             const stroke = data.stroke;
             if (!stroke) return;
-            if (data.bgW !== undefined) {
-                stroke.bgX = data.bgX; stroke.bgY = data.bgY; stroke.bgW = data.bgW; stroke.bgH = data.bgH;
-            }
             if (typeof adaptStrokeToScreen === 'function') {
                 const senderCw = data.cw || data.cssW;
                 const senderCh = data.ch || data.cssH;
                 const senderW = data.cw || data.cssW;
                 const senderH = data.ch || data.cssH;
-                adaptStrokeToScreen(stroke, senderW, senderH, senderCw, senderCh);
+                adaptStrokeToScreen(stroke, senderW, senderH, senderCw, senderCh, data);
             }
 
             let index = -1;
@@ -6618,6 +6600,16 @@ window.sendNetworkData = function (dataPackage) {
         dataPackage.cssW = window.innerWidth;
         dataPackage.cssH = window.innerHeight;
         dataPackage.dpr = window.devicePixelRatio || 1;
+    }
+
+    if (window.drawnStrokes) {
+        const bg = window.drawnStrokes.find(s => s.isBackground === true);
+        if (bg) {
+            dataPackage.bgX = bg.x;
+            dataPackage.bgY = bg.y;
+            dataPackage.bgW = bg.width;
+            dataPackage.bgH = bg.height;
+        }
     }
 
     // Güvence: Çizim gönderiliyorsa ve ID'si yoksa ID ata!
