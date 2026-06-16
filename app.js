@@ -5795,11 +5795,15 @@ function setupConnectionEvents() {
                 if ((typeof pointers !== 'undefined' && pointers.size >= 2) || window.touchCount >= 2 || window.isZooming) return;
 
                 if (window.drawnStrokes) {
-                    const senderW = d.cssW || window.innerWidth;
-                    const senderH = d.cssH || window.innerHeight;
-                    const scale = Math.min(window.innerWidth / senderW, window.innerHeight / senderH);
-                    const offsetX = (window.innerWidth - (senderW * scale)) / 2;
-                    const offsetY = (window.innerHeight - (senderH * scale)) / 2;
+                    const canvasElm = document.getElementById('drawing-canvas');
+                    const myCw = canvasElm ? canvasElm.width : window.innerWidth;
+                    const myCh = canvasElm ? canvasElm.height : window.innerHeight;
+                    const senderW = d.cw || d.cssW || window.innerWidth;
+                    const senderH = d.ch || d.cssH || window.innerHeight;
+                    
+                    const scale = Math.min(myCw / senderW, myCh / senderH);
+                    const offsetX = (myCw - (senderW * scale)) / 2;
+                    const offsetY = (myCh - (senderH * scale)) / 2;
                     const mapX = (x) => (x * scale) + offsetX;
                     const mapY = (y) => (y * scale) + offsetY;
 
