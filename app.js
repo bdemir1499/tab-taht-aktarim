@@ -5714,9 +5714,7 @@ function setupConnectionEvents() {
         // 🚨 FİZİKİ ARAÇ KORUMASI (Zıplama Engelleme) 🚨
         // Fiziki araçların PC'de büyümemesi/küçülmemesi için ekranlara göre ölçeklenmesi engellenmelidir.
         // Ancak farklı cihazların piksel yoğunluğu (DPR) farklı olabileceğinden sadece DPR farkı düzeltilir.
-        // YENİ: Ancak eğer ekranda bir arka plan resmi/PDF varsa, çizim resme GÖRE hizalanmalıdır!
-        const hasBackground = window.drawnStrokes && window.drawnStrokes.some(s => s.isBackground === true);
-        if (stroke.isPhysicalTool && !hasBackground) {
+        if (stroke.isPhysicalTool) {
             const dprScale = myDpr / senderDpr;
             if (dprScale !== 1) {
                 if (stroke.p1) { stroke.p1.x *= dprScale; stroke.p1.y *= dprScale; }
@@ -5822,57 +5820,7 @@ function setupConnectionEvents() {
                     d.strokes.forEach(s => window.adaptStrokeToScreen(s, d.cssW, d.cssH, d.cw));
                 }
 
-                if (d.type === 'sekil_guncelle') {
-                    if (!d.stroke) return;
-                    
-                    // 🚨 EKRAN SENKRONİZASYONU: Gelen stroke'u Kendi Ekranımıza (İç Piksellere) Çevir!
-                    const tempStroke = JSON.parse(JSON.stringify(d.stroke));
-                    if (typeof adaptStrokeToScreen === 'function') {
-                        const senderCw = d.cw || d.cssW;
-                        const senderCh = d.ch || d.cssH;
-                        adaptStrokeToScreen(tempStroke, d.cssW, d.cssH, senderCw, senderCh);
-                    }
-
-                    let index = -1;
-                    
-                    // 🚨 KİMLİK UYUŞMAZLIĞI ÇÖZÜMÜ: 
-                    // Gelen şekil arka plan (resim/PDF) ise, ID'ye bakmadan direkt bul!
-                    if (tempStroke.isBackground === true) {
-                        index = window.drawnStrokes.findIndex(s => s.isBackground === true);
-                    } else {
-                        if (!tempStroke.id) return;
-                        index = window.drawnStrokes.findIndex(s => s.id === tempStroke.id);
-                    }
-
-                    if (index !== -1) {
-                        const hedef = window.drawnStrokes[index];
-                        
-                        if (hedef.isBackground === true) {
-                            const diffX = tempStroke.x - hedef.x;
-                            const diffY = tempStroke.y - hedef.y;
-                            if (window.drawnStrokes) {
-                                window.drawnStrokes.forEach(s => {
-                                    if (s !== hedef && !s.isBackground) {
-                                        if (typeof window.moveStroke === 'function') window.moveStroke(s, diffX, diffY);
-                                    }
-                                });
-                            }
-                        }
-
-                        hedef.x = tempStroke.x;
-                        hedef.y = tempStroke.y;
-                        hedef.width = tempStroke.width;
-                        hedef.height = tempStroke.height;
-                        if (tempStroke.rotation !== undefined) hedef.rotation = tempStroke.rotation;
-                        
-                        if (tempStroke.radius !== undefined) hedef.radius = tempStroke.radius;
-                        if (tempStroke.cx !== undefined) hedef.cx = tempStroke.cx;
-                        if (tempStroke.cy !== undefined) hedef.cy = tempStroke.cy;
-                        if (tempStroke.center !== undefined) hedef.center = tempStroke.center;
-                    }
-                    if (window.redrawAllStrokes) window.redrawAllStrokes();
-                    return;
-                }
+                // (Removed redundant sekil_guncelle block that was intercepting events and breaking 3D unfolds)
 
                 // Fiziki araçların (cetvel vb) uzaklık oranı korunarak taşınması
                 if (d.type === 'arac_senkron' && !d.ignoreAdapt) {
@@ -6148,10 +6096,11 @@ function setupConnectionEvents() {
             // 🚨 EKRAN SENKRONİZASYONU: Gelen stroke'u Kendi Ekranımıza (İç Piksellere) Çevir!
             const tempStroke = JSON.parse(JSON.stringify(data.stroke));
             if (typeof adaptStrokeToScreen === 'function') {
-                // Burada GÖNDERİCİNİN ekran çözünürlüğünü kullanmalıyız (data.cw ve data.ch)
                 const senderCw = data.cw || data.cssW;
                 const senderCh = data.ch || data.cssH;
-                adaptStrokeToScreen(tempStroke, data.cssW, data.cssH, senderCw, senderCh);
+                const senderW = data.cw || data.cssW;
+                const senderH = data.ch || data.cssH;
+                adaptStrokeToScreen(tempStroke, senderW, senderH, senderCw, senderCh);
             }
 
             let index = -1;
