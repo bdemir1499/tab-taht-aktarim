@@ -5756,6 +5756,9 @@ function setupConnectionEvents() {
             if (stroke.nbaseWidth !== undefined) stroke.baseWidth = stroke.nbaseWidth * pbw;
             if (stroke.nwidth !== undefined) { stroke.width = stroke.nwidth * pbw; }
             if (stroke.nheight !== undefined) { stroke.height = stroke.nheight * pbh; }
+            // DEBUG: denormalizasyon degerleri
+            if (stroke.path && stroke.path[0]) console.log('[PC DENORM] pbx:', pbx.toFixed(0), 'pbw:', pbw.toFixed(0), 'nx:', stroke.path[0].nx.toFixed(3), '=>x:', stroke.path[0].x.toFixed(0));
+            if (stroke.nx !== undefined) console.log('[PC DENORM] pbx:', pbx.toFixed(0), 'pbw:', pbw.toFixed(0), 'nx:', stroke.nx.toFixed(3), '=>x:', stroke.x.toFixed(0));
             return stroke;
         }
 
@@ -6644,34 +6647,46 @@ window.sendNetworkData = function (dataPackage) {
     }
 
     // ARKA PLANA GÖRECELİ KOORDİNAT DAMGASI
-    // Tablet tarafında: çizim koordinatlarını arka plan (PDF/resim) üzerindeki 0-1 arası
-    // göreceli konuma çevir. PC tarafı bunu alıp kendi arka planına göre geri çevirir.
+    // Tablet tarafında çizim koordinatlarını arka planın 0-1 görecelisine çevir.
+    // PC tarafı kendi arka planına göre geri çevirir.
+    // ÖNEMLİ: Derin kopya üzerinde çalışarak yerel drawnStrokes'u kirletme!
     if (dataPackage.bgW > 0) {
         const normStroke = (s) => {
-            if (!s || s.isBackground) return;
+            if (!s || s.isBackground) return s;
             const bx = dataPackage.bgX, by = dataPackage.bgY;
             const bw = dataPackage.bgW, bh = dataPackage.bgH;
-            if (!bw || !bh) return;
+            if (!bw || !bh) return s;
+            // Derin kopya yap — orijinal nesneyi asla mutate etme
+            const c = JSON.parse(JSON.stringify(s));
             const nx = (x) => (x - bx) / bw;
             const ny = (y) => (y - by) / bh;
-            if (s.path) s.path.forEach(p => { p.nx = nx(p.x); p.ny = ny(p.y); });
-            if (s.points) s.points.forEach(p => { p.nx = nx(p.x); p.ny = ny(p.y); });
-            if (s.p1) { s.p1.nx = nx(s.p1.x); s.p1.ny = ny(s.p1.y); }
-            if (s.p2) { s.p2.nx = nx(s.p2.x); s.p2.ny = ny(s.p2.y); }
-            if (s.p3) { s.p3.nx = nx(s.p3.x); s.p3.ny = ny(s.p3.y); }
-            if (s.cx !== undefined) { s.ncx = nx(s.cx); s.ncy = ny(s.cy); }
-            if (s.center) { s.center.nx = nx(s.center.x); s.center.ny = ny(s.center.y); }
-            if (s.x !== undefined) { s.nx = nx(s.x); s.ny = ny(s.y); }
-            if (s.radius !== undefined && bw > 0) s.nradius = s.radius / bw;
-            if (s.baseWidth !== undefined && bw > 0) s.nbaseWidth = s.baseWidth / bw;
-            if (s.width !== undefined && bw > 0 && !['pen','line','segment','ray','straightLine','polygon','point','arc'].includes(s.type)) s.nwidth = s.width / bw;
-            if (s.height !== undefined && bh > 0 && !['pen','line','segment','ray','straightLine','polygon','point','arc'].includes(s.type)) s.nheight = s.height / bh;
+            if (c.path) c.path.forEach(p => { p.nx = nx(p.x); p.ny = ny(p.y); });
+            if (c.points) c.points.forEach(p => { p.nx = nx(p.x); p.ny = ny(p.y); });
+            if (c.p1) { c.p1.nx = nx(c.p1.x); c.p1.ny = ny(c.p1.y); }
+            if (c.p2) { c.p2.nx = nx(c.p2.x); c.p2.ny = ny(c.p2.y); }
+            if (c.p3) { c.p3.nx = nx(c.p3.x); c.p3.ny = ny(c.p3.y); }
+            if (c.cx !== undefined) { c.ncx = nx(c.cx); c.ncy = ny(c.cy); }
+            if (c.center) { c.center.nx = nx(c.center.x); c.center.ny = ny(c.center.y); }
+            if (c.x !== undefined) { c.nx = nx(c.x); c.ny = ny(c.y); }
+            if (c.radius !== undefined) c.nradius = c.radius / bw;
+            if (c.baseWidth !== undefined) c.nbaseWidth = c.baseWidth / bw;
+            const isLineType2 = ['pen','line','segment','ray','straightLine','polygon','point','arc'].includes(c.type);
+            if (c.width !== undefined && !isLineType2) c.nwidth = c.width / bw;
+            if (c.height !== undefined && !isLineType2) c.nheight = c.height / bh;
+            return c;
         };
         if (dataPackage.type === 'yeni_cizim') {
-            const arr = Array.isArray(dataPackage.stroke) ? dataPackage.stroke : [dataPackage.stroke];
-            arr.forEach(normStroke);
+            if (Array.isArray(dataPackage.stroke)) {
+                dataPackage.stroke = dataPackage.stroke.map(normStroke);
+            } else {
+                dataPackage.stroke = normStroke(dataPackage.stroke);
+                // DEBUG: normalizasyon degerleri
+                const s = dataPackage.stroke;
+                if (s && s.path && s.path[0]) console.log('[TABLET NORM] bgX:', dataPackage.bgX.toFixed(0), 'bgW:', dataPackage.bgW.toFixed(0), 'path[0].x_raw:', (dataPackage.bgX + s.path[0].nx * dataPackage.bgW).toFixed(0), 'nx:', s.path[0].nx.toFixed(3));
+                if (s && s.nx !== undefined) console.log('[TABLET NORM] bgX:', dataPackage.bgX.toFixed(0), 'bgW:', dataPackage.bgW.toFixed(0), 'nx:', s.nx.toFixed(3), 'ny:', s.ny.toFixed(3));
+            }
         } else if (dataPackage.type === 'akilli_sekil_toplu' && dataPackage.strokes) {
-            dataPackage.strokes.forEach(normStroke);
+            dataPackage.strokes = dataPackage.strokes.map(normStroke);
         }
     }
 
