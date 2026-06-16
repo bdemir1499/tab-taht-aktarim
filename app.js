@@ -5812,59 +5812,77 @@ function setupConnectionEvents() {
             if (!d) return;
 
             // --- EKRANLAR ARASI ÇÖZÜNÜRLÜK ADAPTASYONU ---
-            if (d.cssW && d.cssH && typeof window.adaptStrokeToScreen === 'function') {
-                if (d.stroke) {
-                    window.adaptStrokeToScreen(d.stroke, d.cssW, d.cssH, d.cw);
-                }
-                if (d.strokes && Array.isArray(d.strokes)) {
-                    d.strokes.forEach(s => window.adaptStrokeToScreen(s, d.cssW, d.cssH, d.cw));
-                }
+            const canvasElm = document.getElementById('drawing-canvas');
+            const myCw = canvasElm ? canvasElm.width : window.innerWidth;
+            const myCh = canvasElm ? canvasElm.height : window.innerHeight;
+            const senderW = d.cw || d.cssW || window.innerWidth;
+            const senderH = d.ch || d.cssH || window.innerHeight;
+            const scale = Math.min(myCw / senderW, myCh / senderH);
+            const offsetX = (myCw - (senderW * scale)) / 2;
+            const offsetY = (myCh - (senderH * scale)) / 2;
+            const senderDpr = d.dpr || 1;
+            const myDpr = window.devicePixelRatio || 1;
 
-                // (Removed redundant sekil_guncelle block that was intercepting events and breaking 3D unfolds)
+            const mapCssX = (cssX) => (((parseFloat(cssX) * senderDpr) * scale + offsetX) / myDpr) + 'px';
+            const mapCssY = (cssY) => (((parseFloat(cssY) * senderDpr) * scale + offsetY) / myDpr) + 'px';
+            const mapCssDim = (cssDim) => (((parseFloat(cssDim) * senderDpr) * scale) / myDpr) + 'px';
+            const mapNumX = (numX) => (((numX * senderDpr) * scale + offsetX) / myDpr);
+            const mapNumY = (numY) => (((numY * senderDpr) * scale + offsetY) / myDpr);
+            const mapNumDim = (numDim) => (((numDim * senderDpr) * scale) / myDpr);
+            const mapX = (x) => (x * scale) + offsetX;
+            const mapY = (y) => (y * scale) + offsetY;
 
-                // Fiziki araçların (cetvel vb) uzaklık oranı korunarak taşınması
-                if (d.type === 'arac_senkron' && !d.ignoreAdapt) {
-                    if (d.left) d.left = d.left;
-                    if (d.top) d.top = d.top;
-                    if (d.width) d.width = d.width;
-                    if (d.height) d.height = d.height;
-                    d.ignoreAdapt = true; // prevent double adapting
+            if (d.type === 'arac_senkron' && !d.ignoreAdapt) {
+                if (d.left) d.left = mapCssX(d.left);
+                if (d.top) d.top = mapCssY(d.top);
+                if (d.width) d.width = mapCssDim(d.width);
+                if (d.height) d.height = mapCssDim(d.height);
+                d.ignoreAdapt = true;
+            }
+
+            if (d.type === 'arac_state_senkron' && d.state && !d.ignoreAdapt) {
+                if (d.state.x !== undefined) d.state.x = mapNumX(d.state.x);
+                if (d.state.y !== undefined) d.state.y = mapNumY(d.state.y);
+                if (d.state.width !== undefined) d.state.width = mapNumDim(d.state.width);
+                if (d.state.height !== undefined) d.state.height = mapNumDim(d.state.height);
+                if (d.state.radius !== undefined) d.state.radius = mapNumDim(d.state.radius);
+                if (d.state.pivot) {
+                    d.state.pivot.x = mapNumX(d.state.pivot.x);
+                    d.state.pivot.y = mapNumY(d.state.pivot.y);
                 }
+                if (d.width) d.width = mapCssDim(d.width);
+                if (d.height) d.height = mapCssDim(d.height);
+                d.ignoreAdapt = true;
+            }
 
-                if (d.type === 'arac_state_senkron' && d.state && !d.ignoreAdapt) {
-                    if (d.state.x !== undefined) d.state.x = d.state.x;
-                    if (d.state.y !== undefined) d.state.y = d.state.y;
-                    if (d.state.width !== undefined) d.state.width *= 1;
-                    if (d.state.height !== undefined) d.state.height *= 1;
-                    if (d.state.radius !== undefined) d.state.radius *= 1;
-                    if (d.state.pivot) {
-                        d.state.pivot.x = d.state.pivot.x;
-                        d.state.pivot.y = d.state.pivot.y;
-                    }
-                    if (d.width) d.width = d.width;
-                    if (d.height) d.height = d.height;
-                    d.ignoreAdapt = true;
-                }
-
-                if (d.type === 'aktif_onizleme' && d.payload && !d.ignoreAdapt) {
-                    const isPhysical = ['ruler', 'gonye', 'aciolcer', 'pergel'].includes(d.arac);
-                    if (isPhysical) {
-                        d.ignoreAdapt = true;
-                    } else {
-                        const p = d.payload;
-                        if (p.handleX !== undefined) p.handleX *= scale;
-                        if (p.handleY !== undefined) p.handleY *= scale;
+            if (d.type === 'aktif_onizleme' && d.payload && !d.ignoreAdapt) {
+                const isPhysical = ['ruler', 'gonye', 'aciolcer', 'pergel'].includes(d.arac);
+                const p = d.payload;
+                if (isPhysical) {
+                    if (p.handleX !== undefined) p.handleX = mapNumDim(p.handleX);
+                    if (p.handleY !== undefined) p.handleY = mapNumDim(p.handleY);
+                    if (p.ldx !== undefined) p.ldx = mapNumDim(p.ldx);
+                    if (p.ldy !== undefined) p.ldy = mapNumDim(p.ldy);
+                    if (d.arac === 'pergel') {
                         if (p.cx !== undefined) p.cx = mapX(p.cx);
                         if (p.cy !== undefined) p.cy = mapY(p.cy);
                         if (p.px !== undefined) p.px = mapX(p.px);
                         if (p.py !== undefined) p.py = mapY(p.py);
-                        if (p.ldx !== undefined) p.ldx *= scale;
-                        if (p.ldy !== undefined) p.ldy *= scale;
-                        if (p.x !== undefined) p.x = mapX(p.x);
-                        if (p.y !== undefined) p.y = mapY(p.y);
-                        d.ignoreAdapt = true;
+                        if (p.radius !== undefined) p.radius *= scale;
                     }
+                } else {
+                    if (p.handleX !== undefined) p.handleX *= scale;
+                    if (p.handleY !== undefined) p.handleY *= scale;
+                    if (p.cx !== undefined) p.cx = mapX(p.cx);
+                    if (p.cy !== undefined) p.cy = mapY(p.cy);
+                    if (p.px !== undefined) p.px = mapX(p.px);
+                    if (p.py !== undefined) p.py = mapY(p.py);
+                    if (p.ldx !== undefined) p.ldx *= scale;
+                    if (p.ldy !== undefined) p.ldy *= scale;
+                    if (p.x !== undefined) p.x = mapX(p.x);
+                    if (p.y !== undefined) p.y = mapY(p.y);
                 }
+                d.ignoreAdapt = true;
             }
 
             // 1. ZOOM VE PDF SENKRONİZASYONU
@@ -6002,6 +6020,11 @@ function setupConnectionEvents() {
         if (data.type === 'akilli_sekil_toplu') {
             if (data.strokes && Array.isArray(data.strokes)) {
                 data.strokes.forEach(s => {
+                    if (typeof adaptStrokeToScreen === 'function') {
+                        const senderCw = data.cw || data.cssW;
+                        const senderCh = data.ch || data.cssH;
+                        adaptStrokeToScreen(s, data.cssW, data.cssH, senderCw, senderCh);
+                    }
                     const isDuplicate = s.id && window.drawnStrokes.some(ds => ds.id === s.id);
                     if (!isDuplicate) window.drawnStrokes.push(s);
                 });
