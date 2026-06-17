@@ -6320,25 +6320,30 @@ if (!data || !data.type) return;
                         if (data.stroke.rotationY !== undefined) sceneMesh.rotation.y = data.stroke.rotationY;
                         if (data.stroke.rotationZ !== undefined) sceneMesh.rotation.z = data.stroke.rotationZ;
 
-                        // 🚨 ÇÖZÜM: 3D Pozisyonunu ham veriden değil, PC ekranına adapte edilmiş x ve y üzerinden matematiksel hesapla!
+                        // 🚨 ÇÖZÜM 2: 3D pozisyonunu tabletin merkezinden değil, 2D çizimin gerçek koordinatlarından zorla hesapla!
                         const canvasElm = document.getElementById('drawing-canvas');
                         const myCw = canvasElm ? canvasElm.width : window.innerWidth;
                         const myCh = canvasElm ? canvasElm.height : window.innerHeight;
                         
-                        const cx = hedef.x + (hedef.width / 2);
-                        const cy = hedef.y + (hedef.height / 2);
-                        const nx = (cx / myCw) * 2 - 1;
-                        const ny = -(cy / myCh) * 2 + 1;
+                        const cx = data.stroke.x + (data.stroke.width / 2);
+                        const cy = data.stroke.y + (data.stroke.height / 2);
+                        
+                        const ndcX = (cx / myCw) * 2 - 1;
+                        const ndcY = -(cy / myCh) * 2 + 1;
+                        
+                        const vec = new THREE.Vector3(ndcX, ndcY, 0.5);
+                        vec.unproject(window.Scene3D.camera);
+                        vec.sub(window.Scene3D.camera.position).normalize();
+                        const distance = -window.Scene3D.camera.position.z / vec.z;
+                        const targetPos = window.Scene3D.camera.position.clone().add(vec.multiplyScalar(distance));
+                        
+                        sceneMesh.position.x = targetPos.x;
+                        sceneMesh.position.y = targetPos.y;
+                        if (data.stroke.pos3D && data.stroke.pos3D.z) sceneMesh.position.z = data.stroke.pos3D.z;
 
-                        const raycaster = new THREE.Raycaster();
-                        raycaster.setFromCamera(new THREE.Vector2(nx, ny), window.Scene3D.camera);
-                        const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
-                        const intersection = new THREE.Vector3();
-                        if (raycaster.ray.intersectPlane(plane, intersection)) {
-                            sceneMesh.position.copy(intersection);
-                        } else if (data.stroke.pos3D !== undefined) {
-                            sceneMesh.position.set(data.stroke.pos3D.x, data.stroke.pos3D.y, data.stroke.pos3D.z);
-                        }
+                        // Rotasyon ve sürgü (netProgress) gibi diğer ayarlar aynen kalıyor
+                        if (data.stroke.rotationX !== undefined) sceneMesh.rotation.x = data.stroke.rotationX;
+                        if (data.stroke.rotationY !== undefined) sceneMesh.rotation.y = data.stroke.rotationY;
 
                         // Sürgü açınım bilgisini senkronize et
 
@@ -7328,25 +7333,26 @@ window.Scene3D = {
             solidShape.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edgeMaterial));
         }
 
-        // 🚨 ÇÖZÜM: Yeni eklenen 3D şeklin yerini de hizalanmış 2D koordinatlardan hesapla!
+        // 🚨 ÇÖZÜM 3: İlk eklendiğinde de 3D şekli tıpkı bir 2D kalem çizgisi gibi ekranın gerçek X, Y piksellerine mühürle!
         const canvasElm = document.getElementById('drawing-canvas');
         const myCw = canvasElm ? canvasElm.width : window.innerWidth;
         const myCh = canvasElm ? canvasElm.height : window.innerHeight;
         
         const cx = strokeData.x + (strokeData.width / 2);
         const cy = strokeData.y + (strokeData.height / 2);
-        const nx = (cx / myCw) * 2 - 1;
-        const ny = -(cy / myCh) * 2 + 1;
-
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(new THREE.Vector2(nx, ny), this.camera);
-        const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
-        const intersection = new THREE.Vector3();
-        if (raycaster.ray.intersectPlane(plane, intersection)) {
-            solidShape.position.copy(intersection);
-        } else if (strokeData.pos3D) {
-            solidShape.position.set(strokeData.pos3D.x, strokeData.pos3D.y, strokeData.pos3D.z);
-        }
+        
+        const ndcX = (cx / myCw) * 2 - 1;
+        const ndcY = -(cy / myCh) * 2 + 1;
+        
+        const vec = new THREE.Vector3(ndcX, ndcY, 0.5);
+        vec.unproject(this.camera);
+        vec.sub(this.camera.position).normalize();
+        const distance = -this.camera.position.z / vec.z;
+        const targetPos = this.camera.position.clone().add(vec.multiplyScalar(distance));
+        
+        solidShape.position.x = targetPos.x;
+        solidShape.position.y = targetPos.y;
+        if (strokeData.pos3D && strokeData.pos3D.z) solidShape.position.z = strokeData.pos3D.z;
 
         if (strokeData.rotationX !== undefined) solidShape.rotation.x = strokeData.rotationX;
         if (strokeData.rotationY !== undefined) solidShape.rotation.y = strokeData.rotationY;
