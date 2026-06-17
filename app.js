@@ -1475,18 +1475,23 @@ function redrawAllStrokes() {
                     if (stroke.rotationY !== undefined) sceneMesh.rotation.y = stroke.rotationY;
                     if (stroke.rotationZ !== undefined) sceneMesh.rotation.z = stroke.rotationZ;
                     
-                    const canvasElm = document.getElementById('drawing-canvas');
+                   const canvasElm = document.getElementById('drawing-canvas');
                     if (canvasElm) {
-                        // 🚨 GÖRÜNMEZLİK ÇÖZÜMÜ: Orijinal Raycaster (Işın) Matematiğine Geri Dönüyoruz!
                         const myCw = canvasElm.width;
                         const myCh = canvasElm.height;
-                        const cx = stroke.x + (stroke.width / 2);
-                        const cy = stroke.y + (stroke.height / 2);
+                        
+                        // 🚨 SÜRGÜ KORUMASI: Sürgü çekilince değişen genişlik yerine mühürlü original değerleri kullan
+                        const refX = stroke.originalX !== undefined ? stroke.originalX : stroke.x;
+                        const refY = stroke.originalY !== undefined ? stroke.originalY : stroke.y;
+                        const refW = stroke.originalW !== undefined ? stroke.originalW : stroke.width;
+                        const refH = stroke.originalH !== undefined ? stroke.originalH : stroke.height;
+
+                        const cx = refX + (refW / 2);
+                        const cy = refY + (refH / 2);
                         
                         const nx = (cx / myCw) * 2 - 1;
                         const ny = -(cy / myCh) * 2 + 1;
 
-                        // Şekli kameranın gözüne sokmak yerine tekrar 3D uzayına fırlatıyoruz!
                         const raycaster = new THREE.Raycaster();
                         raycaster.setFromCamera(new THREE.Vector2(nx, ny), window.Scene3D.camera);
                         const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
@@ -1500,18 +1505,13 @@ function redrawAllStrokes() {
                             sceneMesh.position.z = stroke.pos3D.z;
                         }
                         
-                        // 🚨 NİHAİ ÇÖZÜM 3: KUSURSUZ MATEMATİKSEL EŞLEŞME
-                        // 2D Kanvas Genişliğini 3D Uzay Genişliğine Çeviriyoruz.
-                        // Kamera frustum'u sabit 30 birimdir. Ekran yüksekliği (myCh) = 30 birim.
+                        // 🚨 KUSURSUZ BOYUT: Çift hesaplamayı kaldırıp birebir orana kilitliyoruz.
                         const threeJSHeightRatio = 30 / myCh;
-                        const targetThreeJSWidth = stroke.width * threeJSHeightRatio;
-                        
-                        // Şeklin çapı (baseSize yarıçaptır, o yüzden 2 ile çarpılır)
+                        const targetThreeJSWidth = refW * threeJSHeightRatio;
                         const originalThreeJSWidth = sceneMesh.userData.baseSize * 2;
+                        const gercekOlcek = targetThreeJSWidth / originalThreeJSWidth;
                         
-                        // Tam isabet ölçeklendirme formülü:
-                        const trueScale = targetThreeJSWidth / originalThreeJSWidth;
-                        sceneMesh.scale.setScalar(trueScale);
+                        sceneMesh.scale.setScalar(gercekOlcek);
                     }
                 }
             }
@@ -7262,6 +7262,11 @@ window.Scene3D = {
                 x: screenX - (finalRadius * 15),
                 y: screenY - (finalRadius * 15),
                 width: finalRadius * 30, height: finalRadius * 30,
+                // 🚨 ZIRH: Şeklin ilk halini mühürlüyoruz ki sürgüyle büyüyüp zıplamasın!
+                originalX: screenX - (finalRadius * 15),
+                originalY: screenY - (finalRadius * 15),
+                originalW: finalRadius * 30,
+                originalH: finalRadius * 30,
                 rotationX: solidShape.rotation.x, rotationY: solidShape.rotation.y, rotationZ: solidShape.rotation.z,
                 pos3D: { x: solidShape.position.x, y: solidShape.position.y, z: solidShape.position.z },
                 rotation: 0, yaw: 0, pitch: 1, openRatio: 0, isPreview: false, color: '#00ffcc'
