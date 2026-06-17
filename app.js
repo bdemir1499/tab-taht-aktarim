@@ -5733,35 +5733,7 @@ function setupConnectionEvents() {
             offsetY = (myCh - (effectiveSenderH * scale)) / 2;
         }
 
-        // ARKA PLANA GÖRECELİ KOORDİNAT ÇEVİRİCİ
-        // Eğer gelen çizim normalize edilmişse (nx,ny alanları varsa) ve PC'de arka plan yüklüyse,
-        // koordinatları canvas/ekran boyutuna bakılmaksızın doğrudan PC'nin arka planına göre yerleştir.
-        if (data && data.bgW > 0 && myBg && myBg.width > 0 && stroke.isBackground !== true) {
-            const pbx = myBg.x, pby = myBg.y, pbw = myBg.width, pbh = myBg.height;
-            const dn = (nx) => pbx + nx * pbw;
-            const dnY = (ny) => pby + ny * pbh;
-            if (stroke.path && stroke.path.length > 0 && stroke.path[0].nx !== undefined) {
-                stroke.path.forEach(p => { p.x = dn(p.nx); p.y = dnY(p.ny); });
-            }
-            if (stroke.points && stroke.points.length > 0 && stroke.points[0].nx !== undefined) {
-                stroke.points.forEach(p => { p.x = dn(p.nx); p.y = dnY(p.ny); });
-            }
-            if (stroke.p1 && stroke.p1.nx !== undefined) { stroke.p1.x = dn(stroke.p1.nx); stroke.p1.y = dnY(stroke.p1.ny); }
-            if (stroke.p2 && stroke.p2.nx !== undefined) { stroke.p2.x = dn(stroke.p2.nx); stroke.p2.y = dnY(stroke.p2.ny); }
-            if (stroke.p3 && stroke.p3.nx !== undefined) { stroke.p3.x = dn(stroke.p3.nx); stroke.p3.y = dnY(stroke.p3.ny); }
-            if (stroke.ncx !== undefined) { stroke.cx = dn(stroke.ncx); stroke.cy = dnY(stroke.ncy); }
-            if (stroke.center && stroke.center.nx !== undefined) { stroke.center.x = dn(stroke.center.nx); stroke.center.y = dnY(stroke.center.ny); }
-            if (stroke.nx !== undefined) { stroke.x = dn(stroke.nx); stroke.y = dnY(stroke.ny); }
-            if (stroke.nradius !== undefined) stroke.radius = stroke.nradius * pbw;
-            if (stroke.nbaseWidth !== undefined) stroke.baseWidth = stroke.nbaseWidth * pbw;
-            if (stroke.nwidth !== undefined) { stroke.width = stroke.nwidth * pbw; }
-            if (stroke.nheight !== undefined) { stroke.height = stroke.nheight * pbh; }
-            // DEBUG: denormalizasyon degerleri
-            if (stroke.path && stroke.path[0]) console.log('[PC DENORM] pbx:', pbx.toFixed(0), 'pbw:', pbw.toFixed(0), 'nx:', stroke.path[0].nx.toFixed(3), '=>x:', stroke.path[0].x.toFixed(0));
-            if (stroke.nx !== undefined) console.log('[PC DENORM] pbx:', pbx.toFixed(0), 'pbw:', pbw.toFixed(0), 'nx:', stroke.nx.toFixed(3), '=>x:', stroke.x.toFixed(0));
-            return stroke;
-        }
-
+        
         const mapX = (x) => (x * scale) + offsetX;
         const mapY = (y) => (y * scale) + offsetY;
 
@@ -6646,49 +6618,7 @@ window.sendNetworkData = function (dataPackage) {
         dataPackage.stroke.id = Date.now() + Math.random();
     }
 
-    // ARKA PLANA GÖRECELİ KOORDİNAT DAMGASI
-    // Tablet tarafında çizim koordinatlarını arka planın 0-1 görecelisine çevir.
-    // PC tarafı kendi arka planına göre geri çevirir.
-    // ÖNEMLİ: Derin kopya üzerinde çalışarak yerel drawnStrokes'u kirletme!
-    if (dataPackage.bgW > 0) {
-        const normStroke = (s) => {
-            if (!s || s.isBackground) return s;
-            const bx = dataPackage.bgX, by = dataPackage.bgY;
-            const bw = dataPackage.bgW, bh = dataPackage.bgH;
-            if (!bw || !bh) return s;
-            // Derin kopya yap — orijinal nesneyi asla mutate etme
-            const c = JSON.parse(JSON.stringify(s));
-            const nx = (x) => (x - bx) / bw;
-            const ny = (y) => (y - by) / bh;
-            if (c.path) c.path.forEach(p => { p.nx = nx(p.x); p.ny = ny(p.y); });
-            if (c.points) c.points.forEach(p => { p.nx = nx(p.x); p.ny = ny(p.y); });
-            if (c.p1) { c.p1.nx = nx(c.p1.x); c.p1.ny = ny(c.p1.y); }
-            if (c.p2) { c.p2.nx = nx(c.p2.x); c.p2.ny = ny(c.p2.y); }
-            if (c.p3) { c.p3.nx = nx(c.p3.x); c.p3.ny = ny(c.p3.y); }
-            if (c.cx !== undefined) { c.ncx = nx(c.cx); c.ncy = ny(c.cy); }
-            if (c.center) { c.center.nx = nx(c.center.x); c.center.ny = ny(c.center.y); }
-            if (c.x !== undefined) { c.nx = nx(c.x); c.ny = ny(c.y); }
-            if (c.radius !== undefined) c.nradius = c.radius / bw;
-            if (c.baseWidth !== undefined) c.nbaseWidth = c.baseWidth / bw;
-            const isLineType2 = ['pen','line','segment','ray','straightLine','polygon','point','arc'].includes(c.type);
-            if (c.width !== undefined && !isLineType2) c.nwidth = c.width / bw;
-            if (c.height !== undefined && !isLineType2) c.nheight = c.height / bh;
-            return c;
-        };
-        if (dataPackage.type === 'yeni_cizim') {
-            if (Array.isArray(dataPackage.stroke)) {
-                dataPackage.stroke = dataPackage.stroke.map(normStroke);
-            } else {
-                dataPackage.stroke = normStroke(dataPackage.stroke);
-                // DEBUG: normalizasyon degerleri
-                const s = dataPackage.stroke;
-                if (s && s.path && s.path[0]) console.log('[TABLET NORM] bgX:', dataPackage.bgX.toFixed(0), 'bgW:', dataPackage.bgW.toFixed(0), 'path[0].x_raw:', (dataPackage.bgX + s.path[0].nx * dataPackage.bgW).toFixed(0), 'nx:', s.path[0].nx.toFixed(3));
-                if (s && s.nx !== undefined) console.log('[TABLET NORM] bgX:', dataPackage.bgX.toFixed(0), 'bgW:', dataPackage.bgW.toFixed(0), 'nx:', s.nx.toFixed(3), 'ny:', s.ny.toFixed(3));
-            }
-        } else if (dataPackage.type === 'akilli_sekil_toplu' && dataPackage.strokes) {
-            dataPackage.strokes = dataPackage.strokes.map(normStroke);
-        }
-    }
+    
 
     const dataString = JSON.stringify(dataPackage);
     const CHUNK_SIZE = 8000;
