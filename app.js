@@ -3091,8 +3091,17 @@ canvas.addEventListener('pointerdown', (e) => {
     let rawX = e.clientX; let rawY = e.clientY;
     if (window.touchCount > 0 && e.pointerType === 'touch') { rawX = e.clientX; rawY = e.clientY; } // PointerEvent uses clientX natively
 
+    // 🚨 ÇÖZÜM 4: 3D Şekil açıkken yeşil ve pembe butonların tıklanmasını 3D motoru çalmasın! Öncelik zırhı!
+    let butonYakalandi = false;
+    if (currentTool === 'move') {
+        const tempHit = findHit(pos);
+        if (tempHit && (tempHit.pointKey === 'image_rotate' || tempHit.pointKey === 'image_resize')) {
+            butonYakalandi = true;
+        }
+    }
+
     // --- 🚨 KÖPRÜ 1: 3D MOTORUNA DEVRET (HIRSIZLIK KORUMALI) ---
-    if (window.Scene3D && window.Scene3D.isInit) {
+    if (window.Scene3D && window.Scene3D.isInit && !butonYakalandi) {
         if (currentTool === 'move' || currentTool === 'select') {
             const is3DHit = window.Scene3D.onDown(rawX, rawY);
             if (is3DHit) return;
@@ -5762,14 +5771,16 @@ function setupConnectionEvents() {
             scale = myBg.width / data.bgW;
             offsetX = myBg.x - (data.bgX * scale);
             offsetY = myBg.y - (data.bgY * scale);
-        } else {
-            // 🚨 ÇÖZÜM: Arka plan (resim/pdf) yokken Tablet ve PC merkezlerini kusursuz eşitle!
-            scale = myDpr / senderDpr;
-            offsetX = (myCw / 2) - (senderW / 2) * scale;
-            offsetY = (myCh / 2) - (senderH / 2) * scale;
+       } else {
+            // 🚨 ÇÖZÜM 5: Boş sayfada (PDF yokken) Tabletin oranını PC'de KUSURSUZ KORU (Orantısal Ölçekleme)
+            scale = Math.min(myCw / senderW, myCh / senderH);
+            offsetX = (myCw - (senderW * scale)) / 2;
+            offsetY = (myCh - (senderH * scale)) / 2;
         }
-
         
+        // 🚨 ÇÖZÜM 1 İÇİN HAZIRLIK: 3D şekillerin PC'de taşmasını engellemek için bu oranı mühürle!
+        stroke.adaptedScale = scale;
+
         const mapX = (x) => (x * scale) + offsetX;
         const mapY = (y) => (y * scale) + offsetY;
 
@@ -6335,12 +6346,10 @@ if (!data || !data.type) return;
                             sceneMesh.position.z = 0;
                         }
 
-                        // 2. Kusursuz Boyut Mührü (Tablet oranını bozmadan aktarır)
-                        let yeniScale = (data.stroke.width / 30) / sceneMesh.userData.baseSize;
-                        const mevcutSekil = window.drawnStrokes ? window.drawnStrokes.find(s => s.id === data.stroke.id) : null;
-                        const sH = data.stroke.originalSenderH || (mevcutSekil ? mevcutSekil.originalSenderH : (data.ch || myCh));
-                        const screenScaleFactor = sH / myCh;
-                        sceneMesh.scale.setScalar(yeniScale * screenScaleFactor);
+                        // 🚨 ÇÖZÜM 3: Sürgü açılırken şeklin kendi kendine büyümesini KESİN OLARAK engeller!
+                        const baseScale = sceneMesh.userData.baseScale || 1;
+                        let yeniScale = ((data.stroke.width / 30) / sceneMesh.userData.baseSize) * baseScale;
+                        sceneMesh.scale.setScalar(yeniScale);
 
                         // Rotasyon ayarlarını koru
                         if (data.stroke.rotationX !== undefined) sceneMesh.rotation.x = data.stroke.rotationX;
@@ -7355,14 +7364,21 @@ window.Scene3D = {
             solidShape.position.z = 0;
         }
 
-        // 2. Kusursuz Boyut Mührü (Mikroskobik küçülmeyi iptal et)
-        const sH = strokeData.originalSenderH || strokeData.ch || myCh;
-        const screenScaleFactor = sH / myCh;
-        solidShape.scale.setScalar(screenScaleFactor);
+        // 🚨 ÇÖZÜM 1: 3D Şeklin ekranın dışına taşmasını ve devasa olmasını engeller (Kusursuz Orantı)
+        const adaptedScale = strokeData.adaptedScale || 1;
+        solidShape.scale.setScalar(1 / adaptedScale);
 
         if (strokeData.rotationX !== undefined) solidShape.rotation.x = strokeData.rotationX;
         if (strokeData.rotationY !== undefined) solidShape.rotation.y = strokeData.rotationY;
-        Object.assign(solidShape.userData, { type: strokeData.shapeType, baseSize: strokeData.width / 30, height: (strokeData.width / 30) * 2, strokeData: strokeData });
+        
+        Object.assign(solidShape.userData, { 
+            type: strokeData.shapeType, 
+            baseSize: strokeData.width / 30, 
+            height: (strokeData.width / 30) * 2, 
+            baseScale: (1 / adaptedScale), // 🚨 Çözüm 3 için büyümeyi engelleme mührünü kaydet
+            strokeData: strokeData 
+        });
+        
         this.scene.add(solidShape);
         if (typeof this.updateHandlePositions === 'function') this.updateHandlePositions();
     }
