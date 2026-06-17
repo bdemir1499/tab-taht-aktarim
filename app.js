@@ -3868,8 +3868,6 @@ canvas.addEventListener('wheel', (e) => {
         }
     }
 }, { passive: false });
-    }
-}, { passive: false });
 
 
 // --- POINTERCANCEL (KESİNTİ DURUMUNDA SIFIRLAMA) ---
