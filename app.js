@@ -6058,13 +6058,15 @@ function setupConnectionEvents() {
         if (!window.drawnStrokes) window.drawnStrokes = [];
 
 // 🚨 KESİN ÇÖZÜM: PC hazır olduğunu bildirdiğinde, Tablet zaten çizim alanına geçmişse durumunu PC'ye zorla fırlatır!
+        // 🚨 KESİN ÇÖZÜM: PC hazır olduğunu bildirdiğinde, Tablet zaten çizim alanına geçmişse durumunu PC'ye zorla fırlatır!
         if (data.type === 'pc_hazir_durum_talep_et') {
             if (window.acilisPenceresiKapatildi && typeof currentLang !== 'undefined' && currentLang) {
                 const firlatici = (typeof window.sendNetworkData === 'function') ? window.sendNetworkData : (typeof sendNetworkData === 'function' ? sendNetworkData : null);
                 if (firlatici) {
-                    firlatici({ type: 'dil_secimi', lang: currentLang });
-                    firlatici({ type: 'acilis_penceresini_kapat' });
-                    firlatici({ type: 'yukleme_penceresini_kapat' });
+                    // Güvence: Verilerin arasına küçük bir gecikme koyarak sıralı ve kayıpsız gitmesini sağla
+                    setTimeout(() => firlatici({ type: 'dil_secimi', lang: currentLang }), 50);
+                    setTimeout(() => firlatici({ type: 'acilis_penceresini_kapat' }), 100);
+                    setTimeout(() => firlatici({ type: 'yukleme_penceresini_kapat' }), 150);
                 }
             }
             return;
@@ -6077,15 +6079,39 @@ function setupConnectionEvents() {
 
             // 1. PC'deki dil ekranını kapat
             const overlay = document.getElementById('language-overlay');
-            if (overlay) overlay.style.display = 'none';
+            if (overlay) {
+                overlay.style.display = 'none';
+                overlay.remove(); // Tamamen temizle
+            }
 
             // 2. PC ekranındaki yasal uyarı şeridini (footer) tamamen gizle!
             const footer = document.getElementById('footer-container');
-            if (footer) footer.style.display = 'none';
+            if (footer) {
+                footer.style.display = 'none';
+                footer.remove();
+            }
 
-            // 🚨 KESİN ÇÖZÜM: PC dil mesajını aldığı an, öndeki uyarı/yükleme pencerelerini de yıkarak geçer!
+            // 🚨 NİHAİ ÇÖZÜM: PC'deki Ağ/Oda Kodu Panelini de KÖKÜNDEN GİZLE!
+            // Bu sayede altındaki çizim alanı (canvas) %100 görünür hale gelecek.
+            const networkPanel = document.getElementById('network-panel');
+            if (networkPanel) networkPanel.style.display = 'none';
+
+            const connectPanel = document.getElementById('connect-panel');
+            if (connectPanel) connectPanel.style.display = 'none';
+
+            // Geriye kalmış olabilecek tüm engelleyici arka planları sil
+            document.querySelectorAll('.modal, .overlay, [id*="modal"], [id*="disclaimer"], .network-container').forEach(el => {
+                el.style.display = 'none';
+            });
+
+            // Uyarı ve yükleme pencerelerini yıkarak geç
             processData({ type: 'acilis_penceresini_kapat' });
             processData({ type: 'yukleme_penceresini_kapat' });
+
+            // Ekran kilitleri açıldıktan hemen sonra canvas'ı temiz bir şekilde yenile
+            setTimeout(() => {
+                if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
+            }, 100);
 
             return;
         }
