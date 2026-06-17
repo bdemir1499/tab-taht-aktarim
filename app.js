@@ -3000,17 +3000,23 @@ canvas.addEventListener('touchmove', (e) => {
         if (window.lastTouchDist > 0) {
             const delta = currentDist - window.lastTouchDist;
             const zoomStep = 1 + (delta * 0.003);
-            const bgStrokes = drawnStrokes.filter(s => s.isBackground === true);
-            if (bgStrokes.length > 0) {
-                const cx = bgStrokes[0].x + bgStrokes[0].width / 2;
-                const cy = bgStrokes[0].y + bgStrokes[0].height / 2;
-                bgStrokes.forEach(bg => {
-                    const newW = bg.width * zoomStep;
-                    const newH = bg.height * zoomStep;
-                    bg.x -= (newW - bg.width) / 2;
-                    bg.y -= (newH - bg.height) / 2;
-                    bg.width = newW; bg.height = newH;
+            const mainBg = drawnStrokes.find(s => s.isBackground === true && !s.isPatch);
+            
+            if (mainBg) {
+                const cx = mainBg.x + mainBg.width / 2;
+                const cy = mainBg.y + mainBg.height / 2;
+                
+                drawnStrokes.forEach(bg => {
+                    if (bg.isBackground === true) {
+                        const bg_cx = bg.x + bg.width / 2;
+                        const bg_cy = bg.y + bg.height / 2;
+                        const ncx = cx + (bg_cx - cx) * zoomStep;
+                        const ncy = cy + (bg_cy - cy) * zoomStep;
+                        bg.width *= zoomStep; bg.height *= zoomStep;
+                        bg.x = ncx - bg.width / 2; bg.y = ncy - bg.height / 2;
+                    }
                 });
+
                 if (window.drawnStrokes) {
                     window.drawnStrokes.forEach(s => {
                         if (!s.isBackground && typeof window.zoomStroke === 'function') {
@@ -3020,7 +3026,7 @@ canvas.addEventListener('touchmove', (e) => {
                 }
                 redrawAllStrokes();
                 if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-                    window.sendNetworkData({ type: 'zoom_senkron', x: bgStrokes[0].x, y: bgStrokes[0].y, width: bgStrokes[0].width, height: bgStrokes[0].height });
+                    window.sendNetworkData({ type: 'zoom_senkron', x: mainBg.x, y: mainBg.y, width: mainBg.width, height: mainBg.height });
                 }
             }
         }
@@ -3831,22 +3837,31 @@ canvas.addEventListener('wheel', (e) => {
         // 🚨 KESİN ÇÖZÜM: Yalnızca 'Taşı' (move) aracı seçiliyken fare ile zoom yapılabilir
         if (currentTool !== 'move') return;
 
+        canvas.addEventListener('wheel', (e) => {
+    if (e.ctrlKey) {
+        e.preventDefault();
+
+        // 🚨 KESİN ÇÖZÜM: Yalnızca 'Taşı' (move) aracı seçiliyken fare ile zoom yapılabilir
+        if (currentTool !== 'move') return;
+
         const zoomStep = e.deltaY > 0 ? 0.95 : 1.05;
 
-        // SADECE ARKA PLANI (PDF/RESİM) BUL VE BÜYÜT/KÜÇÜLT
-        const bgStrokes = drawnStrokes.filter(s => s.isBackground === true);
-        if (bgStrokes.length > 0) {
-            const cx = bgStrokes[0].x + bgStrokes[0].width / 2;
-            const cy = bgStrokes[0].y + bgStrokes[0].height / 2;
-            bgStrokes.forEach(bg => {
-                const newW = bg.width * zoomStep;
-                const newH = bg.height * zoomStep;
-                // Merkezden büyütmek için x ve y koordinatlarını da kaydır
-                bg.x = bg.x - (newW - bg.width) / 2;
-                bg.y = bg.y - (newH - bg.height) / 2;
-                bg.width = newW;
-                bg.height = newH;
+        const mainBg = drawnStrokes.find(s => s.isBackground === true && !s.isPatch);
+        if (mainBg) {
+            const cx = mainBg.x + mainBg.width / 2;
+            const cy = mainBg.y + mainBg.height / 2;
+            
+            drawnStrokes.forEach(bg => {
+                if (bg.isBackground === true) {
+                    const bg_cx = bg.x + bg.width / 2;
+                    const bg_cy = bg.y + bg.height / 2;
+                    const ncx = cx + (bg_cx - cx) * zoomStep;
+                    const ncy = cy + (bg_cy - cy) * zoomStep;
+                    bg.width *= zoomStep; bg.height *= zoomStep;
+                    bg.x = ncx - bg.width / 2; bg.y = ncy - bg.height / 2;
+                }
             });
+
             if (window.drawnStrokes) {
                 window.drawnStrokes.forEach(s => {
                     if (!s.isBackground && typeof window.zoomStroke === 'function') window.zoomStroke(s, zoomStep, cx, cy);
@@ -3855,17 +3870,14 @@ canvas.addEventListener('wheel', (e) => {
 
             redrawAllStrokes();
 
-            // 🚨 YENİ: Fare tekerleğiyle yapılan zoomu da PC'ye fırlat!
             if (typeof isConnected !== 'undefined' && isConnected) {
                 window.sendNetworkData({
-                    type: 'zoom_senkron',
-                    x: bgStrokes[0].x,
-                    y: bgStrokes[0].y,
-                    width: bgStrokes[0].width,
-                    height: bgStrokes[0].height
+                    type: 'zoom_senkron', x: mainBg.x, y: mainBg.y, width: mainBg.width, height: mainBg.height
                 });
             }
         }
+    }
+}, { passive: false });
     }
 }, { passive: false });
 
@@ -5718,7 +5730,7 @@ function setupConnectionEvents() {
         const isLineType = ['pen', 'line', 'segment', 'ray', 'straightLine', 'polygon', 'point', 'arc'].includes(stroke.type);
 
         let scale, offsetX, offsetY;
-        const myBg = window.drawnStrokes ? window.drawnStrokes.find(s => s.isBackground === true) : null;
+            const myBg = window.drawnStrokes ? window.drawnStrokes.find(s => s.isBackground === true && !s.isPatch) : null;
 
         if (data && data.bgW > 0 && myBg && myBg.width > 0 && stroke.isBackground !== true) {
             scale = myBg.width / data.bgW;
@@ -5813,7 +5825,7 @@ function setupConnectionEvents() {
             const senderW = d.cw || d.cssW || window.innerWidth;
             const senderH = d.ch || d.cssH || window.innerHeight;
             let scale, offsetX, offsetY;
-            const myBg = window.drawnStrokes ? window.drawnStrokes.find(s => s.isBackground === true) : null;
+            const myBg = window.drawnStrokes ? window.drawnStrokes.find(s => s.isBackground === true && !s.isPatch) : null;
             if (d.bgW > 0 && myBg && myBg.width > 0 && d.type !== 'zoom_senkron' && d.type !== 'hepsini_tasi' && d.type !== 'sekil_guncelle') {
                 scale = myBg.width / d.bgW;
                 offsetX = myBg.x - (d.bgX * scale);
@@ -5895,8 +5907,6 @@ function setupConnectionEvents() {
 
             // 1. ZOOM VE PDF SENKRONİZASYONU
             if (d.type === 'zoom_senkron') {
-                // 🚨 YANKI (ECHO) KORUMASI: Eğer tablet tarafında kullanıcı bizzat iki parmağıyla zoom yapıyorsa,
-                // PC'den sekip geri gelen gecikmeli zoom verilerini REDDET. Yoksa sayfa titrer ve zıplar!
                 if ((typeof pointers !== 'undefined' && pointers.size >= 2) || window.touchCount >= 2 || window.isZooming) return;
 
                 if (window.drawnStrokes) {
@@ -5912,35 +5922,48 @@ function setupConnectionEvents() {
                     const mapX = (x) => (x * scale) + offsetX;
                     const mapY = (y) => (y * scale) + offsetY;
 
-                    const bgStrokes = window.drawnStrokes.filter(s => s.isBackground === true);
-                    bgStrokes.forEach(bg => {
-                        if (d.width !== undefined && d.height !== undefined && d.x !== undefined && d.y !== undefined) {
-                            const newW = d.width * scale;
-                            const newH = d.height * scale;
-                            const newX = mapX(d.x);
-                            const newY = mapY(d.y);
+                    // 🚨 KESİN ÇÖZÜM: Sadece Ana Arka Planı (PDF/Resim) Merkez Al, Yamaları (Patch) Değil!
+                    const mainBg = window.drawnStrokes.find(s => s.isBackground === true && !s.isPatch);
+                    
+                    if (mainBg && d.width !== undefined && d.height !== undefined && d.x !== undefined && d.y !== undefined) {
+                        const newW = d.width * scale;
+                        const newH = d.height * scale;
+                        const newX = mapX(d.x);
+                        const newY = mapY(d.y);
 
-                            const oldW = bg.width;
-                            const oldX = bg.x;
-                            const oldY = bg.y;
+                        const oldW = mainBg.width;
+                        const oldX = mainBg.x;
+                        const oldY = mainBg.y;
 
-                            if (oldW > 0) {
-                                const zoomRatio = newW / oldW;
-                                const cx = oldX + oldW / 2;
-                                const cy = oldY + bg.height / 2;
-                                window.drawnStrokes.forEach(s => {
-                                    if (!s.isBackground && typeof window.zoomStroke === 'function') {
-                                        window.zoomStroke(s, zoomRatio, cx, cy);
+                        if (oldW > 0) {
+                            const zoomRatio = newW / oldW;
+                            const cx = oldX + oldW / 2;
+                            const cy = oldY + mainBg.height / 2;
+
+                            // 1. Tüm Çizgileri Ana Arka Plana Göre Büyüt
+                            window.drawnStrokes.forEach(s => {
+                                if (!s.isBackground && typeof window.zoomStroke === 'function') {
+                                    window.zoomStroke(s, zoomRatio, cx, cy);
+                                }
+                            });
+
+                            // 2. Tüm Arka Planları (Yamalar Dahil) Büyüt ve Konumlandır
+                            window.drawnStrokes.forEach(bg => {
+                                if (bg.isBackground === true) {
+                                    if (bg === mainBg) {
+                                        bg.width = newW; bg.height = newH; bg.x = newX; bg.y = newY;
+                                    } else {
+                                        const bg_cx = bg.x + bg.width / 2;
+                                        const bg_cy = bg.y + bg.height / 2;
+                                        const ncx = cx + (bg_cx - cx) * zoomRatio;
+                                        const ncy = cy + (bg_cy - cy) * zoomRatio;
+                                        bg.width *= zoomRatio; bg.height *= zoomRatio;
+                                        bg.x = ncx - bg.width / 2; bg.y = ncy - bg.height / 2;
                                     }
-                                });
-                            }
-
-                            bg.width = newW;
-                            bg.height = newH;
-                            bg.x = newX;
-                            bg.y = newY;
+                                }
+                            });
                         }
-                    });
+                    }
                     if (window.redrawAllStrokes) window.redrawAllStrokes();
                 }
                 return;
@@ -6609,7 +6632,7 @@ window.sendNetworkData = function (dataPackage) {
     }
 
     if (window.drawnStrokes) {
-        const bg = window.drawnStrokes.find(s => s.isBackground === true);
+        const bg = window.drawnStrokes.find(s => s.isBackground === true && !s.isPatch);
         if (bg) {
             dataPackage.bgX = bg.x;
             dataPackage.bgY = bg.y;
