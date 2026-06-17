@@ -5852,6 +5852,11 @@ function setupConnectionEvents() {
             const myCh = canvasElm ? canvasElm.height : window.innerHeight;
             const senderW = d.cw || d.cssW || window.innerWidth;
             const senderH = d.ch || d.cssH || window.innerHeight;
+            
+            // 🚨 HATA BURADAYDI: Bu iki satır aşağıdaydı, sistemin çökmemesi için en üste alındı!
+            const senderDpr = d.dpr || 1;
+            const myDpr = window.devicePixelRatio || 1;
+
             let scale, offsetX, offsetY;
             const myBg = window.drawnStrokes ? window.drawnStrokes.find(s => s.isBackground === true && !s.isPatch) : null;
             if (d.bgW > 0 && myBg && myBg.width > 0 && d.type !== 'zoom_senkron' && d.type !== 'hepsini_tasi' && d.type !== 'sekil_guncelle') {
@@ -5859,14 +5864,11 @@ function setupConnectionEvents() {
                 offsetX = myBg.x - (d.bgX * scale);
                 offsetY = myBg.y - (d.bgY * scale);
             } else {
-                // 🚨 KESİN ÇÖZÜM: Canlı önizleme ve 3D araçların Grid hizalaması 
-                // arka plan yokken %100 birebir aynı olsun (Ortalama iptal edildi).
+                // 🚨 KESİN ÇÖZÜM: Çökme giderildi, oran birebir korundu.
                 scale = myDpr / senderDpr;
                 offsetX = 0;
                 offsetY = 0;
             }
-            const senderDpr = d.dpr || 1;
-            const myDpr = window.devicePixelRatio || 1;
 
             const mapCssX = (cssX) => (((parseFloat(cssX) * senderDpr) * scale + offsetX) / myDpr) + 'px';
             const mapCssY = (cssY) => (((parseFloat(cssY) * senderDpr) * scale + offsetY) / myDpr) + 'px';
@@ -5927,7 +5929,6 @@ function setupConnectionEvents() {
                     if (p.x !== undefined) p.x = mapX(p.x);
                     if (p.y !== undefined) p.y = mapY(p.y);
                     
-                    // 🚨 EKSİK OLAN START VE END KOORDİNATLARINI ÇEVİR (CANLI ÇİZİM KOPMASINI ENGELLER)
                     if (p.start) { p.start.x = mapX(p.start.x); p.start.y = mapY(p.start.y); }
                     if (p.end) { p.end.x = mapX(p.end.x); p.end.y = mapY(p.end.y); }
                     if (p.radius !== undefined) p.radius *= scale;
@@ -5952,7 +5953,6 @@ function setupConnectionEvents() {
                     const mapX = (x) => (x * scale) + offsetX;
                     const mapY = (y) => (y * scale) + offsetY;
 
-                    // 🚨 KESİN ÇÖZÜM: Sadece Ana Arka Planı (PDF/Resim) Merkez Al, Yamaları (Patch) Değil!
                     const mainBg = window.drawnStrokes.find(s => s.isBackground === true && !s.isPatch);
                     
                     if (mainBg && d.width !== undefined && d.height !== undefined && d.x !== undefined && d.y !== undefined) {
@@ -5970,14 +5970,12 @@ function setupConnectionEvents() {
                             const cx = oldX + oldW / 2;
                             const cy = oldY + mainBg.height / 2;
 
-                            // 1. Tüm Çizgileri Ana Arka Plana Göre Büyüt
                             window.drawnStrokes.forEach(s => {
                                 if (!s.isBackground && typeof window.zoomStroke === 'function') {
                                     window.zoomStroke(s, zoomRatio, cx, cy);
                                 }
                             });
 
-                            // 2. Tüm Arka Planları (Yamalar Dahil) Büyüt ve Konumlandır
                             window.drawnStrokes.forEach(bg => {
                                 if (bg.isBackground === true) {
                                     if (bg === mainBg) {
@@ -5998,10 +5996,6 @@ function setupConnectionEvents() {
                 }
                 return;
             }
-
-            // DPR farklılıkları HD Canvas üzerinde halledildiği için,
-            // CSS objeleri üzerinde DPR çarpanı (cssCarpan) uygulanması hatalıdır.
-            // Bu kısım kaldırıldı. Tüm CSS / Screen koordinatları orantılı ölçekle (Math.min(sx, sy)) ayarlandı.
 
             if (typeof processData === 'function') processData(d);
         }
