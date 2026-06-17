@@ -6313,7 +6313,7 @@ if (!data || !data.type) return;
                     const sceneMesh = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === hedef.id);
                     if (sceneMesh) {
                         
-                        // 🚨 NİHAİ ÇÖZÜM 1: 3D Şeklin PC kamerasındaki perspektif kaymasını KESİN olarak iptal et!
+                        // 🚨 NİHAİ ÇÖZÜM 1: Ortografik Kamera için Kusursuz Merkezleme!
                         const canvasElm = document.getElementById('drawing-canvas');
                         const myCw = canvasElm ? canvasElm.width : window.innerWidth;
                         const myCh = canvasElm ? canvasElm.height : window.innerHeight;
@@ -6324,18 +6324,18 @@ if (!data || !data.type) return;
                         const ndcX = (cx / myCw) * 2 - 1;
                         const ndcY = -(cy / myCh) * 2 + 1;
                         
-                        const targetZ = (data.stroke.pos3D && data.stroke.pos3D.z !== undefined) ? data.stroke.pos3D.z : 0;
-                        const cam = window.Scene3D.camera;
-                        
-                        // 1. Kusursuz Merkezleme (Derinlik Z eksenine göre gerçek iz düşümü)
-                        const vec = new THREE.Vector3(ndcX, ndcY, 0.5);
-                        vec.unproject(cam);
-                        vec.sub(cam.position).normalize();
-                        const rayDist = (targetZ - cam.position.z) / vec.z;
-                        const targetPos = cam.position.clone().add(vec.multiplyScalar(rayDist));
-                        sceneMesh.position.copy(targetPos);
+                        // 1. Ortografik kamerada doğrudan X ve Y'yi çekiyoruz (Sonsuzluğa uçmayı engeller)
+                        const vec = new THREE.Vector3(ndcX, ndcY, 0);
+                        vec.unproject(window.Scene3D.camera);
+                        sceneMesh.position.x = vec.x;
+                        sceneMesh.position.y = vec.y;
+                        if (data.stroke.pos3D && data.stroke.pos3D.z !== undefined) {
+                            sceneMesh.position.z = data.stroke.pos3D.z;
+                        } else {
+                            sceneMesh.position.z = 0;
+                        }
 
-                        // 2. Kusursuz Boyut Mührü (Mikroskobik küçülmeyi iptal et, tablet boyutunu koru)
+                        // 2. Kusursuz Boyut Mührü (Tablet oranını bozmadan aktarır)
                         let yeniScale = (data.stroke.width / 30) / sceneMesh.userData.baseSize;
                         const mevcutSekil = window.drawnStrokes ? window.drawnStrokes.find(s => s.id === data.stroke.id) : null;
                         const sH = data.stroke.originalSenderH || (mevcutSekil ? mevcutSekil.originalSenderH : (data.ch || myCh));
@@ -7333,7 +7333,7 @@ window.Scene3D = {
             solidShape.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edgeMaterial));
         }
 
-        // 🚨 NİHAİ ÇÖZÜM 2: Şekil ilk eklendiğinde de 2D çizim (tik işareti vb.) ile milimetrik hizalanır!
+        // 🚨 NİHAİ ÇÖZÜM 2: Ortografik Kamera Hizalaması
         const canvasElm = document.getElementById('drawing-canvas');
         const myCw = canvasElm ? canvasElm.width : window.innerWidth;
         const myCh = canvasElm ? canvasElm.height : window.innerHeight;
@@ -7344,18 +7344,18 @@ window.Scene3D = {
         const ndcX = (cx / myCw) * 2 - 1;
         const ndcY = -(cy / myCh) * 2 + 1;
         
-        const targetZ = (strokeData.pos3D && strokeData.pos3D.z !== undefined) ? strokeData.pos3D.z : 0;
-        const cam = this.camera;
-        
-        // 1. Kusursuz Merkezleme
-        const vec = new THREE.Vector3(ndcX, ndcY, 0.5);
-        vec.unproject(cam);
-        vec.sub(cam.position).normalize();
-        const rayDist = (targetZ - cam.position.z) / vec.z;
-        const targetPos = cam.position.clone().add(vec.multiplyScalar(rayDist));
-        solidShape.position.copy(targetPos);
+        // 1. Kusursuz Merkezleme (Sonsuzluğa uçmayı engeller)
+        const vec = new THREE.Vector3(ndcX, ndcY, 0);
+        vec.unproject(this.camera);
+        solidShape.position.x = vec.x;
+        solidShape.position.y = vec.y;
+        if (strokeData.pos3D && strokeData.pos3D.z !== undefined) {
+            solidShape.position.z = strokeData.pos3D.z;
+        } else {
+            solidShape.position.z = 0;
+        }
 
-      // 2. Kusursuz Boyut Mührü (Mikroskobik küçülmeyi iptal et, tablet boyutunu koru)
+        // 2. Kusursuz Boyut Mührü (Mikroskobik küçülmeyi iptal et)
         const sH = strokeData.originalSenderH || strokeData.ch || myCh;
         const screenScaleFactor = sH / myCh;
         solidShape.scale.setScalar(screenScaleFactor);
