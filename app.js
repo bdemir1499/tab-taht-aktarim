@@ -741,8 +741,11 @@ function setupCanvasResolution() {
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
 
+    // 🚨 KESİN ÇÖZÜM: Arka planı (bg-canvas) da boyut ve oran olarak %100 eşitle (Daralmayı önler)
     const bgCanvas = document.getElementById('bg-canvas');
     if (bgCanvas) {
+        bgCanvas.style.width = canvas.style.width || (rect.width + 'px');
+        bgCanvas.style.height = canvas.style.height || (rect.height + 'px');
         bgCanvas.width = canvas.width;
         bgCanvas.height = canvas.height;
     }
@@ -4473,13 +4476,22 @@ function lockScreenSize() {
     let h = window.innerHeight || document.documentElement.clientHeight || window.screen.height || 768;
     const dpr = window.devicePixelRatio || 1; // 🚨 HD Oranı
 
-    // Kanvası ve body'yi bu piksel değerine beton gibi sabitle (100vh yerine px kullan)
+    // Ana Kanvası Sabitle
     const canvas = document.getElementById('drawing-canvas');
     if (canvas) {
         canvas.style.width = w + 'px';
         canvas.style.height = h + 'px';
-        canvas.width = w * dpr;   // 🚨 Çözünürlüğü HD yap (Gerçek Pikseller)
+        canvas.width = w * dpr;
         canvas.height = h * dpr;
+    }
+
+    // 🚨 EKSİK OLAN KISIM: Arka Plan Kanvasını da Ana Kanvasla Beton Gibi Sabitle (Sayfa Basıklığını Yok Eder)
+    const bgCanvas = document.getElementById('bg-canvas');
+    if (bgCanvas) {
+        bgCanvas.style.width = w + 'px';
+        bgCanvas.style.height = h + 'px';
+        bgCanvas.width = w * dpr;
+        bgCanvas.height = h * dpr;
     }
 
     document.body.style.width = w + 'px';
@@ -4487,7 +4499,6 @@ function lockScreenSize() {
     document.documentElement.style.width = w + 'px';
     document.documentElement.style.height = h + 'px';
 
-    // 🚨 KESİN ÇÖZÜM: Kanvas boyutu değiştiğinde silinen çizimleri ve arka planı geri getir!
     if (typeof window.redrawAllStrokes === 'function') {
         window.redrawAllStrokes();
     }
@@ -7485,16 +7496,20 @@ window.broadcastPreview = function (toolType, stateData) {
 // 🚨 KESİN ÇÖZÜM: 3D ŞEKİLLERİ ÇİZİMİN ALTINA ALIRKEN BUTONLARI KORUMA ZIRHI
 const canvasKatmanZirhi = document.createElement('style');
 canvasKatmanZirhi.innerHTML = `
+    /* 🚨 Arka plan kanvasını en alta al (Sayfa PDF'leri araçların üstünü örtemez) */
+    #bg-canvas { position: absolute !important; z-index: 5 !important; top: 0; left: 0; pointer-events: none; }
+
     /* Çizim tahtasını 3D cisimlerin üstüne çıkarıyoruz */
     #drawing-canvas { position: relative !important; z-index: 50 !important; background-color: transparent !important; }
     
     /* 3D uzay sahnesi bg-canvas'ın üstünde (10), çizimlerin altında (50) kalmalı */
     #three-container { position: absolute !important; z-index: 10 !important; pointer-events: none !important; }
     
-    /* 🔴 BUTONLARIN GERİ GELMESİNİ SAĞLAYAN EN ÜST KATMAN KORUMASI 🔴 */
+    /* 🔴 BUTONLARIN VE FİZİKSEL ARAÇLARIN GERİ GELMESİNİ SAĞLAYAN EN ÜST KATMAN KORUMASI 🔴 */
     .panel, .panel *, button, .tool-button, .tool-button-sub, .tool-options, 
     #pen-options, #line-options, #polygon-options, #fill-options, #snapshot-options, 
-    #options-3d-main, #options-prizmalar, #options-piramitler, #slider-container, #info-tooltip { 
+    #options-3d-main, #options-prizmalar, #options-piramitler, #slider-container, #info-tooltip,
+    .ruler-container, .gonye-container, .aciolcer-container, #compass-container { 
         z-index: 10000 !important; 
     }
 `;
