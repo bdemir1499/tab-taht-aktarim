@@ -3094,7 +3094,7 @@ canvas.addEventListener('pointerdown', (e) => {
     // 🚨 ÇÖZÜM 4: 3D Şekil açıkken yeşil ve pembe butonların tıklanmasını 3D motoru çalmasın! Öncelik zırhı!
     let butonYakalandi = false;
     if (currentTool === 'move') {
-        const tempHit = findHit(pos);
+        const tempHit = typeof findHit === 'function' ? findHit(pos) : null;
         if (tempHit && (tempHit.pointKey === 'image_rotate' || tempHit.pointKey === 'image_resize')) {
             butonYakalandi = true;
         }
@@ -3106,9 +3106,8 @@ canvas.addEventListener('pointerdown', (e) => {
             const is3DHit = window.Scene3D.onDown(rawX, rawY);
             if (is3DHit) return;
         }
-        // SADECE "draw_3d" ile başlayan 3D araçları seçiliyse 3D motoruna izin ver! (Silgiyi ve Çokgenleri Çalmasın)
+        // SADECE "draw_3d" ile başlayan 3D araçları seçiliyse 3D motoruna izin ver!
         else if (currentTool && currentTool.startsWith('draw_3d_')) {
-            // 🚨 KESİN ÇÖZÜM: İngilizce isimleri doğrudan tool isminden çekiyoruz! Prizma takılması bitti.
             let toolName = currentTool.replace('draw_3d_', '');
             window.Scene3D.setTool(toolName);
             window.Scene3D.onDown(rawX, rawY);
@@ -5871,10 +5870,10 @@ function setupConnectionEvents() {
                 offsetX = myBg.x - (d.bgX * scale);
                 offsetY = myBg.y - (d.bgY * scale);
             } else {
-                // 🚨 KESİN ÇÖZÜM: Çökme giderildi, oran birebir korundu.
-                scale = myDpr / senderDpr;
-                offsetX = 0;
-                offsetY = 0;
+                // 🚨 ÇÖZÜM 5 (Devamı): Canlı çizim (aktif_onizleme) oranını da boş sayfada KUSURSUZ KORU!
+                scale = Math.min(myCw / senderW, myCh / senderH);
+                offsetX = (myCw - (senderW * scale)) / 2;
+                offsetY = (myCh - (senderH * scale)) / 2;
             }
 
             const mapCssX = (cssX) => (((parseFloat(cssX) * senderDpr) * scale + offsetX) / myDpr) + 'px';
@@ -6324,32 +6323,27 @@ if (!data || !data.type) return;
                     const sceneMesh = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === hedef.id);
                     if (sceneMesh) {
                         
-                        // 🚨 NİHAİ ÇÖZÜM 1: Ortografik Kamera için Kusursuz Merkezleme!
-                        const canvasElm = document.getElementById('drawing-canvas');
-                        const myCw = canvasElm ? canvasElm.width : window.innerWidth;
-                        const myCh = canvasElm ? canvasElm.height : window.innerHeight;
-                        
-                        const cx = data.stroke.x + (data.stroke.width / 2);
-                        const cy = data.stroke.y + (data.stroke.height / 2);
-                        
-                        const ndcX = (cx / myCw) * 2 - 1;
-                        const ndcY = -(cy / myCh) * 2 + 1;
-                        
-                        // 1. Ortografik kamerada doğrudan X ve Y'yi çekiyoruz (Sonsuzluğa uçmayı engeller)
-                        const vec = new THREE.Vector3(ndcX, ndcY, 0);
-                        vec.unproject(window.Scene3D.camera);
-                        sceneMesh.position.x = vec.x;
-                        sceneMesh.position.y = vec.y;
-                        if (data.stroke.pos3D && data.stroke.pos3D.z !== undefined) {
-                            sceneMesh.position.z = data.stroke.pos3D.z;
-                        } else {
-                            sceneMesh.position.z = 0;
+                        // 🚨 ÇÖZÜM 2: 3D Şekil açılırken (sürgü) yer değiştirmesini ve kaymasını KESİN olarak engeller
+                        if (data.stroke.pos3D && sceneMesh.userData.initialTabletPosX !== undefined) {
+                            const activeScale = data.stroke.usedScale || 1;
+                            const deltaX = data.stroke.pos3D.x - sceneMesh.userData.initialTabletPosX;
+                            const deltaY = data.stroke.pos3D.y - sceneMesh.userData.initialTabletPosY;
+                            
+                            sceneMesh.position.x = sceneMesh.userData.initialPcPosX + (deltaX * activeScale);
+                            sceneMesh.position.y = sceneMesh.userData.initialPcPosY + (deltaY * activeScale);
+                            sceneMesh.position.z = data.stroke.pos3D.z || 0;
                         }
 
-                        // 🚨 ÇÖZÜM 3: Sürgü açılırken şeklin kendi kendine büyümesini KESİN OLARAK engeller!
-                        const baseScale = sceneMesh.userData.baseScale || 1;
-                        let yeniScale = ((data.stroke.width / 30) / sceneMesh.userData.baseSize) * baseScale;
-                        sceneMesh.scale.setScalar(yeniScale);
+                        // 🚨 ÇÖZÜM 3: Sürgü açılırken şeklin büyümesini ve küçülmesini KÖKÜNDEN durdurur!
+                        // Sadece sürgü kapalıyken (gerçek pembe boyutlandırma butonuyla) boyut değişimine izin verir
+                        if (data.stroke.openRatio === 0 || data.stroke.openRatio === undefined) {
+                            const currentTabletWidth = data.stroke.width / (data.stroke.usedScale || 1);
+                            const resizeScale = currentTabletWidth / (sceneMesh.userData.baseTabletWidth || currentTabletWidth);
+                            sceneMesh.scale.setScalar(resizeScale);
+                            sceneMesh.userData.lastValidScale = resizeScale;
+                        } else {
+                            sceneMesh.scale.setScalar(sceneMesh.userData.lastValidScale || 1);
+                        }
 
                         // Rotasyon ayarlarını koru
                         if (data.stroke.rotationX !== undefined) sceneMesh.rotation.x = data.stroke.rotationX;
@@ -7342,7 +7336,7 @@ window.Scene3D = {
             solidShape.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edgeMaterial));
         }
 
-        // 🚨 NİHAİ ÇÖZÜM 2: Ortografik Kamera Hizalaması
+        // 🚨 ÇÖZÜM 1: 3D Şeklin yaratılışında PC ekranına mükemmel hizalanması
         const canvasElm = document.getElementById('drawing-canvas');
         const myCw = canvasElm ? canvasElm.width : window.innerWidth;
         const myCh = canvasElm ? canvasElm.height : window.innerHeight;
@@ -7353,32 +7347,26 @@ window.Scene3D = {
         const ndcX = (cx / myCw) * 2 - 1;
         const ndcY = -(cy / myCh) * 2 + 1;
         
-        // 1. Kusursuz Merkezleme (Sonsuzluğa uçmayı engeller)
         const vec = new THREE.Vector3(ndcX, ndcY, 0);
         vec.unproject(this.camera);
         solidShape.position.x = vec.x;
         solidShape.position.y = vec.y;
-        if (strokeData.pos3D && strokeData.pos3D.z !== undefined) {
-            solidShape.position.z = strokeData.pos3D.z;
-        } else {
-            solidShape.position.z = 0;
-        }
+        solidShape.position.z = (strokeData.pos3D && strokeData.pos3D.z !== undefined) ? strokeData.pos3D.z : 0;
 
-        // 🚨 ÇÖZÜM 1: 3D Şeklin ekranın dışına taşmasını ve devasa olmasını engeller (Kusursuz Orantı)
-        const adaptedScale = strokeData.adaptedScale || 1;
-        solidShape.scale.setScalar(1 / adaptedScale);
+        // 🚨 Geometri zaten tablet-PC oranına uyarlandığı için ekstra büyüme/küçülme engellendi
+        solidShape.scale.setScalar(1);
+
+        // Gelecekteki taşımalar ve sürgü açılımları için orijinal konumları mühürle
+        solidShape.userData.initialTabletPosX = strokeData.pos3D ? strokeData.pos3D.x : 0;
+        solidShape.userData.initialTabletPosY = strokeData.pos3D ? strokeData.pos3D.y : 0;
+        solidShape.userData.initialPcPosX = solidShape.position.x;
+        solidShape.userData.initialPcPosY = solidShape.position.y;
+        solidShape.userData.baseTabletWidth = strokeData.width / (strokeData.usedScale || 1);
+        solidShape.userData.lastValidScale = 1;
 
         if (strokeData.rotationX !== undefined) solidShape.rotation.x = strokeData.rotationX;
         if (strokeData.rotationY !== undefined) solidShape.rotation.y = strokeData.rotationY;
-        
-        Object.assign(solidShape.userData, { 
-            type: strokeData.shapeType, 
-            baseSize: strokeData.width / 30, 
-            height: (strokeData.width / 30) * 2, 
-            baseScale: (1 / adaptedScale), // 🚨 Çözüm 3 için büyümeyi engelleme mührünü kaydet
-            strokeData: strokeData 
-        });
-        
+        Object.assign(solidShape.userData, { type: strokeData.shapeType, baseSize: strokeData.width / 30, height: (strokeData.width / 30) * 2, strokeData: strokeData });
         this.scene.add(solidShape);
         if (typeof this.updateHandlePositions === 'function') this.updateHandlePositions();
     }
