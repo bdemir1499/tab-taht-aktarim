@@ -5150,10 +5150,18 @@ function dilButonlariniHazirla() {
                 if (footer) footer.style.display = 'none';
 
                 // 2. Karşı cihaza (PC/Tahtaya) "Aynı dili seç ve ekranı aç" emri gönder!
-                // 🚨 DÜZELTME: Kapsam hatasına yol açan 'window.' ön ekleri temizlendi.
-                if (typeof isConnected !== 'undefined' && isConnected && typeof sendNetworkData !== 'undefined') {
-                    sendNetworkData({ type: 'dil_secimi', lang: targetLang });
-                    sendNetworkData({ type: 'acilis_penceresini_kapat' });
+                // 🚨 KESİN ÇÖZÜM: Çökme riskine karşı güvenli gönderici kullanıldı ve garanti zamanlayıcı eklendi.
+                const firlatici = (typeof window.sendNetworkData === 'function') ? window.sendNetworkData : (typeof sendNetworkData === 'function' ? sendNetworkData : null);
+                if (typeof isConnected !== 'undefined' && isConnected && firlatici) {
+                    firlatici({ type: 'dil_secimi', lang: targetLang });
+                    firlatici({ type: 'acilis_penceresini_kapat' });
+                    firlatici({ type: 'yukleme_penceresini_kapat' });
+                    
+                    // Tablet, PC'nin onaylamada gecikme ihtimaline karşı 1.5 saniye sonra tekrar garanti mesajı fırlatır
+                    setTimeout(() => {
+                        firlatici({ type: 'dil_secimi', lang: targetLang });
+                        firlatici({ type: 'acilis_penceresini_kapat' });
+                    }, 1500);
                 }
 
                 setTimeout(() => { isTriggered = false; }, 500);
@@ -5530,7 +5538,7 @@ myPeer.on('connection', function (conn) {
 
                 const baglantiHazir = () => {
                     isConnected = true;
-                    window.isConnected = true; // 🚨 EKLENDİ: Cetvel ve Pergel'e "Bağlandık" mesajı gönderir
+                    window.isConnected = true; 
                     window.baglantiOnaylandi = true;
 
                     const statusEl = document.getElementById('connection-status');
@@ -5539,13 +5547,20 @@ myPeer.on('connection', function (conn) {
                         statusEl.style.color = "#00ffcc";
                     }
 
-                    // 🚨 YENİ: PC (Akıllı Tahta) tarafındaki paneli de otomatik küçült 🚨
                     if (typeof window.kucultPanel === 'function') {
                         window.kucultPanel();
                     }
 
                     setupConnectionEvents();
                     console.log("Cihaz başarıyla bağlandı:", conn.peer);
+
+                    // 🚨 KESİN ÇÖZÜM: PC bağlantıyı onayladığı an, dinlemeye başlar başlamaz tabletten 
+                    // "Ekran durumunu" zorla talep eder. Böylece kayıp mesajlar tamamen önlenir!
+                    setTimeout(() => {
+                        if (typeof window.sendNetworkData === 'function') {
+                            window.sendNetworkData({ type: 'pc_hazir_durum_talep_et' });
+                        }
+                    }, 500);
                 };
 
                 if (conn.open) {
@@ -6041,6 +6056,20 @@ function setupConnectionEvents() {
             return;
         } if (!data || !data.type) return;
         if (!window.drawnStrokes) window.drawnStrokes = [];
+
+// 🚨 KESİN ÇÖZÜM: PC hazır olduğunu bildirdiğinde, Tablet zaten çizim alanına geçmişse durumunu PC'ye zorla fırlatır!
+        if (data.type === 'pc_hazir_durum_talep_et') {
+            if (window.acilisPenceresiKapatildi && typeof currentLang !== 'undefined' && currentLang) {
+                const firlatici = (typeof window.sendNetworkData === 'function') ? window.sendNetworkData : (typeof sendNetworkData === 'function' ? sendNetworkData : null);
+                if (firlatici) {
+                    firlatici({ type: 'dil_secimi', lang: currentLang });
+                    firlatici({ type: 'acilis_penceresini_kapat' });
+                    firlatici({ type: 'yukleme_penceresini_kapat' });
+                }
+            }
+            return;
+        }
+
 
         // DİL SEÇİMİ HER ZAMAN GEÇSİN
         if (data.type === 'dil_secimi') {
