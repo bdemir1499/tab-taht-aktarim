@@ -1477,17 +1477,15 @@ function redrawAllStrokes() {
                     
                     const canvasElm = document.getElementById('drawing-canvas');
                     if (canvasElm) {
-                        // 🚨 NİHAİ KESİN ÇÖZÜM: 3D Şeklin 2D Kalem Çizgileriyle Milimetrik Uyuşması!
-                        // Hatalı olan "clientWidth" (Mantıksal Piksel) yerine, "width" (Fiziksel HD Piksel) kullanıyoruz.
-                        const myCw = canvasElm.width;
-                        const myCh = canvasElm.height;
+                        // 🚨 ÇÖZÜM 1: Tablet clientWidth (CSS Pikselleri) kullandığı için, geri dönüşümde de BİREBİR AYNISI kullanılmalıdır!
+                        const myCw = canvasElm.clientWidth;
+                        const myCh = canvasElm.clientHeight;
                         const cx = stroke.x + (stroke.width / 2);
                         const cy = stroke.y + (stroke.height / 2);
                         
                         const nx = (cx / myCw) * 2 - 1;
                         const ny = -(cy / myCh) * 2 + 1;
 
-                        // Hatalı Raycaster ışınlaması yerine, kameranın kesin matematiksel iz düşümü:
                         const vec = new THREE.Vector3(nx, ny, 0);
                         vec.unproject(window.Scene3D.camera);
                         
@@ -1497,8 +1495,9 @@ function redrawAllStrokes() {
                             sceneMesh.position.z = stroke.pos3D.z;
                         }
                         
-                        // 🚨 PC BÜYÜME ENGELLEYİCİ: Şeklin boyutunu 2D çizimlerle aynı oranda kilitler
-                        if (sceneMesh.userData.pixelPerfectScale) {
+                        // 🚨 GÖRÜNMEZLİK HATASI ÇÖZÜMÜ: Sadece PC'de (pixelPerfectScale varsa) boyut zırhını uygula!
+                        // Tablette ise şeklin kendi orijinal doğal boyutunda kalmasını sağla.
+                        if (sceneMesh.userData.pixelPerfectScale !== undefined) {
                             const baseScale = stroke.width / (sceneMesh.userData.baseTabletWidth || stroke.width);
                             sceneMesh.scale.setScalar(baseScale * sceneMesh.userData.pixelPerfectScale);
                         }
