@@ -3826,18 +3826,12 @@ canvas.addEventListener('pointerup', (e) => {
 }, { passive: false }); // <--- pointerup fonksiyonu burada BİTTİ==============================================================================
 
 
+// 🚨 KESİN ÇÖZÜM: İç içe geçip sonsuz döngüye giren (Zıplamaya sebep olan) Hatalı Kod Temizlendi!
 canvas.addEventListener('wheel', (e) => {
     if (e.ctrlKey) {
         e.preventDefault();
 
-        // 🚨 KESİN ÇÖZÜM: Yalnızca 'Taşı' (move) aracı seçiliyken fare ile zoom yapılabilir
-        if (currentTool !== 'move') return;
-
-        canvas.addEventListener('wheel', (e) => {
-    if (e.ctrlKey) {
-        e.preventDefault();
-
-        // 🚨 KESİN ÇÖZÜM: Yalnızca 'Taşı' (move) aracı seçiliyken fare ile zoom yapılabilir
+        // Yalnızca 'Taşı' (move) aracı seçiliyken fare ile zoom yapılabilir
         if (currentTool !== 'move') return;
 
         const zoomStep = e.deltaY > 0 ? 0.95 : 1.05;
@@ -6020,33 +6014,43 @@ function setupConnectionEvents() {
             lockScreenSize();
         }
 
-        // 🚨 YENİ ALICI: TABLETTEN GELEN KUSURSUZ RESMİ VE PDF'İ EKRANA ÇİZER
+        // 🚨 YENİ ALICI: TABLETTEN GELEN KUSURSUZ RESMİ VE PDF'İ EKRANA ÇİZER (MERKEZLEME GARANTİLİ)
         if (data.type === 'arka_plan_resmi_aktar') {
-            // Tablet üzerinden gelen yüksek çözünürlüklü resmi ve koordinatları işle
             const img = new Image();
             img.onload = () => {
                 if (typeof addNewImageToCanvas === 'function') {
-                    let sonKoordinat = null;
-                    if (data.kordinatlar && data.canvasW && data.canvasH) {
-                        let dummyStroke = {
-                            x: data.kordinatlar.x,
-                            y: data.kordinatlar.y,
-                            width: data.kordinatlar.width,
-                            height: data.kordinatlar.height
+                    const canvas = document.getElementById('drawing-canvas');
+                    let pcMerkez = null;
+                    
+                    // PC'de resmi ekranın tam ortasına yeniden hesapla (Sağa kaymayı KESİN önler)
+                    if (canvas) {
+                        let startWidth = canvas.width * 0.8;
+                        let sW = startWidth;
+                        if (img.width < sW) sW = img.width;
+                        let scaleFactor = sW / img.width;
+                        let sH = img.height * scaleFactor;
+                        
+                        if (sH > canvas.height * 0.8) {
+                            sH = canvas.height * 0.8;
+                            sW = img.width * (sH / img.height);
+                        }
+                        pcMerkez = {
+                            x: (canvas.width / 2) - (sW / 2),
+                            y: (canvas.height / 2) - (sH / 2),
+                            width: sW,
+                            height: sH
                         };
-                        dummyStroke = window.adaptStrokeToScreen(dummyStroke, data.canvasW, data.canvasH, data.canvasW, data.canvasH, data);
-                        sonKoordinat = dummyStroke;
-                        // Not: sonKoordinat gönderildiği için addNewImageToCanvas bu resmi tabletin hesabına göre konumlandıracak 
-                        // ve ağa tekrar göndermeyecek (sonsuz döngü olmayacak).
                     }
                     
-                    addNewImageToCanvas(img, data.isPDF, sonKoordinat);
+                    addNewImageToCanvas(img, data.isPDF, pcMerkez);
                     setTimeout(() => { if (window.redrawAllStrokes) window.redrawAllStrokes(); }, 100);
                 }
             };
             img.src = data.imgData;
             return;
-        } if (!data || !data.type) return;
+        } 
+
+if (!data || !data.type) return;
         if (!window.drawnStrokes) window.drawnStrokes = [];
 
 // 🚨 KESİN ÇÖZÜM: PC hazır olduğunu bildirdiğinde, Tablet zaten çizim alanına geçmişse durumunu PC'ye zorla fırlatır!
