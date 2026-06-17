@@ -1500,11 +1500,18 @@ function redrawAllStrokes() {
                             sceneMesh.position.z = stroke.pos3D.z;
                         }
                         
-                        // 🚨 PC BÜYÜME KORUMASI: Tablette serbest bırak, PC'de orantılı kilitle
-                        if (sceneMesh.userData.pixelPerfectScale !== undefined) {
-                            const baseScale = stroke.width / (sceneMesh.userData.baseTabletWidth || stroke.width);
-                            sceneMesh.scale.setScalar(baseScale * sceneMesh.userData.pixelPerfectScale);
-                        }
+                        // 🚨 NİHAİ ÇÖZÜM 3: KUSURSUZ MATEMATİKSEL EŞLEŞME
+                        // 2D Kanvas Genişliğini 3D Uzay Genişliğine Çeviriyoruz.
+                        // Kamera frustum'u sabit 30 birimdir. Ekran yüksekliği (myCh) = 30 birim.
+                        const threeJSHeightRatio = 30 / myCh;
+                        const targetThreeJSWidth = stroke.width * threeJSHeightRatio;
+                        
+                        // Şeklin çapı (baseSize yarıçaptır, o yüzden 2 ile çarpılır)
+                        const originalThreeJSWidth = sceneMesh.userData.baseSize * 2;
+                        
+                        // Tam isabet ölçeklendirme formülü:
+                        const trueScale = targetThreeJSWidth / originalThreeJSWidth;
+                        sceneMesh.scale.setScalar(trueScale);
                     }
                 }
             }
@@ -6341,29 +6348,12 @@ if (!data || !data.type) return;
                     const sceneMesh = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === hedef.id);
                     if (sceneMesh) {
                         
-                        // 🚨 KESİN ÇÖZÜM: Sürgü (openRatio) açık veya kapalı fark etmez, şekil tablette neredeyse
-                // PC'de de ZIRHLI olarak oraya oturtulur. Zıplama yapmaz!
-                const canvasElm = document.getElementById('drawing-canvas');
-                const myCw = canvasElm ? canvasElm.width : window.innerWidth;
-                const myCh = canvasElm ? canvasElm.height : window.innerHeight;
-                
-                const cx = data.stroke.x + (data.stroke.width / 2);
-                const cy = data.stroke.y + (data.stroke.height / 2);
-                const ndcX = (cx / myCw) * 2 - 1;
-                const ndcY = -(cy / myCh) * 2 + 1;
-                
-                const vec = new THREE.Vector3(ndcX, ndcY, 0);
-                vec.unproject(window.Scene3D.camera);
-                
-                sceneMesh.position.x = vec.x;
-                sceneMesh.position.y = vec.y;
-                sceneMesh.position.z = data.stroke.pos3D ? data.stroke.pos3D.z : 0;
-
-                // PC ekranındaki şişkinliği iptal ederek doğru boyutu uygula
-                const pps = 900 / myCh;
-                const currentTabletWidth = data.stroke.width;
-                const resizeScale = currentTabletWidth / (sceneMesh.userData.baseTabletWidth || currentTabletWidth);
-                sceneMesh.scale.setScalar(resizeScale * pps);
+                        // 🚨 NİHAİ ÇÖZÜM 2: Konum ve boyutlandırmayı burada YAPMIYORUZ! 
+                // Zıplamaların ana sebebi buydu. Çizim motoru (redrawAllStrokes) zaten onu 
+                // PC'de olması gereken milimetrik konuma taşıyor. Sadece Z eksenini koruyup bırakıyoruz.
+                if (data.stroke.pos3D && data.stroke.pos3D.z !== undefined) {
+                    sceneMesh.position.z = data.stroke.pos3D.z;
+                }
 
                         // Rotasyon ayarlarını koru
                         if (data.stroke.rotationX !== undefined) sceneMesh.rotation.x = data.stroke.rotationX;
@@ -7373,13 +7363,10 @@ window.Scene3D = {
         solidShape.position.y = vec.y;
         solidShape.position.z = (strokeData.pos3D && strokeData.pos3D.z !== undefined) ? strokeData.pos3D.z : 0;
 
-        // 🚨 KESİN ÇÖZÜM: 3D şeklin PC ekranındaki fiziksel boyutunu 2D çizimle birebir aynı yapma formülü.
-        // Kamera yüksekliği 30 birim, şekil çarpanı 30 olduğundan 30*30 = 900 sabiti kullanılır.
-        const pixelPerfectScale = 900 / myCh;
-        solidShape.scale.setScalar(pixelPerfectScale);
-
+        // 🚨 NİHAİ ÇÖZÜM 1: İlk yaratılışta ölçeği 1'de sabit bırakıyoruz. 
+        // Gerçek büyüklük redrawAllStrokes içinde hesaplanacak.
+        solidShape.scale.setScalar(1);
         solidShape.userData.baseTabletWidth = strokeData.width;
-        solidShape.userData.pixelPerfectScale = pixelPerfectScale;
 
         if (strokeData.rotationX !== undefined) solidShape.rotation.x = strokeData.rotationX;
         if (strokeData.rotationY !== undefined) solidShape.rotation.y = strokeData.rotationY;
