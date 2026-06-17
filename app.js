@@ -6058,7 +6058,6 @@ function setupConnectionEvents() {
         if (!window.drawnStrokes) window.drawnStrokes = [];
 
 // 🚨 KESİN ÇÖZÜM: PC hazır olduğunu bildirdiğinde, Tablet zaten çizim alanına geçmişse durumunu PC'ye zorla fırlatır!
-        // 🚨 KESİN ÇÖZÜM: PC hazır olduğunu bildirdiğinde, Tablet zaten çizim alanına geçmişse durumunu PC'ye zorla fırlatır!
         if (data.type === 'pc_hazir_durum_talep_et') {
             if (window.acilisPenceresiKapatildi && typeof currentLang !== 'undefined' && currentLang) {
                 const firlatici = (typeof window.sendNetworkData === 'function') ? window.sendNetworkData : (typeof sendNetworkData === 'function' ? sendNetworkData : null);
@@ -6071,7 +6070,6 @@ function setupConnectionEvents() {
             }
             return;
         }
-
 
         // DİL SEÇİMİ HER ZAMAN GEÇSİN
         if (data.type === 'dil_secimi') {
