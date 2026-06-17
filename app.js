@@ -5739,8 +5739,8 @@ function setupConnectionEvents() {
     window.adaptStrokeToScreen = function (stroke, senderW, senderH, senderCw, senderCh, data) {
         if (!stroke || !senderW || !senderH) return stroke;
 
-        // 🚨 3D ŞEKİL KORUMASI 🚨
-        if (stroke.type === '3d_shape' || stroke.shapeType) return stroke;
+        // 🚨 ÇÖZÜM: 3D Şekilleri dışlama, onlar da arka plan ve 2D ekran oranlarına göre otomatik hizalansın!
+        // (3D koruması silindi)
 
         const myW = window.innerWidth;
         const myH = window.innerHeight;
@@ -5749,26 +5749,21 @@ function setupConnectionEvents() {
         const myCh = canvasElm ? canvasElm.height : myH;
         const senderDpr = senderCw ? (senderCw / senderW) : 1;
         const myDpr = canvasElm ? (myCw / myW) : 1;
-
-        // 🚨 FİZİKİ ARAÇ KORUMASI (Zıplama Engelleme) 🚨
-        // Fiziki araçların PC'de çizdiği şekiller (çizgi, yay) de tıpkı diğer kalem çizimleri gibi
-        // sayfanın boyutuna göre ölçeklenmek ve kaydırılmak ZORUNDADIR. (Bu yüzden isPhysicalTool kısıtlaması kaldırıldı).
         
         const isLineType = ['pen', 'line', 'segment', 'ray', 'straightLine', 'polygon', 'point', 'arc'].includes(stroke.type);
 
         let scale, offsetX, offsetY;
-            const myBg = window.drawnStrokes ? window.drawnStrokes.find(s => s.isBackground === true && !s.isPatch) : null;
+        const myBg = window.drawnStrokes ? window.drawnStrokes.find(s => s.isBackground === true && !s.isPatch) : null;
 
         if (data && data.bgW > 0 && myBg && myBg.width > 0 && stroke.isBackground !== true) {
             scale = myBg.width / data.bgW;
             offsetX = myBg.x - (data.bgX * scale);
             offsetY = myBg.y - (data.bgY * scale);
         } else {
-            // 🚨 KESİN ÇÖZÜM: Arka plan yokken ekranı ortalamaya çalışıp grid (ızgara) hizasını bozma.
-            // Sadece cihazların piksel yoğunluğu (DPR) farkını eşitle, mesafe oranı birebir (1:1) aynı kalsın.
+            // 🚨 ÇÖZÜM: Arka plan (resim/pdf) yokken Tablet ve PC merkezlerini kusursuz eşitle!
             scale = myDpr / senderDpr;
-            offsetX = 0;
-            offsetY = 0;
+            offsetX = (myCw / 2) - (senderW / 2) * scale;
+            offsetY = (myCh / 2) - (senderH / 2) * scale;
         }
 
         
@@ -6325,10 +6320,27 @@ if (!data || !data.type) return;
                         if (data.stroke.rotationY !== undefined) sceneMesh.rotation.y = data.stroke.rotationY;
                         if (data.stroke.rotationZ !== undefined) sceneMesh.rotation.z = data.stroke.rotationZ;
 
-                        // 3D Pozisyonunu tabletle aynı yere çek!
-                        if (data.stroke.pos3D !== undefined) {
+                        // 🚨 ÇÖZÜM: 3D Pozisyonunu ham veriden değil, PC ekranına adapte edilmiş x ve y üzerinden matematiksel hesapla!
+                        const canvasElm = document.getElementById('drawing-canvas');
+                        const myCw = canvasElm ? canvasElm.width : window.innerWidth;
+                        const myCh = canvasElm ? canvasElm.height : window.innerHeight;
+                        
+                        const cx = hedef.x + (hedef.width / 2);
+                        const cy = hedef.y + (hedef.height / 2);
+                        const nx = (cx / myCw) * 2 - 1;
+                        const ny = -(cy / myCh) * 2 + 1;
+
+                        const raycaster = new THREE.Raycaster();
+                        raycaster.setFromCamera(new THREE.Vector2(nx, ny), window.Scene3D.camera);
+                        const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+                        const intersection = new THREE.Vector3();
+                        if (raycaster.ray.intersectPlane(plane, intersection)) {
+                            sceneMesh.position.copy(intersection);
+                        } else if (data.stroke.pos3D !== undefined) {
                             sceneMesh.position.set(data.stroke.pos3D.x, data.stroke.pos3D.y, data.stroke.pos3D.z);
                         }
+
+                        // Sürgü açınım bilgisini senkronize et
 
                         // Sürgü açınım bilgisini senkronize et
                         if (data.stroke.openRatio !== undefined && window.Foldable3D) {
@@ -7316,7 +7328,26 @@ window.Scene3D = {
             solidShape.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edgeMaterial));
         }
 
-        if (strokeData.pos3D) solidShape.position.set(strokeData.pos3D.x, strokeData.pos3D.y, strokeData.pos3D.z);
+        // 🚨 ÇÖZÜM: Yeni eklenen 3D şeklin yerini de hizalanmış 2D koordinatlardan hesapla!
+        const canvasElm = document.getElementById('drawing-canvas');
+        const myCw = canvasElm ? canvasElm.width : window.innerWidth;
+        const myCh = canvasElm ? canvasElm.height : window.innerHeight;
+        
+        const cx = strokeData.x + (strokeData.width / 2);
+        const cy = strokeData.y + (strokeData.height / 2);
+        const nx = (cx / myCw) * 2 - 1;
+        const ny = -(cy / myCh) * 2 + 1;
+
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(new THREE.Vector2(nx, ny), this.camera);
+        const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+        const intersection = new THREE.Vector3();
+        if (raycaster.ray.intersectPlane(plane, intersection)) {
+            solidShape.position.copy(intersection);
+        } else if (strokeData.pos3D) {
+            solidShape.position.set(strokeData.pos3D.x, strokeData.pos3D.y, strokeData.pos3D.z);
+        }
+
         if (strokeData.rotationX !== undefined) solidShape.rotation.x = strokeData.rotationX;
         if (strokeData.rotationY !== undefined) solidShape.rotation.y = strokeData.rotationY;
         Object.assign(solidShape.userData, { type: strokeData.shapeType, baseSize: strokeData.width / 30, height: (strokeData.width / 30) * 2, strokeData: strokeData });
