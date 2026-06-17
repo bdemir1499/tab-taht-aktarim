@@ -6054,8 +6054,7 @@ function setupConnectionEvents() {
             const footer = document.getElementById('footer-container');
             if (footer) footer.style.display = 'none';
 
-            // 🚨 KESİN ÇÖZÜM: Zamanlayıcı dolsa bile PC, dil seçildiği an 
-            // içeriden otomatik olarak tüm yasal uyarı ve yükleme perdelerini yıkarak geçer!
+            // 🚨 KESİN ÇÖZÜM: PC dil mesajını aldığı an, öndeki uyarı/yükleme pencerelerini de yıkarak geçer!
             processData({ type: 'acilis_penceresini_kapat' });
             processData({ type: 'yukleme_penceresini_kapat' });
 
