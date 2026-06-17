@@ -5884,6 +5884,11 @@ function setupConnectionEvents() {
                     if (p.ldy !== undefined) p.ldy *= scale;
                     if (p.x !== undefined) p.x = mapX(p.x);
                     if (p.y !== undefined) p.y = mapY(p.y);
+                    
+                    // 🚨 EKSİK OLAN START VE END KOORDİNATLARINI ÇEVİR (CANLI ÇİZİM KOPMASINI ENGELLER)
+                    if (p.start) { p.start.x = mapX(p.start.x); p.start.y = mapY(p.start.y); }
+                    if (p.end) { p.end.x = mapX(p.end.x); p.end.y = mapY(p.end.y); }
+                    if (p.radius !== undefined) p.radius *= scale;
                 }
                 d.ignoreAdapt = true;
             }
