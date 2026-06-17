@@ -6324,26 +6324,43 @@ if (!data || !data.type) return;
                     const sceneMesh = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === hedef.id);
                     if (sceneMesh) {
                         
-                        // 🚨 ÇÖZÜM 2: 3D Şekil açılırken (sürgü) yer değiştirmesini ve kaymasını KESİN olarak engeller
-                        if (data.stroke.pos3D && sceneMesh.userData.initialTabletPosX !== undefined) {
-                            const activeScale = data.stroke.usedScale || 1;
-                            const deltaX = data.stroke.pos3D.x - sceneMesh.userData.initialTabletPosX;
-                            const deltaY = data.stroke.pos3D.y - sceneMesh.userData.initialTabletPosY;
-                            
-                            sceneMesh.position.x = sceneMesh.userData.initialPcPosX + (deltaX * activeScale);
-                            sceneMesh.position.y = sceneMesh.userData.initialPcPosY + (deltaY * activeScale);
-                            sceneMesh.position.z = data.stroke.pos3D.z || 0;
-                        }
-
-                        // 🚨 ÇÖZÜM 3: Sürgü açılırken şeklin büyümesini ve küçülmesini KÖKÜNDEN durdurur!
-                        // Sadece sürgü kapalıyken (gerçek pembe boyutlandırma butonuyla) boyut değişimine izin verir
+                        // 🚨 YENİ ÇÖZÜM 2 & 3: Sürgü kapalıyken 2D kaleme kilitlen, Sürgü açıkken yerinde sabit kal!
+                        const pps = sceneMesh.userData.pixelPerfectScale || 1;
+                        
                         if (data.stroke.openRatio === 0 || data.stroke.openRatio === undefined) {
-                            const currentTabletWidth = data.stroke.width / (data.stroke.usedScale || 1);
+                            // 1. Sürgü kapalıyken (normal taşıma ve boyutlandırma) -> 2D çizgi neredeyse tam altına gir!
+                            const canvasElm = document.getElementById('drawing-canvas');
+                            const myCw = canvasElm ? canvasElm.width : window.innerWidth;
+                            const myCh = canvasElm ? canvasElm.height : window.innerHeight;
+                            
+                            const cx = data.stroke.x + (data.stroke.width / 2);
+                            const cy = data.stroke.y + (data.stroke.height / 2);
+                            const ndcX = (cx / myCw) * 2 - 1;
+                            const ndcY = -(cy / myCh) * 2 + 1;
+                            
+                            const vec = new THREE.Vector3(ndcX, ndcY, 0);
+                            vec.unproject(window.Scene3D.camera);
+                            
+                            sceneMesh.position.x = vec.x;
+                            sceneMesh.position.y = vec.y;
+                            sceneMesh.position.z = data.stroke.pos3D ? data.stroke.pos3D.z : 0;
+                            
+                            // Gelecekte sürgü açılırsa diye bu doğru koordinatı mühürle
+                            sceneMesh.userData.initialPcPosX = sceneMesh.position.x;
+                            sceneMesh.userData.initialPcPosY = sceneMesh.position.y;
+
+                            // PC ekranındaki şişkinliği iptal ederek doğru boyutu uygula
+                            const currentTabletWidth = data.stroke.width;
                             const resizeScale = currentTabletWidth / (sceneMesh.userData.baseTabletWidth || currentTabletWidth);
-                            sceneMesh.scale.setScalar(resizeScale);
-                            sceneMesh.userData.lastValidScale = resizeScale;
+                            sceneMesh.scale.setScalar(resizeScale * pps);
+                            sceneMesh.userData.lastValidScale = resizeScale * pps;
                         } else {
-                            sceneMesh.scale.setScalar(sceneMesh.userData.lastValidScale || 1);
+                            // 2. Sürgü açıkken (animasyon izlenirken) -> Boyutu ve yeri KİLİTLE! (Kaymasını engeller)
+                            if (sceneMesh.userData.initialPcPosX !== undefined) {
+                                sceneMesh.position.x = sceneMesh.userData.initialPcPosX;
+                                sceneMesh.position.y = sceneMesh.userData.initialPcPosY;
+                            }
+                            sceneMesh.scale.setScalar(sceneMesh.userData.lastValidScale || pps);
                         }
 
                         // Rotasyon ayarlarını koru
@@ -7354,16 +7371,17 @@ window.Scene3D = {
         solidShape.position.y = vec.y;
         solidShape.position.z = (strokeData.pos3D && strokeData.pos3D.z !== undefined) ? strokeData.pos3D.z : 0;
 
-        // 🚨 Geometri zaten tablet-PC oranına uyarlandığı için ekstra büyüme/küçülme engellendi
-        solidShape.scale.setScalar(1);
+        // 🚨 YENİ ÇÖZÜM: 2D çizimler PC'de kendi fiziksel boyutunu koruduğu için, 3D şeklin de PC'nin kamerasında şişmesini engelliyoruz!
+        const sH = strokeData.ch || strokeData.originalSenderH || myCh;
+        const pixelPerfectScale = sH / myCh;
+        solidShape.scale.setScalar(pixelPerfectScale);
 
         // Gelecekteki taşımalar ve sürgü açılımları için orijinal konumları mühürle
-        solidShape.userData.initialTabletPosX = strokeData.pos3D ? strokeData.pos3D.x : 0;
-        solidShape.userData.initialTabletPosY = strokeData.pos3D ? strokeData.pos3D.y : 0;
         solidShape.userData.initialPcPosX = solidShape.position.x;
         solidShape.userData.initialPcPosY = solidShape.position.y;
-        solidShape.userData.baseTabletWidth = strokeData.width / (strokeData.usedScale || 1);
-        solidShape.userData.lastValidScale = 1;
+        solidShape.userData.baseTabletWidth = strokeData.width;
+        solidShape.userData.pixelPerfectScale = pixelPerfectScale;
+        solidShape.userData.lastValidScale = pixelPerfectScale;
 
         if (strokeData.rotationX !== undefined) solidShape.rotation.x = strokeData.rotationX;
         if (strokeData.rotationY !== undefined) solidShape.rotation.y = strokeData.rotationY;
