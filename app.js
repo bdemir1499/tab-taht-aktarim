@@ -5150,18 +5150,19 @@ function dilButonlariniHazirla() {
                 if (footer) footer.style.display = 'none';
 
                 // 2. Karşı cihaza (PC/Tahtaya) "Aynı dili seç ve ekranı aç" emri gönder!
-                // 🚨 KESİN ÇÖZÜM: Çökme riskine karşı güvenli gönderici kullanıldı ve garanti zamanlayıcı eklendi.
                 const firlatici = (typeof window.sendNetworkData === 'function') ? window.sendNetworkData : (typeof sendNetworkData === 'function' ? sendNetworkData : null);
                 if (typeof isConnected !== 'undefined' && isConnected && firlatici) {
                     firlatici({ type: 'dil_secimi', lang: targetLang });
                     firlatici({ type: 'acilis_penceresini_kapat' });
                     firlatici({ type: 'yukleme_penceresini_kapat' });
                     
-                    // Tablet, PC'nin onaylamada gecikme ihtimaline karşı 1.5 saniye sonra tekrar garanti mesajı fırlatır
-                    setTimeout(() => {
-                        firlatici({ type: 'dil_secimi', lang: targetLang });
-                        firlatici({ type: 'acilis_penceresini_kapat' });
-                    }, 1500);
+                    // 🚨 GARANTİ SİNYALİ: PC'nin veri kanalını açarken yaşayabileceği milisaniyelik gecikmelere karşı mesaj 3 kez daha tekrarlanır!
+                    [500, 1500, 3000].forEach(gecikme => {
+                        setTimeout(() => {
+                            firlatici({ type: 'dil_secimi', lang: targetLang });
+                            firlatici({ type: 'acilis_penceresini_kapat' });
+                        }, gecikme);
+                    });
                 }
 
                 setTimeout(() => { isTriggered = false; }, 500);
@@ -6062,54 +6063,72 @@ function setupConnectionEvents() {
             if (window.acilisPenceresiKapatildi && typeof currentLang !== 'undefined' && currentLang) {
                 const firlatici = (typeof window.sendNetworkData === 'function') ? window.sendNetworkData : (typeof sendNetworkData === 'function' ? sendNetworkData : null);
                 if (firlatici) {
-                    // Güvence: Verilerin arasına küçük bir gecikme koyarak sıralı ve kayıpsız gitmesini sağla
-                    setTimeout(() => firlatici({ type: 'dil_secimi', lang: currentLang }), 50);
-                    setTimeout(() => firlatici({ type: 'acilis_penceresini_kapat' }), 100);
-                    setTimeout(() => firlatici({ type: 'yukleme_penceresini_kapat' }), 150);
+                    // Peş peşe atış yaparak PC'nin veri kanalında bu mesajı kaçırmasını engelle
+                    [50, 500, 1500].forEach(gecikme => {
+                        setTimeout(() => {
+                            firlatici({ type: 'dil_secimi', lang: currentLang });
+                            firlatici({ type: 'acilis_penceresini_kapat' });
+                            firlatici({ type: 'yukleme_penceresini_kapat' });
+                        }, gecikme);
+                    });
                 }
             }
             return;
         }
 
-        // DİL SEÇİMİ HER ZAMAN GEÇSİN
+        // 🚨 DİL SEÇİMİ HER ZAMAN GEÇSİN VE EKRANI ZORLA AÇSIN 🚨
         if (data.type === 'dil_secimi') {
             if (typeof setLanguage === 'function') setLanguage(data.lang);
 
-            // 1. PC'deki dil ekranını kapat
-            const overlay = document.getElementById('language-overlay');
-            if (overlay) {
-                overlay.style.display = 'none';
-                overlay.remove(); // Tamamen temizle
-            }
+            // PC için tam ekran temizliği (Görünmez CSS Balyozu!)
+            const pcZirhi = document.createElement('style');
+            pcZirhi.innerHTML = `
+                /* PC ekranını kilitleyen ne kadar pencere/panel varsa KÖKÜNDEN yok eder */
+                #language-overlay, .language-overlay,
+                #disclaimer-modal, .disclaimer-modal,
+                #footer-container, .footer-container,
+                #install-popup, .install-popup,
+                #network-panel, .network-panel,
+                #connect-panel, .connect-panel,
+                .start-screen, #start-screen,
+                .intro-container, #intro-container,
+                .modal, .overlay, #conn-request-modal {
+                    display: none !important;
+                    opacity: 0 !important;
+                    pointer-events: none !important;
+                    z-index: -9999 !important;
+                }
+                
+                /* Çizim Alanı ve Sol/Sağ Menüleri KESİN OLARAK ÖNE ÇIKARIR */
+                #drawing-canvas, #bg-canvas {
+                    display: block !important;
+                    visibility: visible !important;
+                    opacity: 1 !important;
+                }
+                .left-panel, .right-panel, .panel {
+                    display: flex !important;
+                    visibility: visible !important;
+                    opacity: 1 !important;
+                }
+            `;
+            document.head.appendChild(pcZirhi);
 
-            // 2. PC ekranındaki yasal uyarı şeridini (footer) tamamen gizle!
-            const footer = document.getElementById('footer-container');
-            if (footer) {
-                footer.style.display = 'none';
-                footer.remove();
-            }
-
-            // 🚨 NİHAİ ÇÖZÜM: PC'deki Ağ/Oda Kodu Panelini de KÖKÜNDEN GİZLE!
-            // Bu sayede altındaki çizim alanı (canvas) %100 görünür hale gelecek.
-            const networkPanel = document.getElementById('network-panel');
-            if (networkPanel) networkPanel.style.display = 'none';
-
-            const connectPanel = document.getElementById('connect-panel');
-            if (connectPanel) connectPanel.style.display = 'none';
-
-            // Geriye kalmış olabilecek tüm engelleyici arka planları sil
-            document.querySelectorAll('.modal, .overlay, [id*="modal"], [id*="disclaimer"], .network-container').forEach(el => {
-                el.style.display = 'none';
+            // HTML içinden de JavaScript ile gizleyelim (Çifte Güvenlik)
+            ['language-overlay', 'disclaimer-modal', 'footer-container', 'network-panel', 'connect-panel', 'start-screen'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = 'none';
             });
 
-            // Uyarı ve yükleme pencerelerini yıkarak geç
-            processData({ type: 'acilis_penceresini_kapat' });
-            processData({ type: 'yukleme_penceresini_kapat' });
+            // PC ağ panelini küçülten/yok eden yerel fonksiyonu tetikle (Eğer HTML'de varsa)
+            if (typeof window.kucultPanel === 'function') {
+                window.kucultPanel();
+            }
 
             // Ekran kilitleri açıldıktan hemen sonra canvas'ı temiz bir şekilde yenile
             setTimeout(() => {
                 if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
-            }, 100);
+                if (typeof lockScreenSize === 'function') lockScreenSize();
+            }, 150);
 
             return;
         }
