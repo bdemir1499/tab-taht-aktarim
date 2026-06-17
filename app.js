@@ -6050,9 +6050,14 @@ function setupConnectionEvents() {
             const overlay = document.getElementById('language-overlay');
             if (overlay) overlay.style.display = 'none';
 
-            // 🚨 YENİ EKLENEN KISIM: PC ekranındaki yasal uyarı şeridini (footer) tamamen gizle!
+            // 2. PC ekranındaki yasal uyarı şeridini (footer) tamamen gizle!
             const footer = document.getElementById('footer-container');
             if (footer) footer.style.display = 'none';
+
+            // 🚨 KESİN ÇÖZÜM: Zamanlayıcı dolsa bile PC, dil seçildiği an 
+            // içeriden otomatik olarak tüm yasal uyarı ve yükleme perdelerini yıkarak geçer!
+            processData({ type: 'acilis_penceresini_kapat' });
+            processData({ type: 'yukleme_penceresini_kapat' });
 
             return;
         }
