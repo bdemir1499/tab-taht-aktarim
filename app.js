@@ -3294,6 +3294,15 @@ canvas.addEventListener('pointermove', (e) => {
                         }
                     });
                 }
+                
+                // 🚨 ÇÖZÜM 1: Arka plan kaydırılırken PC'ye devasa koordinatları göndermek yerine,
+                // Sadece ne kadar kaydığını (Delta X, Delta Y) özel 'hepsini_tasi' komutuyla gönderiyoruz.
+                if (typeof isConnected !== 'undefined' && isConnected) {
+                    window.sendNetworkData({ type: 'hepsini_tasi', dx: diffX, dy: diffY });
+                }
+                
+                redrawAllStrokes();
+                return; // 🚨 KRİTİK: Tabletin yanlış (sekil_guncelle) komutunu yollamasını engeller!
             }
         }
 
@@ -6048,6 +6057,32 @@ function setupConnectionEvents() {
             return;
         } 
 
+// 🚨 YENİ ALICI: TABLETTEN GELEN KUSURSUZ KAYDIRMA (PAN) SİNYALİNİ İŞLER
+        if (data.type === 'hepsini_tasi') {
+            const senderDpr = data.dpr || 1;
+            const myDpr = window.devicePixelRatio || 1;
+            const scale = myDpr / senderDpr; 
+
+            const diffX = data.dx * scale;
+            const diffY = data.dy * scale;
+
+            if (window.drawnStrokes) {
+                const mainBg = window.drawnStrokes.find(s => s.isBackground === true && !s.isPatch);
+                if (mainBg) {
+                    mainBg.x += diffX;
+                    mainBg.y += diffY;
+                }
+                // Zemindeki çizimleri ve şekilleri de aynı oranda kaydır
+                window.drawnStrokes.forEach(s => {
+                    if (!s.isBackground && typeof window.moveStroke === 'function') {
+                        window.moveStroke(s, diffX, diffY);
+                    }
+                });
+                if (window.redrawAllStrokes) window.redrawAllStrokes();
+            }
+            return;
+        }
+
 if (!data || !data.type) return;
         if (!window.drawnStrokes) window.drawnStrokes = [];
 
@@ -6253,15 +6288,10 @@ if (!data || !data.type) return;
                 const hedef = window.drawnStrokes[index];
 
                 if (hedef.isBackground === true) {
-                    const diffX = stroke.x - hedef.x;
-                    const diffY = stroke.y - hedef.y;
-                    if (window.drawnStrokes) {
-                        window.drawnStrokes.forEach(s => {
-                            if (s !== hedef && !s.isBackground) {
-                                if (typeof window.moveStroke === 'function') window.moveStroke(s, diffX, diffY);
-                            }
-                        });
-                    }
+                    // 🚨 ÇÖZÜM 3: Tabletin mutlak koordinatları, PC'nin özel merkez hizalamasını ezmesin diye
+                    // Arka plan sekil_guncelle işlemlerini KESİN OLARAK YASAKLIYORUZ! 
+                    // Bu işlem artık sadece üstteki 'hepsini_tasi' ile pürüzsüzce yapılacak.
+                    return; 
                 }
 
                 hedef.x = stroke.x;
