@@ -1474,19 +1474,33 @@ function redrawAllStrokes() {
                     if (stroke.rotationX !== undefined) sceneMesh.rotation.x = stroke.rotationX;
                     if (stroke.rotationY !== undefined) sceneMesh.rotation.y = stroke.rotationY;
                     if (stroke.rotationZ !== undefined) sceneMesh.rotation.z = stroke.rotationZ;
+                    
                     const canvasElm = document.getElementById('drawing-canvas');
                     if (canvasElm) {
+                        // 🚨 NİHAİ KESİN ÇÖZÜM: 3D Şeklin 2D Kalem Çizgileriyle Milimetrik Uyuşması!
+                        // Hatalı olan "clientWidth" (Mantıksal Piksel) yerine, "width" (Fiziksel HD Piksel) kullanıyoruz.
+                        const myCw = canvasElm.width;
+                        const myCh = canvasElm.height;
                         const cx = stroke.x + (stroke.width / 2);
                         const cy = stroke.y + (stroke.height / 2);
-                        const nx = (cx / canvasElm.clientWidth) * 2 - 1;
-                        const ny = -(cy / canvasElm.clientHeight) * 2 + 1;
+                        
+                        const nx = (cx / myCw) * 2 - 1;
+                        const ny = -(cy / myCh) * 2 + 1;
 
-                        const raycaster = new THREE.Raycaster();
-                        raycaster.setFromCamera(new THREE.Vector2(nx, ny), window.Scene3D.camera);
-                        const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
-                        const intersection = new THREE.Vector3();
-                        if (raycaster.ray.intersectPlane(plane, intersection)) {
-                            sceneMesh.position.copy(intersection);
+                        // Hatalı Raycaster ışınlaması yerine, kameranın kesin matematiksel iz düşümü:
+                        const vec = new THREE.Vector3(nx, ny, 0);
+                        vec.unproject(window.Scene3D.camera);
+                        
+                        sceneMesh.position.x = vec.x;
+                        sceneMesh.position.y = vec.y;
+                        if (stroke.pos3D && stroke.pos3D.z !== undefined) {
+                            sceneMesh.position.z = stroke.pos3D.z;
+                        }
+                        
+                        // 🚨 PC BÜYÜME ENGELLEYİCİ: Şeklin boyutunu 2D çizimlerle aynı oranda kilitler
+                        if (sceneMesh.userData.pixelPerfectScale) {
+                            const baseScale = stroke.width / (sceneMesh.userData.baseTabletWidth || stroke.width);
+                            sceneMesh.scale.setScalar(baseScale * sceneMesh.userData.pixelPerfectScale);
                         }
                     }
                 }
