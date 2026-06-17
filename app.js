@@ -5770,14 +5770,15 @@ function setupConnectionEvents() {
             scale = myBg.width / data.bgW;
             offsetX = myBg.x - (data.bgX * scale);
             offsetY = myBg.y - (data.bgY * scale);
-       } else {
-            // 🚨 ÇÖZÜM 5: Boş sayfada (PDF yokken) Tabletin oranını PC'de KUSURSUZ KORU (Orantısal Ölçekleme)
-            scale = Math.min(myCw / senderW, myCh / senderH);
-            offsetX = (myCw - (senderW * scale)) / 2;
-            offsetY = (myCh - (senderH * scale)) / 2;
+      } else {
+            // 🚨 NİHAİ ÇÖZÜM: Ekranı ortalama! Sol paneli (0,0) referans al ve fiziksel boyutu KESİN OLARAK KORU!
+            scale = myDpr / senderDpr;
+            offsetX = 0; 
+            offsetY = 0; 
         }
         
-        // 🚨 ÇÖZÜM 1 İÇİN HAZIRLIK: 3D şekillerin PC'de taşmasını engellemek için bu oranı mühürle!
+        // 3D şekillerin pozisyon takibi için bu oranı şekle mühürlüyoruz
+        stroke.usedScale = scale;
         stroke.adaptedScale = scale;
 
         const mapX = (x) => (x * scale) + offsetX;
@@ -5870,10 +5871,10 @@ function setupConnectionEvents() {
                 offsetX = myBg.x - (d.bgX * scale);
                 offsetY = myBg.y - (d.bgY * scale);
             } else {
-                // 🚨 ÇÖZÜM 5 (Devamı): Canlı çizim (aktif_onizleme) oranını da boş sayfada KUSURSUZ KORU!
-                scale = Math.min(myCw / senderW, myCh / senderH);
-                offsetX = (myCw - (senderW * scale)) / 2;
-                offsetY = (myCh - (senderH * scale)) / 2;
+                // 🚨 NİHAİ ÇÖZÜM (Canlı Çizim): Ekranı ortalama! Sol panele yapıştır ve birebir aynı büyüklükte tut!
+                scale = myDpr / senderDpr;
+                offsetX = 0;
+                offsetY = 0;
             }
 
             const mapCssX = (cssX) => (((parseFloat(cssX) * senderDpr) * scale + offsetX) / myDpr) + 'px';
