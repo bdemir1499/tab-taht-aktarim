@@ -6335,11 +6335,12 @@ if (!data || !data.type) return;
                         const targetPos = cam.position.clone().add(vec.multiplyScalar(rayDist));
                         sceneMesh.position.copy(targetPos);
 
-                        // 2. Matematiksel Boyut Mührü (Kamera açısı ne olursa olsun 2D tik ile AYNI boyutta kalır)
-                        const zDist = Math.abs(targetZ - cam.position.z);
-                        const fovRad = cam.fov * Math.PI / 360;
-                        const idealScale = (30 * zDist * Math.tan(fovRad)) / myCh;
-                        sceneMesh.scale.setScalar(idealScale);
+                        // 2. Kusursuz Boyut Mührü (Mikroskobik küçülmeyi iptal et, tablet boyutunu koru)
+                        let yeniScale = (data.stroke.width / 30) / sceneMesh.userData.baseSize;
+                        const mevcutSekil = window.drawnStrokes ? window.drawnStrokes.find(s => s.id === data.stroke.id) : null;
+                        const sH = data.stroke.originalSenderH || (mevcutSekil ? mevcutSekil.originalSenderH : (data.ch || myCh));
+                        const screenScaleFactor = sH / myCh;
+                        sceneMesh.scale.setScalar(yeniScale * screenScaleFactor);
 
                         // Rotasyon ayarlarını koru
                         if (data.stroke.rotationX !== undefined) sceneMesh.rotation.x = data.stroke.rotationX;
@@ -7354,11 +7355,10 @@ window.Scene3D = {
         const targetPos = cam.position.clone().add(vec.multiplyScalar(rayDist));
         solidShape.position.copy(targetPos);
 
-        // 2. Matematiksel Boyut Mührü
-        const zDist = Math.abs(targetZ - cam.position.z);
-        const fovRad = cam.fov * Math.PI / 360;
-        const idealScale = (30 * zDist * Math.tan(fovRad)) / myCh;
-        solidShape.scale.setScalar(idealScale);
+      // 2. Kusursuz Boyut Mührü (Mikroskobik küçülmeyi iptal et, tablet boyutunu koru)
+        const sH = strokeData.originalSenderH || strokeData.ch || myCh;
+        const screenScaleFactor = sH / myCh;
+        solidShape.scale.setScalar(screenScaleFactor);
 
         if (strokeData.rotationX !== undefined) solidShape.rotation.x = strokeData.rotationX;
         if (strokeData.rotationY !== undefined) solidShape.rotation.y = strokeData.rotationY;
