@@ -2987,10 +2987,9 @@ canvas.addEventListener('touchmove', (e) => {
         e.preventDefault();
         e.stopPropagation();
         
-        // 🚨 MUTLAK ZIRH: Eğer taşınan nesne Resim/PDF ise, avuç içi veya ikinci parmak değse bile taşımayı iptal etme!
-        if (typeof selectedItem === 'undefined' || !selectedItem || selectedItem.type !== 'image') {
-            isMoving = false; // Tek parmakla sürüklemeyi kesinlikle İPTAL ET!
-        }
+        // 🚨 ÇÖZÜM 2: Çift parmak zoom motoru devreye girdiğinde sürüklemeyi KESİN olarak kapat!
+        // Böylece taşıma ve zoom komutları birbiriyle savaşmaz, ekran zıplamaz.
+        isMoving = false; 
 
         window.isZooming = true;
         clearTimeout(window.zoomTimer);
@@ -3205,14 +3204,9 @@ canvas.addEventListener('pointermove', (e) => {
     if (e.pointerType === 'mouse') { let hasTouch = false; for (let p of pointers.values()) if (p.pointerType === 'touch' || p.pointerType === 'pen') hasTouch = true; if (hasTouch) return; }
     pointers.set(e.pointerId, e);
 
-    // --- TABLET/PARDUS: İKİ PARMAK ZOOM ---
-    // --- TABLET/PARDUS: İKİ PARMAK ZOOM (Yedek PointerEvent Motoru) ---
-    // Eğer tarayıcı TouchEvent yerine PointerEvent gönderiyorsa:
     if (pointers.size >= 2 && currentTool === 'move') {
-        // 🚨 MUTLAK ZIRH: Eğer taşınan nesne Resim/PDF ise taşımayı iptal etme!
-        if (typeof selectedItem === 'undefined' || !selectedItem || selectedItem.type !== 'image') {
-            isMoving = false; // Tek parmak sürüklemeyi zorla kapat
-        }
+        // 🚨 ÇÖZÜM 3A: Zoom başlarken sürüklemeyi tamamen kapat!
+        isMoving = false; 
 
         // 🚨 ÇAKIŞMAYI ÖNLEYİCİ ZIRH: Eğer cihaz gerçek TouchEvent destekliyorsa (touchCount >= 2),
         // yedek PointerEvent motorunu DURDUR! Aksi takdirde iki motor aynı anda çalışıp zoomu KİLİTLER!
@@ -3265,12 +3259,11 @@ canvas.addEventListener('pointermove', (e) => {
     if (window.isImageResizing && selectedItem) { const cX = selectedItem.x + selectedItem.width / 2; const cY = selectedItem.y + selectedItem.height / 2; const ratio = Math.hypot(pos.x - cX, pos.y - cY) / window.startImageDistance; selectedItem.width = window.startImageWidth * ratio; selectedItem.height = window.startImageHeight * ratio; selectedItem.x = cX - selectedItem.width / 2; selectedItem.y = cY - selectedItem.height / 2; window.sendNetworkData({ type: 'arac_senkron', selector: '.yuzen-kopya-container', width: selectedItem.width + 'px', height: selectedItem.height + 'px' }); window.sendNetworkData({ type: 'sekil_guncelle', stroke: selectedItem }); if (window.redrawAllStrokes) window.redrawAllStrokes(); return; }
 
     if (currentTool === 'move' && isMoving && selectedItem) {
-        // 🚨 MUTLAK ZIRH: Resim/PDF taşıyorsak ÇOKLU DOKUNMAYI GÖRMEZDEN GEL! Asla kaydırmayı kesme!
-        if (selectedItem.type !== 'image') {
-            if (window.touchCount >= 2 || pointers.size >= 2) {
-                isMoving = false;
-                return;
-            }
+        // 🚨 ÇÖZÜM 3B: Ekrana ikinci parmak değdiği an veya Zoom işlemi devam ediyorsa
+        // sürüklemeyi anında iptal ediyoruz. Bu tek parmakla taşırken yaşanan "zıplama" sorununu tamamen bitirir.
+        if (window.touchCount >= 2 || pointers.size >= 2 || window.isZooming) {
+            isMoving = false;
+            return;
         }
 
         const dx = pos.x - dragStartPos.x; const dy = pos.y - dragStartPos.y;
@@ -4113,12 +4106,16 @@ function addNewImageToCanvas(img, isPDF = false, pcKordinatlari = null) {
     if (pdfControls) { pdfControls.classList.remove('hidden'); pdfControls.style.display = 'flex'; }
 
     const closeBtn = document.getElementById('btn-close-pdf');
-    if (closeBtn) { closeBtn.classList.remove('hidden'); closeBtn.style.display = 'flex'; }
+            if (closeBtn) { closeBtn.classList.remove('hidden'); closeBtn.style.display = 'flex'; }
 
-    redrawAllStrokes();
+            redrawAllStrokes();
 
-    // 🚨 NİHAİ ÇÖZÜM: PC zaten PDF'i kendi çiziyor, 20MB resmi yollama! Sadece koordinatları yolla!
-    if (!pcKordinatlari && typeof isConnected !== 'undefined' && isConnected) {
+            // 🚨 ÇÖZÜM 1: Tabletin resmi anında görebilmesi için küçük bir gecikmeyle ekranı zorla tazeliyoruz. 
+            // Bu sayede "boşluğa tıklama" zorunluluğu ortadan kalkar ve PDF anında görünür!
+            setTimeout(() => { if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes(); }, 150);
+
+            // 🚨 NİHAİ ÇÖZÜM: PC zaten PDF'i kendi çiziyor, 20MB resmi yollama! Sadece koordinatları yolla!
+            if (!pcKordinatlari && typeof isConnected !== 'undefined' && isConnected) {
         window.sendNetworkData({
             type: 'arka_plan_resmi_aktar',
             imgData: img.src,
