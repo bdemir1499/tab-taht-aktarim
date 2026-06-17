@@ -5748,12 +5748,11 @@ function setupConnectionEvents() {
             offsetX = myBg.x - (data.bgX * scale);
             offsetY = myBg.y - (data.bgY * scale);
         } else {
-            const effectiveSenderW = senderCw || senderW;
-            const effectiveSenderH = senderCh || senderH;
-            
-            scale = Math.min(myCw / effectiveSenderW, myCh / effectiveSenderH);
-            offsetX = (myCw - (effectiveSenderW * scale)) / 2;
-            offsetY = (myCh - (effectiveSenderH * scale)) / 2;
+            // 🚨 KESİN ÇÖZÜM: Arka plan yokken ekranı ortalamaya çalışıp grid (ızgara) hizasını bozma.
+            // Sadece cihazların piksel yoğunluğu (DPR) farkını eşitle, mesafe oranı birebir (1:1) aynı kalsın.
+            scale = myDpr / senderDpr;
+            offsetX = 0;
+            offsetY = 0;
         }
 
         
@@ -5842,9 +5841,11 @@ function setupConnectionEvents() {
                 offsetX = myBg.x - (d.bgX * scale);
                 offsetY = myBg.y - (d.bgY * scale);
             } else {
-                scale = Math.min(myCw / senderW, myCh / senderH);
-                offsetX = (myCw - (senderW * scale)) / 2;
-                offsetY = (myCh - (senderH * scale)) / 2;
+                // 🚨 KESİN ÇÖZÜM: Canlı önizleme ve 3D araçların Grid hizalaması 
+                // arka plan yokken %100 birebir aynı olsun (Ortalama iptal edildi).
+                scale = myDpr / senderDpr;
+                offsetX = 0;
+                offsetY = 0;
             }
             const senderDpr = d.dpr || 1;
             const myDpr = window.devicePixelRatio || 1;
