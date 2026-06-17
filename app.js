@@ -5739,6 +5739,9 @@ function setupConnectionEvents() {
     window.adaptStrokeToScreen = function (stroke, senderW, senderH, senderCw, senderCh, data) {
         if (!stroke || !senderW || !senderH) return stroke;
 
+        // 🚨 ÇÖZÜM ADIMI 1: Tabletin gerçek ekran yüksekliğini şekle mühürle (3D Perspektif oranını korumak için)
+        stroke.originalSenderH = senderH;
+
         // 🚨 ÇÖZÜM: 3D Şekilleri dışlama, onlar da arka plan ve 2D ekran oranlarına göre otomatik hizalansın!
         // (3D koruması silindi)
 
@@ -6309,18 +6312,8 @@ if (!data || !data.type) return;
                 if (hedef.type === '3d_shape' && window.Scene3D && window.Scene3D.scene) {
                     const sceneMesh = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === hedef.id);
                     if (sceneMesh) {
-                        let yeniScale = (data.stroke.width / 30) / sceneMesh.userData.baseSize;
-                        if (window.innerWidth && data.cssW && data.cssW > 0) {
-                            const sx = window.innerWidth / data.cssW;
-                            if (sx > 1.1 && Math.abs(yeniScale - sx) < 0.2) yeniScale = 1; // sx büyümesini engelle
-                        }
-                        sceneMesh.scale.set(yeniScale, yeniScale, yeniScale);
-
-                        if (data.stroke.rotationX !== undefined) sceneMesh.rotation.x = data.stroke.rotationX;
-                        if (data.stroke.rotationY !== undefined) sceneMesh.rotation.y = data.stroke.rotationY;
-                        if (data.stroke.rotationZ !== undefined) sceneMesh.rotation.z = data.stroke.rotationZ;
-
-                        // 🚨 ÇÖZÜM 2: 3D pozisyonunu tabletin merkezinden değil, 2D çizimin gerçek koordinatlarından zorla hesapla!
+                        
+                        // 🚨 NİHAİ ÇÖZÜM 1: 3D Şeklin PC kamerasındaki perspektif kaymasını KESİN olarak iptal et!
                         const canvasElm = document.getElementById('drawing-canvas');
                         const myCw = canvasElm ? canvasElm.width : window.innerWidth;
                         const myCh = canvasElm ? canvasElm.height : window.innerHeight;
@@ -6331,21 +6324,27 @@ if (!data || !data.type) return;
                         const ndcX = (cx / myCw) * 2 - 1;
                         const ndcY = -(cy / myCh) * 2 + 1;
                         
-                        const vec = new THREE.Vector3(ndcX, ndcY, 0.5);
-                        vec.unproject(window.Scene3D.camera);
-                        vec.sub(window.Scene3D.camera.position).normalize();
-                        const distance = -window.Scene3D.camera.position.z / vec.z;
-                        const targetPos = window.Scene3D.camera.position.clone().add(vec.multiplyScalar(distance));
+                        const targetZ = (data.stroke.pos3D && data.stroke.pos3D.z !== undefined) ? data.stroke.pos3D.z : 0;
+                        const cam = window.Scene3D.camera;
                         
-                        sceneMesh.position.x = targetPos.x;
-                        sceneMesh.position.y = targetPos.y;
-                        if (data.stroke.pos3D && data.stroke.pos3D.z) sceneMesh.position.z = data.stroke.pos3D.z;
+                        // 1. Kusursuz Merkezleme (Derinlik Z eksenine göre gerçek iz düşümü)
+                        const vec = new THREE.Vector3(ndcX, ndcY, 0.5);
+                        vec.unproject(cam);
+                        vec.sub(cam.position).normalize();
+                        const rayDist = (targetZ - cam.position.z) / vec.z;
+                        const targetPos = cam.position.clone().add(vec.multiplyScalar(rayDist));
+                        sceneMesh.position.copy(targetPos);
 
-                        // Rotasyon ve sürgü (netProgress) gibi diğer ayarlar aynen kalıyor
+                        // 2. Matematiksel Boyut Mührü (Kamera açısı ne olursa olsun 2D tik ile AYNI boyutta kalır)
+                        const zDist = Math.abs(targetZ - cam.position.z);
+                        const fovRad = cam.fov * Math.PI / 360;
+                        const idealScale = (30 * zDist * Math.tan(fovRad)) / myCh;
+                        sceneMesh.scale.setScalar(idealScale);
+
+                        // Rotasyon ayarlarını koru
                         if (data.stroke.rotationX !== undefined) sceneMesh.rotation.x = data.stroke.rotationX;
                         if (data.stroke.rotationY !== undefined) sceneMesh.rotation.y = data.stroke.rotationY;
-
-                        // Sürgü açınım bilgisini senkronize et
+                        if (data.stroke.rotationZ !== undefined) sceneMesh.rotation.z = data.stroke.rotationZ;
 
                         // Sürgü açınım bilgisini senkronize et
                         if (data.stroke.openRatio !== undefined && window.Foldable3D) {
@@ -7333,7 +7332,7 @@ window.Scene3D = {
             solidShape.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edgeMaterial));
         }
 
-        // 🚨 ÇÖZÜM 3: İlk eklendiğinde de 3D şekli tıpkı bir 2D kalem çizgisi gibi ekranın gerçek X, Y piksellerine mühürle!
+        // 🚨 NİHAİ ÇÖZÜM 2: Şekil ilk eklendiğinde de 2D çizim (tik işareti vb.) ile milimetrik hizalanır!
         const canvasElm = document.getElementById('drawing-canvas');
         const myCw = canvasElm ? canvasElm.width : window.innerWidth;
         const myCh = canvasElm ? canvasElm.height : window.innerHeight;
@@ -7344,15 +7343,22 @@ window.Scene3D = {
         const ndcX = (cx / myCw) * 2 - 1;
         const ndcY = -(cy / myCh) * 2 + 1;
         
-        const vec = new THREE.Vector3(ndcX, ndcY, 0.5);
-        vec.unproject(this.camera);
-        vec.sub(this.camera.position).normalize();
-        const distance = -this.camera.position.z / vec.z;
-        const targetPos = this.camera.position.clone().add(vec.multiplyScalar(distance));
+        const targetZ = (strokeData.pos3D && strokeData.pos3D.z !== undefined) ? strokeData.pos3D.z : 0;
+        const cam = this.camera;
         
-        solidShape.position.x = targetPos.x;
-        solidShape.position.y = targetPos.y;
-        if (strokeData.pos3D && strokeData.pos3D.z) solidShape.position.z = strokeData.pos3D.z;
+        // 1. Kusursuz Merkezleme
+        const vec = new THREE.Vector3(ndcX, ndcY, 0.5);
+        vec.unproject(cam);
+        vec.sub(cam.position).normalize();
+        const rayDist = (targetZ - cam.position.z) / vec.z;
+        const targetPos = cam.position.clone().add(vec.multiplyScalar(rayDist));
+        solidShape.position.copy(targetPos);
+
+        // 2. Matematiksel Boyut Mührü
+        const zDist = Math.abs(targetZ - cam.position.z);
+        const fovRad = cam.fov * Math.PI / 360;
+        const idealScale = (30 * zDist * Math.tan(fovRad)) / myCh;
+        solidShape.scale.setScalar(idealScale);
 
         if (strokeData.rotationX !== undefined) solidShape.rotation.x = strokeData.rotationX;
         if (strokeData.rotationY !== undefined) solidShape.rotation.y = strokeData.rotationY;
