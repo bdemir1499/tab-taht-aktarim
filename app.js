@@ -6341,44 +6341,29 @@ if (!data || !data.type) return;
                     const sceneMesh = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === hedef.id);
                     if (sceneMesh) {
                         
-                        // 🚨 YENİ ÇÖZÜM 2 & 3: Sürgü kapalıyken 2D kaleme kilitlen, Sürgü açıkken yerinde sabit kal!
-                        const pps = sceneMesh.userData.pixelPerfectScale || 1;
-                        
-                        if (data.stroke.openRatio === 0 || data.stroke.openRatio === undefined) {
-                            // 1. Sürgü kapalıyken (normal taşıma ve boyutlandırma) -> 2D çizgi neredeyse tam altına gir!
-                            const canvasElm = document.getElementById('drawing-canvas');
-                            const myCw = canvasElm ? canvasElm.width : window.innerWidth;
-                            const myCh = canvasElm ? canvasElm.height : window.innerHeight;
-                            
-                            const cx = data.stroke.x + (data.stroke.width / 2);
-                            const cy = data.stroke.y + (data.stroke.height / 2);
-                            const ndcX = (cx / myCw) * 2 - 1;
-                            const ndcY = -(cy / myCh) * 2 + 1;
-                            
-                            const vec = new THREE.Vector3(ndcX, ndcY, 0);
-                            vec.unproject(window.Scene3D.camera);
-                            
-                            sceneMesh.position.x = vec.x;
-                            sceneMesh.position.y = vec.y;
-                            sceneMesh.position.z = data.stroke.pos3D ? data.stroke.pos3D.z : 0;
-                            
-                            // Gelecekte sürgü açılırsa diye bu doğru koordinatı mühürle
-                            sceneMesh.userData.initialPcPosX = sceneMesh.position.x;
-                            sceneMesh.userData.initialPcPosY = sceneMesh.position.y;
+                        // 🚨 KESİN ÇÖZÜM: Sürgü (openRatio) açık veya kapalı fark etmez, şekil tablette neredeyse
+                // PC'de de ZIRHLI olarak oraya oturtulur. Zıplama yapmaz!
+                const canvasElm = document.getElementById('drawing-canvas');
+                const myCw = canvasElm ? canvasElm.width : window.innerWidth;
+                const myCh = canvasElm ? canvasElm.height : window.innerHeight;
+                
+                const cx = data.stroke.x + (data.stroke.width / 2);
+                const cy = data.stroke.y + (data.stroke.height / 2);
+                const ndcX = (cx / myCw) * 2 - 1;
+                const ndcY = -(cy / myCh) * 2 + 1;
+                
+                const vec = new THREE.Vector3(ndcX, ndcY, 0);
+                vec.unproject(window.Scene3D.camera);
+                
+                sceneMesh.position.x = vec.x;
+                sceneMesh.position.y = vec.y;
+                sceneMesh.position.z = data.stroke.pos3D ? data.stroke.pos3D.z : 0;
 
-                            // PC ekranındaki şişkinliği iptal ederek doğru boyutu uygula
-                            const currentTabletWidth = data.stroke.width;
-                            const resizeScale = currentTabletWidth / (sceneMesh.userData.baseTabletWidth || currentTabletWidth);
-                            sceneMesh.scale.setScalar(resizeScale * pps);
-                            sceneMesh.userData.lastValidScale = resizeScale * pps;
-                        } else {
-                            // 2. Sürgü açıkken (animasyon izlenirken) -> Boyutu ve yeri KİLİTLE! (Kaymasını engeller)
-                            if (sceneMesh.userData.initialPcPosX !== undefined) {
-                                sceneMesh.position.x = sceneMesh.userData.initialPcPosX;
-                                sceneMesh.position.y = sceneMesh.userData.initialPcPosY;
-                            }
-                            sceneMesh.scale.setScalar(sceneMesh.userData.lastValidScale || pps);
-                        }
+                // PC ekranındaki şişkinliği iptal ederek doğru boyutu uygula
+                const pps = 900 / myCh;
+                const currentTabletWidth = data.stroke.width;
+                const resizeScale = currentTabletWidth / (sceneMesh.userData.baseTabletWidth || currentTabletWidth);
+                sceneMesh.scale.setScalar(resizeScale * pps);
 
                         // Rotasyon ayarlarını koru
                         if (data.stroke.rotationX !== undefined) sceneMesh.rotation.x = data.stroke.rotationX;
@@ -7388,17 +7373,13 @@ window.Scene3D = {
         solidShape.position.y = vec.y;
         solidShape.position.z = (strokeData.pos3D && strokeData.pos3D.z !== undefined) ? strokeData.pos3D.z : 0;
 
-        // 🚨 YENİ ÇÖZÜM: 2D çizimler PC'de kendi fiziksel boyutunu koruduğu için, 3D şeklin de PC'nin kamerasında şişmesini engelliyoruz!
-        const sH = strokeData.ch || strokeData.originalSenderH || myCh;
-        const pixelPerfectScale = sH / myCh;
+        // 🚨 KESİN ÇÖZÜM: 3D şeklin PC ekranındaki fiziksel boyutunu 2D çizimle birebir aynı yapma formülü.
+        // Kamera yüksekliği 30 birim, şekil çarpanı 30 olduğundan 30*30 = 900 sabiti kullanılır.
+        const pixelPerfectScale = 900 / myCh;
         solidShape.scale.setScalar(pixelPerfectScale);
 
-        // Gelecekteki taşımalar ve sürgü açılımları için orijinal konumları mühürle
-        solidShape.userData.initialPcPosX = solidShape.position.x;
-        solidShape.userData.initialPcPosY = solidShape.position.y;
         solidShape.userData.baseTabletWidth = strokeData.width;
         solidShape.userData.pixelPerfectScale = pixelPerfectScale;
-        solidShape.userData.lastValidScale = pixelPerfectScale;
 
         if (strokeData.rotationX !== undefined) solidShape.rotation.x = strokeData.rotationX;
         if (strokeData.rotationY !== undefined) solidShape.rotation.y = strokeData.rotationY;
