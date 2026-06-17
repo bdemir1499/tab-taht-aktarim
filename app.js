@@ -5150,10 +5150,10 @@ function dilButonlariniHazirla() {
                 if (footer) footer.style.display = 'none';
 
                 // 2. Karşı cihaza (PC/Tahtaya) "Aynı dili seç ve ekranı aç" emri gönder!
-                // 🚨 KESİN ÇÖZÜM: 'window' ön eki eklendi ve ekranı kapatma emri zorunlu kılındı.
-                if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
-                    window.sendNetworkData({ type: 'dil_secimi', lang: targetLang });
-                    window.sendNetworkData({ type: 'acilis_penceresini_kapat' });
+                // 🚨 DÜZELTME: Kapsam hatasına yol açan 'window.' ön ekleri temizlendi.
+                if (typeof isConnected !== 'undefined' && isConnected && typeof sendNetworkData !== 'undefined') {
+                    sendNetworkData({ type: 'dil_secimi', lang: targetLang });
+                    sendNetworkData({ type: 'acilis_penceresini_kapat' });
                 }
 
                 setTimeout(() => { isTriggered = false; }, 500);
@@ -6605,19 +6605,19 @@ function setupConnectionEvents() {
         if (!isConnected || !myConnection || !myConnection.open) return;
 
         // 🚨 YENİ ÇÖZÜM: BAĞLANTI SONRADAN BİLE GELSE DİLİ VE EKRAN KİLİDİNİ SENKRONİZE ET
-        if (typeof currentLang !== 'undefined' && currentLang) {
-            window.sendNetworkData({ type: 'dil_secimi', lang: currentLang });
+        if (typeof currentLang !== 'undefined' && currentLang && typeof sendNetworkData !== 'undefined') {
+            sendNetworkData({ type: 'dil_secimi', lang: currentLang });
         }
 
         // 1. Yasal Uyarı Kontrolü ve Sinyali
-        if (window.acilisPenceresiKapatildi || (document.getElementById('disclaimer-modal') && document.getElementById('disclaimer-modal').style.display === 'none')) {
-            window.sendNetworkData({ type: 'acilis_penceresini_kapat' });
+        if ((window.acilisPenceresiKapatildi || (document.getElementById('disclaimer-modal') && document.getElementById('disclaimer-modal').style.display === 'none')) && typeof sendNetworkData !== 'undefined') {
+            sendNetworkData({ type: 'acilis_penceresini_kapat' });
         }
 
         // 🚨 2. YENİ: Yükle Penceresi Kontrolü ve Sinyali 🚨
         const tabletPopup = document.getElementById('install-popup');
-        if (!tabletPopup || tabletPopup.style.display === 'none' || tabletPopup.classList.contains('hidden')) {
-            window.sendNetworkData({ type: 'yukleme_penceresini_kapat' });
+        if ((!tabletPopup || tabletPopup.style.display === 'none' || tabletPopup.classList.contains('hidden')) && typeof sendNetworkData !== 'undefined') {
+            sendNetworkData({ type: 'yukleme_penceresini_kapat' });
         }
 
         console.log("PC'ye tüm pencerelerin durum eşitlemesi gönderiliyor... (Deneme: " + (denemeSayisi + 1) + ")");
