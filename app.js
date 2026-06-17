@@ -1477,26 +1477,30 @@ function redrawAllStrokes() {
                     
                     const canvasElm = document.getElementById('drawing-canvas');
                     if (canvasElm) {
-                        // 🚨 ÇÖZÜM 1: Tablet clientWidth (CSS Pikselleri) kullandığı için, geri dönüşümde de BİREBİR AYNISI kullanılmalıdır!
-                        const myCw = canvasElm.clientWidth;
-                        const myCh = canvasElm.clientHeight;
+                        // 🚨 GÖRÜNMEZLİK ÇÖZÜMÜ: Orijinal Raycaster (Işın) Matematiğine Geri Dönüyoruz!
+                        const myCw = canvasElm.width;
+                        const myCh = canvasElm.height;
                         const cx = stroke.x + (stroke.width / 2);
                         const cy = stroke.y + (stroke.height / 2);
                         
                         const nx = (cx / myCw) * 2 - 1;
                         const ny = -(cy / myCh) * 2 + 1;
 
-                        const vec = new THREE.Vector3(nx, ny, 0);
-                        vec.unproject(window.Scene3D.camera);
+                        // Şekli kameranın gözüne sokmak yerine tekrar 3D uzayına fırlatıyoruz!
+                        const raycaster = new THREE.Raycaster();
+                        raycaster.setFromCamera(new THREE.Vector2(nx, ny), window.Scene3D.camera);
+                        const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+                        const intersection = new THREE.Vector3();
                         
-                        sceneMesh.position.x = vec.x;
-                        sceneMesh.position.y = vec.y;
+                        if (raycaster.ray.intersectPlane(plane, intersection)) {
+                            sceneMesh.position.copy(intersection);
+                        }
+
                         if (stroke.pos3D && stroke.pos3D.z !== undefined) {
                             sceneMesh.position.z = stroke.pos3D.z;
                         }
                         
-                        // 🚨 GÖRÜNMEZLİK HATASI ÇÖZÜMÜ: Sadece PC'de (pixelPerfectScale varsa) boyut zırhını uygula!
-                        // Tablette ise şeklin kendi orijinal doğal boyutunda kalmasını sağla.
+                        // 🚨 PC BÜYÜME KORUMASI: Tablette serbest bırak, PC'de orantılı kilitle
                         if (sceneMesh.userData.pixelPerfectScale !== undefined) {
                             const baseScale = stroke.width / (sceneMesh.userData.baseTabletWidth || stroke.width);
                             sceneMesh.scale.setScalar(baseScale * sceneMesh.userData.pixelPerfectScale);
@@ -7204,8 +7208,8 @@ window.Scene3D = {
                     const vec = this.currentMesh.position.clone();
                     vec.project(this.camera);
                     const canvasEl = document.getElementById('drawing-canvas');
-                    const w = canvasEl ? (canvasEl.clientWidth / 2) : (window.innerWidth / 2);
-                    const h = canvasEl ? (canvasEl.clientHeight / 2) : (window.innerHeight / 2);
+                    const w = canvasEl ? (canvasEl.width / 2) : (window.innerWidth / 2);
+                    const h = canvasEl ? (canvasEl.height / 2) : (window.innerHeight / 2);
                     sd.x = ((vec.x * w) + w) - (sd.width / 2);
                     sd.y = (-(vec.y * h) + h) - (sd.height / 2);
 
@@ -7273,8 +7277,8 @@ window.Scene3D = {
             const vec = solidShape.position.clone();
             vec.project(this.camera);
             const canvasEl = document.getElementById('drawing-canvas');
-            const w = canvasEl ? (canvasEl.clientWidth / 2) : (window.innerWidth / 2);
-            const h = canvasEl ? (canvasEl.clientHeight / 2) : (window.innerHeight / 2);
+            const w = canvasEl ? (canvasEl.width / 2) : (window.innerWidth / 2);
+            const h = canvasEl ? (canvasEl.height / 2) : (window.innerHeight / 2);
             const screenX = (vec.x * w) + w;
             const screenY = -(vec.y * h) + h;
 
