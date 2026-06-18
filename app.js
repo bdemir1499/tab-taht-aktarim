@@ -5751,6 +5751,18 @@ function setupConnectionEvents() {
             if (stroke.height !== undefined && !isLineType) stroke.height *= scale;
         }
 
+        // 🚨 KUSURSUZ SENKRON: "original" değerleri de PC ekranına adapte et! (Zıplamayı kökten çözer)
+        if (stroke.originalX !== undefined && stroke.originalW !== undefined && !isLineType) {
+            const orig_center_x = mapX(stroke.originalX + stroke.originalW / 2);
+            stroke.originalW *= scale;
+            stroke.originalX = orig_center_x - stroke.originalW / 2;
+        }
+        if (stroke.originalY !== undefined && stroke.originalH !== undefined && !isLineType) {
+            const orig_center_y = mapY(stroke.originalY + stroke.originalH / 2);
+            stroke.originalH *= scale;
+            stroke.originalY = orig_center_y - stroke.originalH / 2;
+        }
+
         if (stroke.cx !== undefined) stroke.cx = mapX(stroke.cx);
         if (stroke.cy !== undefined) stroke.cy = mapY(stroke.cy);
         
@@ -7257,16 +7269,21 @@ window.Scene3D = {
             const screenX = (vec.x * w) + w;
             const screenY = -(vec.y * h) + h;
 
+            // 🚨 1. KUSURSUZ BOYUT: Gerçek HD Piksel karşılığını hesapla (Küçülmeyi ve kaymayı önler)
+            const myCh = canvasEl ? canvasEl.height : window.innerHeight;
+            const pixelPerUnit = myCh / 30; // 3D uzaydaki 1 birimin piksel karşılığı
+            const gercekPx = (finalRadius * 2) * pixelPerUnit;
+
             const networkData = {
                 type: '3d_shape', id: Date.now().toString() + Math.random(), shapeType: this.activeTool,
-                x: screenX - (finalRadius * 15),
-                y: screenY - (finalRadius * 15),
-                width: finalRadius * 30, height: finalRadius * 30,
-                // 🚨 ZIRH: Şeklin ilk halini mühürlüyoruz ki sürgüyle büyüyüp zıplamasın!
-                originalX: screenX - (finalRadius * 15),
-                originalY: screenY - (finalRadius * 15),
-                originalW: finalRadius * 30,
-                originalH: finalRadius * 30,
+                x: screenX - (gercekPx / 2),
+                y: screenY - (gercekPx / 2),
+                width: gercekPx, height: gercekPx,
+                // Sürgü çekilse bile asla zıplamasın ve PC'ye mükemmel gitsin diye ZIRH:
+                originalX: screenX - (gercekPx / 2),
+                originalY: screenY - (gercekPx / 2),
+                originalW: gercekPx,
+                originalH: gercekPx,
                 rotationX: solidShape.rotation.x, rotationY: solidShape.rotation.y, rotationZ: solidShape.rotation.z,
                 pos3D: { x: solidShape.position.x, y: solidShape.position.y, z: solidShape.position.z },
                 rotation: 0, yaw: 0, pitch: 1, openRatio: 0, isPreview: false, color: '#00ffcc'
