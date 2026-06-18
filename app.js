@@ -3314,6 +3314,11 @@ canvas.addEventListener('pointermove', (e) => {
                 oldX = selectedItem.x; oldY = selectedItem.y;
                 selectedItem.x = (originalStartPos.x || 0) + dx; selectedItem.y = (originalStartPos.y || 0) + dy; 
                 newX = selectedItem.x; newY = selectedItem.y;
+                // 🚨 KESİN ÇÖZÜM: Taşıma sırasında 3D şekillerin originalX ve originalY değerlerini güncelle
+                if (selectedItem.originalX !== undefined) {
+                    selectedItem.originalX = selectedItem.x;
+                    selectedItem.originalY = selectedItem.y;
+                }
             } 
             if (selectedItem.vertices) selectedItem.vertices = null; 
 
@@ -6341,8 +6346,8 @@ if (!data || !data.type) return;
             if (typeof adaptStrokeToScreen === 'function') {
                 const senderCw = data.cw || data.cssW;
                 const senderCh = data.ch || data.cssH;
-                const senderW = data.cw || data.cssW;
-                const senderH = data.ch || data.cssH;
+                const senderW = data.cssW || data.cw;
+                const senderH = data.cssH || data.ch;
                 adaptStrokeToScreen(stroke, senderW, senderH, senderCw, senderCh, data);
             }
 
