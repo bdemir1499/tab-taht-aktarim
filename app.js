@@ -6377,6 +6377,17 @@ if (!data || !data.type) return;
                 if (stroke.cy !== undefined) hedef.cy = stroke.cy;
                 if (stroke.center !== undefined) hedef.center = stroke.center;
 
+                // 🚨 4. ÇÖZÜM: PC'nin gelen 3D Döndürme, Boyutlandırma ve Taşıma mühürlerini hafızaya yazması!
+                if (stroke.originalX !== undefined) hedef.originalX = stroke.originalX;
+                if (stroke.originalY !== undefined) hedef.originalY = stroke.originalY;
+                if (stroke.originalW !== undefined) hedef.originalW = stroke.originalW;
+                if (stroke.originalH !== undefined) hedef.originalH = stroke.originalH;
+                if (stroke.rotationX !== undefined) hedef.rotationX = stroke.rotationX;
+                if (stroke.rotationY !== undefined) hedef.rotationY = stroke.rotationY;
+                if (stroke.rotationZ !== undefined) hedef.rotationZ = stroke.rotationZ;
+
+                // 🚨 KESİN ÇÖZÜM: Tabletteki (Açı / Kenar uzunluğu / Çember formülü) etiketlerini PC'de de GÖSTER!
+
                 // 🚨 3. AĞ SENKRONU: PC'nin 3D döndürme ve boyutları kabul etmesi için gelen verileri kaydet!
                 if (stroke.rotationX !== undefined) hedef.rotationX = stroke.rotationX;
                 if (stroke.rotationY !== undefined) hedef.rotationY = stroke.rotationY;
@@ -7314,6 +7325,15 @@ window.Scene3D = {
             this.currentMesh.rotateOnWorldAxis(new THREE.Vector3(0, 0, 1), (x - this.lastMousePos.x) * 0.01);
             this.lastMousePos = { x, y };
             this.updateHandlePositions();
+            
+            // 🚨 1. ÇÖZÜM: Yeşil butonla döndürürken açıyı PC'ye gönder!
+            if (this.currentMesh.userData && this.currentMesh.userData.strokeData) {
+                const sd = this.currentMesh.userData.strokeData;
+                sd.rotationX = this.currentMesh.rotation.x;
+                sd.rotationY = this.currentMesh.rotation.y;
+                sd.rotationZ = this.currentMesh.rotation.z;
+                if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: sd });
+            }
             return;
         }
         if (this.isResizingHandle && this.currentMesh) {
@@ -7321,10 +7341,16 @@ window.Scene3D = {
             const newScale = Math.max(0.1, this.startScale * (currentDist / this.startResizeDist));
             this.currentMesh.scale.set(newScale, newScale, newScale);
             this.updateHandlePositions();
+            
+            // 🚨 2. ÇÖZÜM: Pembe butonla boyutlandırırken MÜHÜRLÜ değerleri de büyüt ve ağa gönder!
             if (this.currentMesh.userData && this.currentMesh.userData.strokeData) {
-                this.currentMesh.userData.strokeData.width = (this.currentMesh.userData.baseSize * newScale) * 30;
-                this.currentMesh.userData.strokeData.height = (this.currentMesh.userData.baseSize * newScale) * 30;
-                if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: this.currentMesh.userData.strokeData });
+                const sd = this.currentMesh.userData.strokeData;
+                sd.width = (this.currentMesh.userData.baseSize * newScale) * 30;
+                sd.height = sd.width;
+                sd.originalW = sd.width;
+                sd.originalH = sd.height;
+                if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: sd });
+                if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
             }
             return;
         }
@@ -7343,12 +7369,11 @@ window.Scene3D = {
                 this.currentMesh.position.addVectors(intersectPoint, this.dragOffset);
                 this.updateHandlePositions();
 
-                // 🚨 EKRANDA TAŞINIRKEN BİLGİYİ GERÇEK ZAMANLI PC'YE İLET
+                // 🚨 3. ÇÖZÜM: Ekranda taşınırken MÜHÜRLÜ (originalX) koordinatları da kilitle ve ağa gönder!
                 if (this.currentMesh.userData && this.currentMesh.userData.strokeData) {
                     const sd = this.currentMesh.userData.strokeData;
                     sd.pos3D = { x: this.currentMesh.position.x, y: this.currentMesh.position.y, z: this.currentMesh.position.z };
 
-                    // 2D Merkez noktasını (x,y) Formül kutusu için de güncelle
                     const vec = this.currentMesh.position.clone();
                     vec.project(this.camera);
                     const canvasEl = document.getElementById('drawing-canvas');
@@ -7356,9 +7381,11 @@ window.Scene3D = {
                     const h = canvasEl ? (canvasEl.height / 2) : (window.innerHeight / 2);
                     sd.x = ((vec.x * w) + w) - (sd.width / 2);
                     sd.y = (-(vec.y * h) + h) - (sd.height / 2);
+                    
+                    sd.originalX = sd.x;
+                    sd.originalY = sd.y;
 
                     window.selectedItem = sd;
-
                     if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: sd });
                     if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
                 }
