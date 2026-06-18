@@ -7326,6 +7326,7 @@ window.Scene3D = {
             this.lastMousePos = { x, y };
             this.updateHandlePositions();
             
+            // 🚨 ÇÖZÜM 1: Yeşil butonla dönüş verisi PC'ye gider
             if (this.currentMesh.userData && this.currentMesh.userData.strokeData) {
                 const sd = this.currentMesh.userData.strokeData;
                 sd.rotationX = this.currentMesh.rotation.x;
@@ -7343,16 +7344,21 @@ window.Scene3D = {
             
             if (this.currentMesh.userData && this.currentMesh.userData.strokeData) {
                 const sd = this.currentMesh.userData.strokeData;
-                const canvasElm = document.getElementById('drawing-canvas');
-                const myCh = canvasElm ? canvasElm.height : window.innerHeight;
+                const canvasEl = document.getElementById('drawing-canvas');
+                const myCh = canvasEl ? canvasEl.height : window.innerHeight;
                 
-                // 🚨 KUSURSUZ HD BOYUT HESABI (Şeklin devasa olmasını kökünden engeller)
+                // 🚨 ÇÖZÜM 2: Mükemmel boyut hesabı (Şeklin patlamasını ve devasa olmasını engeller)
                 const pixelPerUnit = myCh / 30;
                 const newGercekPx = (this.currentMesh.userData.baseSize * 2 * newScale) * pixelPerUnit;
                 
-                // Şekil büyürken merkezinin kaymaması için X ve Y'yi koruyoruz
-                const cx = (sd.originalX !== undefined ? sd.originalX : sd.x) + ((sd.originalW || sd.width) / 2);
-                const cy = (sd.originalY !== undefined ? sd.originalY : sd.y) + ((sd.originalH || sd.height) / 2);
+                // Büyürken merkezini kaybetmemesi için güvenli hesaplama
+                const refX = sd.originalX !== undefined ? sd.originalX : sd.x;
+                const refY = sd.originalY !== undefined ? sd.originalY : sd.y;
+                const refW = sd.originalW !== undefined ? sd.originalW : sd.width;
+                const refH = sd.originalH !== undefined ? sd.originalH : sd.height;
+
+                const cx = refX + (refW / 2);
+                const cy = refY + (refH / 2);
                 
                 sd.width = newGercekPx;
                 sd.height = newGercekPx;
@@ -7388,26 +7394,25 @@ window.Scene3D = {
                     const sd = this.currentMesh.userData.strokeData;
                     sd.pos3D = { x: this.currentMesh.position.x, y: this.currentMesh.position.y, z: this.currentMesh.position.z };
 
-                    // 🚨 TERS-HD MATEMATİĞİ (Ekrandaki 3D pozisyonu HD piksele çevirir, zıplamayı imkansızlaştırır)
+                    // 🚨 ÇÖZÜM 3: Senin çalışan eski "kusursuz koordinat" formülün geri geldi!
                     const vec = this.currentMesh.position.clone();
                     vec.project(this.camera);
-                    
                     const canvasEl = document.getElementById('drawing-canvas');
-                    const myCw = canvasEl ? canvasEl.width : window.innerWidth;
-                    const myCh = canvasEl ? canvasEl.height : window.innerHeight;
+                    const w = canvasEl ? (canvasEl.width / 2) : (window.innerWidth / 2);
+                    const h = canvasEl ? (canvasEl.height / 2) : (window.innerHeight / 2);
                     
-                    const cx = ((vec.x + 1) / 2) * myCw;
-                    const cy = ((1 - vec.y) / 2) * myCh;
+                    const safeW = sd.originalW !== undefined ? sd.originalW : sd.width;
+                    const safeH = sd.originalH !== undefined ? sd.originalH : sd.height;
+
+                    sd.x = ((vec.x * w) + w) - (safeW / 2);
+                    sd.y = (-(vec.y * h) + h) - (safeH / 2);
                     
-                    const ow = sd.originalW || sd.width;
-                    const oh = sd.originalH || sd.height;
-                    
-                    sd.x = cx - (ow / 2);
-                    sd.y = cy - (oh / 2);
+                    // Sürgünün ve taşımanın zıplamaması için tek gereken şu mühürlemeydi:
                     sd.originalX = sd.x;
                     sd.originalY = sd.y;
 
                     window.selectedItem = sd;
+
                     if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: sd });
                     if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
                 }
