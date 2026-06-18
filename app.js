@@ -3378,6 +3378,12 @@ canvas.addEventListener('pointermove', (e) => {
                     selectedItem.height = sW * ratio;
                     selectedItem.x = startCX - (selectedItem.width / 2);
                     selectedItem.y = startCY - (selectedItem.height / 2);
+                    
+                    // 🚨 1. AĞ SENKRONU: Pembe butonla büyütürken mühürlü değerleri de büyüt ki PC bunu kabul etsin!
+                    selectedItem.originalW = selectedItem.width;
+                    selectedItem.originalH = selectedItem.height;
+                    selectedItem.originalX = selectedItem.x;
+                    selectedItem.originalY = selectedItem.y;
 
                     if (window.Scene3D && window.Scene3D.scene) {
                         const sceneMesh = window.Scene3D.scene.children.find(m => m.userData && m.userData.strokeData && m.userData.strokeData.id === selectedItem.id);
@@ -3417,7 +3423,12 @@ canvas.addEventListener('pointermove', (e) => {
                     radius: selectedItem.radius,
                     cx: selectedItem.cx,
                     cy: selectedItem.cy,
-                    center: selectedItem.center
+                    center: selectedItem.center,
+                    // 🚨 2. AĞ SENKRONU: Boyut mühürlerini PC'ye fırlatıyoruz!
+                    originalX: selectedItem.originalX,
+                    originalY: selectedItem.originalY,
+                    originalW: selectedItem.originalW,
+                    originalH: selectedItem.originalH
                 }
             });
             window.sendNetworkData({ type: 'secimi_senkronize_et', strokeId: selectedItem.id });
@@ -6365,6 +6376,17 @@ if (!data || !data.type) return;
                 if (stroke.cx !== undefined) hedef.cx = stroke.cx;
                 if (stroke.cy !== undefined) hedef.cy = stroke.cy;
                 if (stroke.center !== undefined) hedef.center = stroke.center;
+
+                // 🚨 3. AĞ SENKRONU: PC'nin 3D döndürme ve boyutları kabul etmesi için gelen verileri kaydet!
+                if (stroke.rotationX !== undefined) hedef.rotationX = stroke.rotationX;
+                if (stroke.rotationY !== undefined) hedef.rotationY = stroke.rotationY;
+                if (stroke.rotationZ !== undefined) hedef.rotationZ = stroke.rotationZ;
+                if (stroke.originalW !== undefined) {
+                    hedef.originalW = stroke.originalW;
+                    hedef.originalH = stroke.originalH;
+                    hedef.originalX = stroke.originalX;
+                    hedef.originalY = stroke.originalY;
+                }
 
                 // 🚨 KESİN ÇÖZÜM: Tabletteki (Açı / Kenar uzunluğu / Çember formülü) etiketlerini PC'de de GÖSTER!
                 if (data.stroke.showEdgeLabels !== undefined) hedef.showEdgeLabels = data.stroke.showEdgeLabels;
