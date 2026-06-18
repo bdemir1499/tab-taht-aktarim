@@ -1505,13 +1505,14 @@ function redrawAllStrokes() {
                             sceneMesh.position.z = stroke.pos3D.z;
                         }
                         
-                        // 🚨 KUSURSUZ BOYUT: Çift hesaplamayı kaldırıp birebir orana kilitliyoruz.
+                        // 🚨 KUSURSUZ BOYUT + AĞ ÖLÇEĞİ: Koordinatları bozmadan sadece pembe buton çarpanını ekliyoruz
                         const threeJSHeightRatio = 30 / myCh;
                         const targetThreeJSWidth = refW * threeJSHeightRatio;
                         const originalThreeJSWidth = sceneMesh.userData.baseSize * 2;
                         const gercekOlcek = targetThreeJSWidth / originalThreeJSWidth;
                         
-                        sceneMesh.scale.setScalar(gercekOlcek);
+                        const mScale = stroke.meshScale || 1;
+                        sceneMesh.scale.setScalar(gercekOlcek * mScale);
                     }
                 }
             }
@@ -6377,14 +6378,11 @@ if (!data || !data.type) return;
                 if (stroke.cy !== undefined) hedef.cy = stroke.cy;
                 if (stroke.center !== undefined) hedef.center = stroke.center;
 
-                // 🚨 4. ÇÖZÜM: PC'nin gelen 3D Döndürme, Boyutlandırma ve Taşıma mühürlerini hafızaya yazması!
-                if (stroke.originalX !== undefined) hedef.originalX = stroke.originalX;
-                if (stroke.originalY !== undefined) hedef.originalY = stroke.originalY;
-                if (stroke.originalW !== undefined) hedef.originalW = stroke.originalW;
-                if (stroke.originalH !== undefined) hedef.originalH = stroke.originalH;
+               // 🚨 ÇÖZÜM: Koordinatları ağda zorla ezmeyi bıraktık (Zıplamayı engeller). Sadece güvenli verileri al.
                 if (stroke.rotationX !== undefined) hedef.rotationX = stroke.rotationX;
                 if (stroke.rotationY !== undefined) hedef.rotationY = stroke.rotationY;
                 if (stroke.rotationZ !== undefined) hedef.rotationZ = stroke.rotationZ;
+                if (stroke.meshScale !== undefined) hedef.meshScale = stroke.meshScale;
 
                 // 🚨 KESİN ÇÖZÜM: Tabletteki (Açı / Kenar uzunluğu / Çember formülü) etiketlerini PC'de de GÖSTER!
 
@@ -7326,7 +7324,7 @@ window.Scene3D = {
             this.lastMousePos = { x, y };
             this.updateHandlePositions();
             
-            // 🚨 ÇÖZÜM 1: Yeşil butonla dönüş verisi PC'ye gider
+            // Yeşil buton verisi PC'ye sorunsuz iletilir
             if (this.currentMesh.userData && this.currentMesh.userData.strokeData) {
                 const sd = this.currentMesh.userData.strokeData;
                 sd.rotationX = this.currentMesh.rotation.x;
@@ -7338,37 +7336,15 @@ window.Scene3D = {
         }
         if (this.isResizingHandle && this.currentMesh) {
             const currentDist = Math.hypot(x - this.handles.center.x, y - this.handles.center.y);
-            const newScale = Math.max(0.1, this.startScale * (currentDist / this.startResizeDist));
-            this.currentMesh.scale.set(newScale, newScale, newScale);
-            this.updateHandlePositions();
+            const dragRatio = currentDist / this.startResizeDist;
             
             if (this.currentMesh.userData && this.currentMesh.userData.strokeData) {
                 const sd = this.currentMesh.userData.strokeData;
-                const canvasEl = document.getElementById('drawing-canvas');
-                const myCh = canvasEl ? canvasEl.height : window.innerHeight;
                 
-                // 🚨 ÇÖZÜM 2: Mükemmel boyut hesabı (Şeklin patlamasını ve devasa olmasını engeller)
-                const pixelPerUnit = myCh / 30;
-                const newGercekPx = (this.currentMesh.userData.baseSize * 2 * newScale) * pixelPerUnit;
-                
-                // Büyürken merkezini kaybetmemesi için güvenli hesaplama
-                const refX = sd.originalX !== undefined ? sd.originalX : sd.x;
-                const refY = sd.originalY !== undefined ? sd.originalY : sd.y;
-                const refW = sd.originalW !== undefined ? sd.originalW : sd.width;
-                const refH = sd.originalH !== undefined ? sd.originalH : sd.height;
-
-                const cx = refX + (refW / 2);
-                const cy = refY + (refH / 2);
-                
-                sd.width = newGercekPx;
-                sd.height = newGercekPx;
-                sd.originalW = newGercekPx;
-                sd.originalH = newGercekPx;
-                
-                sd.x = cx - (newGercekPx / 2);
-                sd.y = cy - (newGercekPx / 2);
-                sd.originalX = sd.x;
-                sd.originalY = sd.y;
+                // 🚨 Zıplama Koruması: Orijinal koordinatlara (originalW vs.) ASLA dokunmadan 
+                // sadece ekranlar arası güvenli bir "Çarpan" (meshScale) üretiyor ve yolluyoruz!
+                sd.meshScale = (sd.meshScale || 1) * dragRatio;
+                this.startResizeDist = currentDist; // Katlanarak büyümeyi engelle
                 
                 if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: sd });
                 if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
@@ -7380,7 +7356,7 @@ window.Scene3D = {
             if (!currentPoint) return;
             const distance = currentPoint.distanceTo(this.startPoint);
             const scale = Math.max(0.1, distance * 3.5);
-            this.previewMesh.scale.set(scale, scale, scale);
+            this.previewMesh.scale.setScalar(scale);
             return;
         }
         if (this.isDragging && this.currentMesh) {
@@ -7389,33 +7365,7 @@ window.Scene3D = {
             if (this.raycaster.ray.intersectPlane(this.dragPlane, intersectPoint)) {
                 this.currentMesh.position.addVectors(intersectPoint, this.dragOffset);
                 this.updateHandlePositions();
-
-                if (this.currentMesh.userData && this.currentMesh.userData.strokeData) {
-                    const sd = this.currentMesh.userData.strokeData;
-                    sd.pos3D = { x: this.currentMesh.position.x, y: this.currentMesh.position.y, z: this.currentMesh.position.z };
-
-                    // 🚨 ÇÖZÜM 3: Senin çalışan eski "kusursuz koordinat" formülün geri geldi!
-                    const vec = this.currentMesh.position.clone();
-                    vec.project(this.camera);
-                    const canvasEl = document.getElementById('drawing-canvas');
-                    const w = canvasEl ? (canvasEl.width / 2) : (window.innerWidth / 2);
-                    const h = canvasEl ? (canvasEl.height / 2) : (window.innerHeight / 2);
-                    
-                    const safeW = sd.originalW !== undefined ? sd.originalW : sd.width;
-                    const safeH = sd.originalH !== undefined ? sd.originalH : sd.height;
-
-                    sd.x = ((vec.x * w) + w) - (safeW / 2);
-                    sd.y = (-(vec.y * h) + h) - (safeH / 2);
-                    
-                    // Sürgünün ve taşımanın zıplamaması için tek gereken şu mühürlemeydi:
-                    sd.originalX = sd.x;
-                    sd.originalY = sd.y;
-
-                    window.selectedItem = sd;
-
-                    if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: sd });
-                    if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
-                }
+                // Taşıma sırasındaki ağ senkronu zaten 2D motoru tarafından kusursuz yapılıyor. Burada hiçbir şeye dokunmuyoruz!
             }
             return;
         }
