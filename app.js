@@ -6909,7 +6909,7 @@ if (smartCanvas) {
 
 
 // =========================================================
-// 🚨 ÖZEL KONİ AÇINIM MOTORU (Piramite Dönüşmeyi Engeller)
+// 🚨 ÖZEL KONİ AÇINIM MOTORU (Kusursuz Yelpaze ve Kapak Sistemi)
 // =========================================================
 window.CustomConeEngine = {
     create: function(radius, height, mainMat, edgeMat) {
@@ -6927,19 +6927,23 @@ window.CustomConeEngine = {
         
         const indices = [];
         for (let i = 1; i <= segments; i++) {
-            // 🚨 İÇE DÖNÜK (ALTTAN GÖRÜNME) İLLÜZYONUNU ÇÖZEN TERS YÜZEY MATEMATİĞİ
-            indices.push(0, i + 1, i);
+            // 🚨 1. ÇÖZÜM: Yüzeyleri dışa çevirdik, "Alttan görünme" illüzyonu bitti!
+            indices.push(0, i, i + 1);
         }
         lateralGeo.setIndex(indices);
         const lateralMesh = new THREE.Mesh(lateralGeo, mainMat);
-        lateralMesh.material.side = THREE.DoubleSide; // Her iki tarafı da görünür yap
+        lateralMesh.material.side = THREE.DoubleSide;
         
-        const edgePos = new Float32Array((segments + 4) * 3);
+        // Çizgi Geometrisi
+        const edgePos = new Float32Array((segments + 3) * 3);
         const lateralEdgeGeo = new THREE.BufferGeometry();
         lateralEdgeGeo.setAttribute('position', new THREE.BufferAttribute(edgePos, 3));
         const lateralEdges = new THREE.Line(lateralEdgeGeo, edgeMat);
         
+        // Taban (Kapak) Geometrisi
         const baseGeo = new THREE.CircleGeometry(radius, 32);
+        baseGeo.translate(0, -radius, 0); // Kapağın dönme menteşesini tam arka noktaya alıyoruz
+        
         const baseMesh = new THREE.Mesh(baseGeo, mainMat);
         baseMesh.material.side = THREE.DoubleSide;
         const baseEdges = new THREE.LineSegments(new THREE.EdgesGeometry(baseGeo), edgeMat);
@@ -6953,38 +6957,61 @@ window.CustomConeEngine = {
     },
     
     update: function(group, ratio) {
-        const r = group.userData.r; const h = group.userData.h; const s = group.userData.s; const segments = 32;
+        const r = group.userData.r; 
+        const h = group.userData.h; 
+        const s = group.userData.s; 
+        const segments = 32;
         const pos = group.userData.lateralMesh.geometry.attributes.position.array;
         const epos = group.userData.lateralEdges.geometry.attributes.position.array;
         
-        // 🚨 KUSURSUZ İZOMETRİK DURUŞ: Kapalıyken hafif eğik (15 derece), açılınca tam karşıdan (0 derece)
-        group.rotation.x = (Math.PI / 12) * (1 - ratio);
+        // 🚨 2. ÇÖZÜM: Motordan "rotation" (eğim) komutlarını tamamen SİLDİK. 
+        // Artık koni ekranın üstüne bakarak dimdik duracak ve Yeşil Taşıma Butonu kusursuz çalışacak!
+
+        const apexX = 0; const apexY = 0; const apexZ = h / 2;
+        pos[0] = apexX; pos[1] = apexY; pos[2] = apexZ;
+        epos[0] = apexX; epos[1] = apexY; epos[2] = apexZ;
         
-        pos[0] = 0; pos[1] = h/2; pos[2] = 0; // Tepe noktası
         for (let i = 0; i <= segments; i++) {
-            const alpha = Math.PI - (i / segments) * (2 * Math.PI); 
-            const x3 = r * Math.sin(alpha); const y3 = -h / 2; const z3 = r * Math.cos(alpha); // 3D Hali
+            // 🚨 3. ÇÖZÜM: Yırtılma çizgisini (alpha=0) tam ÖN TARAFA (-Y ekseni) aldık.
+            const alpha = (i / segments) * 2 * Math.PI; 
             
+            // 3D Kapalı Hal (Dimdik duruyor)
+            const x3 = r * Math.sin(alpha); 
+            const y3 = -r * Math.cos(alpha); // Eksi y = Tam Ön Taraf
+            const z3 = -h / 2;
+            
+            // 2D Açık Hal (Sağ kanat sağa, sol kanat sola dökülür)
             const theta = (2 * Math.PI * r) / s; 
-            const sectorAngle = (alpha / Math.PI) * (theta / 2); 
-            const x2 = -s * Math.sin(sectorAngle); const y2 = h / 2 - s * Math.cos(sectorAngle); const z2 = 0; // 2D Açınım Hali
+            const sectorAngle = ((alpha - Math.PI) / Math.PI) * (theta / 2); 
+            const x2 = -s * Math.sin(sectorAngle); 
+            const y2 = 0; // Karşıdan görünmesi için XZ düzlemine yatırılır
+            const z2 = h / 2 - s * Math.cos(sectorAngle); 
             
-            const x = x3 * (1 - ratio) + x2 * ratio; const y = y3 * (1 - ratio) + y2 * ratio; const z = z3 * (1 - ratio) + z2 * ratio;
+            const x = x3 * (1 - ratio) + x2 * ratio; 
+            const y = y3 * (1 - ratio) + y2 * ratio; 
+            const z = z3 * (1 - ratio) + z2 * ratio;
             
-            const vIdx = (i + 1) * 3; pos[vIdx] = x; pos[vIdx + 1] = y; pos[vIdx + 2] = z;
-            if (i === 0) { epos[0] = 0; epos[1] = h/2; epos[2] = 0; epos[3] = x; epos[4] = y; epos[5] = z; }
-            const eIdx = (i + 1) * 3; epos[eIdx] = x; epos[eIdx + 1] = y; epos[eIdx + 2] = z;
-            if (i === segments) { epos[eIdx + 3] = 0; epos[eIdx + 4] = h/2; epos[eIdx + 5] = 0; }
+            const vIdx = (i + 1) * 3; 
+            pos[vIdx] = x; pos[vIdx + 1] = y; pos[vIdx + 2] = z;
+            
+            const eIdx = (i + 1) * 3; 
+            epos[eIdx] = x; epos[eIdx + 1] = y; epos[eIdx + 2] = z;
         }
+        
+        // Son siyah çizgiyi tepeye kapat
+        const lastIdx = (segments + 2) * 3;
+        epos[lastIdx] = apexX; epos[lastIdx + 1] = apexY; epos[lastIdx + 2] = apexZ;
+        
         group.userData.lateralMesh.geometry.attributes.position.needsUpdate = true;
         group.userData.lateralMesh.geometry.computeVertexNormals();
         group.userData.lateralEdges.geometry.attributes.position.needsUpdate = true;
         
+        // 🚨 4. ÇÖZÜM: Kapağın (tabanın) menteşe gibi arkadan aşağı doğru bir kapı misali açılması
         const baseMesh = group.userData.baseMesh;
-        const cbY = (-h/2) * (1 - ratio) + (h/2 - s - r) * ratio; // Kapağın menteşe gibi yavaşça inmesi
-        baseMesh.position.set(0, cbY, 0);
-        // Kapak kapalıyken yere paralel (90 derece), açılınca ekrana tam düz (0 derece)
-        baseMesh.rotation.set((Math.PI / 2) * (1 - ratio), 0, 0); 
+        const hingeY = r * (1 - ratio);
+        const hingeZ = (-h / 2) * (1 - ratio) + (h / 2 - s) * ratio;
+        baseMesh.position.set(0, hingeY, hingeZ);
+        baseMesh.rotation.x = (Math.PI / 2) * ratio; // 0'dan (düz) başlayarak ekrana doğru sarkıp tam daire olur
     }
 };
 
