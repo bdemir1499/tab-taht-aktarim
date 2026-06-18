@@ -6927,10 +6927,12 @@ window.CustomConeEngine = {
         
         const indices = [];
         for (let i = 1; i <= segments; i++) {
-            indices.push(0, i, i + 1);
+            // 🚨 İÇE DÖNÜK (ALTTAN GÖRÜNME) İLLÜZYONUNU ÇÖZEN TERS YÜZEY MATEMATİĞİ
+            indices.push(0, i + 1, i);
         }
         lateralGeo.setIndex(indices);
         const lateralMesh = new THREE.Mesh(lateralGeo, mainMat);
+        lateralMesh.material.side = THREE.DoubleSide; // Her iki tarafı da görünür yap
         
         const edgePos = new Float32Array((segments + 4) * 3);
         const lateralEdgeGeo = new THREE.BufferGeometry();
@@ -6939,6 +6941,7 @@ window.CustomConeEngine = {
         
         const baseGeo = new THREE.CircleGeometry(radius, 32);
         const baseMesh = new THREE.Mesh(baseGeo, mainMat);
+        baseMesh.material.side = THREE.DoubleSide;
         const baseEdges = new THREE.LineSegments(new THREE.EdgesGeometry(baseGeo), edgeMat);
         baseMesh.add(baseEdges);
         
@@ -6953,6 +6956,9 @@ window.CustomConeEngine = {
         const r = group.userData.r; const h = group.userData.h; const s = group.userData.s; const segments = 32;
         const pos = group.userData.lateralMesh.geometry.attributes.position.array;
         const epos = group.userData.lateralEdges.geometry.attributes.position.array;
+        
+        // 🚨 KUSURSUZ İZOMETRİK DURUŞ: Kapalıyken hafif eğik (15 derece), açılınca tam karşıdan (0 derece)
+        group.rotation.x = (Math.PI / 12) * (1 - ratio);
         
         pos[0] = 0; pos[1] = h/2; pos[2] = 0; // Tepe noktası
         for (let i = 0; i <= segments; i++) {
@@ -6975,80 +6981,10 @@ window.CustomConeEngine = {
         group.userData.lateralEdges.geometry.attributes.position.needsUpdate = true;
         
         const baseMesh = group.userData.baseMesh;
-        const cbY = (-h/2) * (1 - ratio) + (h/2 - s - r) * ratio; // Kapağın menteşe gibi inmesi
+        const cbY = (-h/2) * (1 - ratio) + (h/2 - s - r) * ratio; // Kapağın menteşe gibi yavaşça inmesi
         baseMesh.position.set(0, cbY, 0);
-        baseMesh.rotation.set((Math.PI / 2) * (1 - ratio), 0, 0); // Kapağın dönmesi
-    }
-};// =========================================================
-// 🚨 ÖZEL KONİ AÇINIM MOTORU (Piramite Dönüşmeyi Engeller)
-// =========================================================
-window.CustomConeEngine = {
-    create: function(radius, height, mainMat, edgeMat) {
-        const group = new THREE.Group();
-        group.userData.isCustomCone = true;
-        group.userData.r = radius;
-        group.userData.h = height;
-        group.userData.s = Math.hypot(radius, height);
-
-        const segments = 32;
-        const lateralGeo = new THREE.BufferGeometry();
-        const numVerts = segments + 2;
-        const posArray = new Float32Array(numVerts * 3);
-        lateralGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-        
-        const indices = [];
-        for (let i = 1; i <= segments; i++) {
-            indices.push(0, i, i + 1);
-        }
-        lateralGeo.setIndex(indices);
-        const lateralMesh = new THREE.Mesh(lateralGeo, mainMat);
-        
-        const edgePos = new Float32Array((segments + 4) * 3);
-        const lateralEdgeGeo = new THREE.BufferGeometry();
-        lateralEdgeGeo.setAttribute('position', new THREE.BufferAttribute(edgePos, 3));
-        const lateralEdges = new THREE.Line(lateralEdgeGeo, edgeMat);
-        
-        const baseGeo = new THREE.CircleGeometry(radius, 32);
-        const baseMesh = new THREE.Mesh(baseGeo, mainMat);
-        const baseEdges = new THREE.LineSegments(new THREE.EdgesGeometry(baseGeo), edgeMat);
-        baseMesh.add(baseEdges);
-        
-        group.add(lateralMesh); group.add(baseMesh); group.add(lateralEdges);
-        group.userData.lateralMesh = lateralMesh; group.userData.baseMesh = baseMesh; group.userData.lateralEdges = lateralEdges;
-        
-        this.update(group, 0); 
-        return group;
-    },
-    
-    update: function(group, ratio) {
-        const r = group.userData.r; const h = group.userData.h; const s = group.userData.s; const segments = 32;
-        const pos = group.userData.lateralMesh.geometry.attributes.position.array;
-        const epos = group.userData.lateralEdges.geometry.attributes.position.array;
-        
-        pos[0] = 0; pos[1] = h/2; pos[2] = 0; // Tepe noktası
-        for (let i = 0; i <= segments; i++) {
-            const alpha = Math.PI - (i / segments) * (2 * Math.PI); 
-            const x3 = r * Math.sin(alpha); const y3 = -h / 2; const z3 = r * Math.cos(alpha); // 3D Hali
-            
-            const theta = (2 * Math.PI * r) / s; 
-            const sectorAngle = (alpha / Math.PI) * (theta / 2); 
-            const x2 = -s * Math.sin(sectorAngle); const y2 = h / 2 - s * Math.cos(sectorAngle); const z2 = 0; // 2D Açınım Hali
-            
-            const x = x3 * (1 - ratio) + x2 * ratio; const y = y3 * (1 - ratio) + y2 * ratio; const z = z3 * (1 - ratio) + z2 * ratio;
-            
-            const vIdx = (i + 1) * 3; pos[vIdx] = x; pos[vIdx + 1] = y; pos[vIdx + 2] = z;
-            if (i === 0) { epos[0] = 0; epos[1] = h/2; epos[2] = 0; epos[3] = x; epos[4] = y; epos[5] = z; }
-            const eIdx = (i + 1) * 3; epos[eIdx] = x; epos[eIdx + 1] = y; epos[eIdx + 2] = z;
-            if (i === segments) { epos[eIdx + 3] = 0; epos[eIdx + 4] = h/2; epos[eIdx + 5] = 0; }
-        }
-        group.userData.lateralMesh.geometry.attributes.position.needsUpdate = true;
-        group.userData.lateralMesh.geometry.computeVertexNormals();
-        group.userData.lateralEdges.geometry.attributes.position.needsUpdate = true;
-        
-        const baseMesh = group.userData.baseMesh;
-        const cbY = (-h/2) * (1 - ratio) + (h/2 - s - r) * ratio; // Kapağın menteşe gibi inmesi
-        baseMesh.position.set(0, cbY, 0);
-        baseMesh.rotation.set((Math.PI / 2) * (1 - ratio), 0, 0); // Kapağın dönmesi
+        // Kapak kapalıyken yere paralel (90 derece), açılınca ekrana tam düz (0 derece)
+        baseMesh.rotation.set((Math.PI / 2) * (1 - ratio), 0, 0); 
     }
 };
 
@@ -7425,9 +7361,9 @@ window.Scene3D = {
             solidShape.position.copy(this.startPoint || new THREE.Vector3(0, 0, 0));
 
             // 🚨 ÇİZİM TAMAMLANDIĞINDA İZOMETRİK DURUŞ: Ön, Üst ve Sağ yüzlerin görünmesi için
+            // 🚨 ÇİZİM TAMAMLANDIĞINDA İZOMETRİK DURUŞ: Ön, Üst ve Sağ yüzlerin görünmesi için
             if (this.activeTool === 'pyramid_cone') {
-                solidShape.rotation.z = 0; // Koni dik dursun ki açılınca yamuk görünmesin
-                solidShape.rotation.x = 0;
+                // Koninin dönüş ve eğim animasyonu CustomConeEngine içinde hallediliyor, burada dokunmuyoruz.
             } else if (this.activeTool.startsWith('prism_') || this.activeTool.startsWith('pyramid_')) {
                 // -Math.PI/6 (-30 derece) döndürüldüğünde Ön yüz daha geniş, Sağ yüz dar görünür (Klasik 3D görünüm)
                 solidShape.rotation.z = -Math.PI / 6;
