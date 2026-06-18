@@ -5700,7 +5700,7 @@ function setupConnectionEvents() {
 
     window.moveStroke = function(stroke, dx, dy) {
         if (!stroke) return;
-        if (stroke.type === '3d_shape' || stroke.shapeType) return; // 3D excluded for now
+        // 🚨 3D Şekilleri dışlamıyoruz, ekran kaydırılınca onlar da taşınacak!
 
         const isLineType = ['pen', 'line', 'segment', 'ray', 'straightLine', 'polygon', 'point', 'arc'].includes(stroke.type);
 
@@ -5720,11 +5720,15 @@ function setupConnectionEvents() {
         if (stroke.p1) { stroke.p1.x += dx; stroke.p1.y += dy; }
         if (stroke.p2) { stroke.p2.x += dx; stroke.p2.y += dy; }
         if (stroke.p3) { stroke.p3.x += dx; stroke.p3.y += dy; }
+
+        // 🚨 Mühürlü Koordinatları da Kaydır!
+        if (stroke.originalX !== undefined) stroke.originalX += dx;
+        if (stroke.originalY !== undefined) stroke.originalY += dy;
     };
 
     window.zoomStroke = function(stroke, scale, cx, cy) {
         if (!stroke) return;
-        if (stroke.type === '3d_shape' || stroke.shapeType) return;
+        // 🚨 3D Şekilleri zoom işlemine dahil ediyoruz (engel kaldırıldı)
 
         const mapX = (x) => cx + (x - cx) * scale;
         const mapY = (y) => cy + (y - cy) * scale;
@@ -5751,7 +5755,7 @@ function setupConnectionEvents() {
             if (stroke.height !== undefined && !isLineType) stroke.height *= scale;
         }
 
-        // 🚨 KUSURSUZ SENKRON: "original" değerleri de PC ekranına adapte et! (Zıplamayı kökten çözer)
+        // 🚨 ZOOM İÇİN ZIRH: Mühürlü "original" değerleri de zoomla!
         if (stroke.originalX !== undefined && stroke.originalW !== undefined && !isLineType) {
             const orig_center_x = mapX(stroke.originalX + stroke.originalW / 2);
             stroke.originalW *= scale;
@@ -5839,6 +5843,18 @@ function setupConnectionEvents() {
         } else if (stroke.y !== undefined) {
             stroke.y = mapY(stroke.y);
             if (stroke.height !== undefined && !isLineType) stroke.height *= scale;
+        }
+
+        // 🚨 2. AĞ SENKRON ZIRHI: Mühürlü "original" değerleri PC çözünürlüğüne çevir! (Zıplamayı engeller)
+        if (stroke.originalX !== undefined && stroke.originalW !== undefined && !isLineType) {
+            const orig_center_x = mapX(stroke.originalX + stroke.originalW / 2);
+            stroke.originalW *= scale;
+            stroke.originalX = orig_center_x - stroke.originalW / 2;
+        }
+        if (stroke.originalY !== undefined && stroke.originalH !== undefined && !isLineType) {
+            const orig_center_y = mapY(stroke.originalY + stroke.originalH / 2);
+            stroke.originalH *= scale;
+            stroke.originalY = orig_center_y - stroke.originalH / 2;
         }
 
         if (stroke.cx !== undefined) stroke.cx = mapX(stroke.cx);
