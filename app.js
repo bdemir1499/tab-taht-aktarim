@@ -7252,7 +7252,8 @@ window.Scene3D = {
             const edgeMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 });
 
             let solidShape = null;
-            if (window.Foldable3D) {
+            // 🚨 KONİ HATASI ÇÖZÜMÜ: Koniyi açınım motorundan gizle ki piramide dönüşmesin!
+            if (window.Foldable3D && this.activeTool !== 'pyramid_cone') {
                 solidShape = window.Foldable3D.createFoldableGroup(this.activeTool, finalRadius, mainMaterial, edgeMaterial);
             }
             if (!solidShape) {
@@ -7374,7 +7375,8 @@ window.Scene3D = {
         const edgeMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 });
 
         let solidShape = null;
-        if (window.Foldable3D) {
+        // 🚨 KONİ HATASI ÇÖZÜMÜ: Ağdan gelen koni de piramide dönüşmesin!
+        if (window.Foldable3D && strokeData.shapeType !== 'pyramid_cone') {
             solidShape = window.Foldable3D.createFoldableGroup(strokeData.shapeType, strokeData.width / 30, mainMaterial, edgeMaterial);
         }
         if (!solidShape) {
