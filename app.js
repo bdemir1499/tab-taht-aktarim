@@ -6389,12 +6389,17 @@ if (!data || !data.type) return;
                         if (data.stroke.rotationZ !== undefined) sceneMesh.rotation.z = data.stroke.rotationZ;
 
                         // Sürgü açınım bilgisini senkronize et
-                        if (data.stroke.openRatio !== undefined && window.Foldable3D) {
+                        if (data.stroke.openRatio !== undefined) {
                             hedef.openRatio = data.stroke.openRatio;
                             if (sceneMesh.userData && sceneMesh.userData.strokeData) {
                                 sceneMesh.userData.strokeData.openRatio = data.stroke.openRatio;
                             }
-                            window.Foldable3D.updateUnfold(sceneMesh, data.stroke.openRatio);
+                            // 🚨 KONİ ÇÖZÜMÜ: Ağ üzerinden gelen sürgü değerini uygula
+                            if (sceneMesh.userData.isCustomCone && window.CustomConeEngine) {
+                                window.CustomConeEngine.update(sceneMesh, data.stroke.openRatio);
+                            } else if (window.Foldable3D) {
+                                window.Foldable3D.updateUnfold(sceneMesh, data.stroke.openRatio);
+                            }
                         }
 
                         if (window.Scene3D.currentMesh === sceneMesh) window.Scene3D.updateHandlePositions();
@@ -6902,6 +6907,152 @@ if (smartCanvas) {
     }, { passive: false });
 }
 
+
+// =========================================================
+// 🚨 ÖZEL KONİ AÇINIM MOTORU (Piramite Dönüşmeyi Engeller)
+// =========================================================
+window.CustomConeEngine = {
+    create: function(radius, height, mainMat, edgeMat) {
+        const group = new THREE.Group();
+        group.userData.isCustomCone = true;
+        group.userData.r = radius;
+        group.userData.h = height;
+        group.userData.s = Math.hypot(radius, height);
+
+        const segments = 32;
+        const lateralGeo = new THREE.BufferGeometry();
+        const numVerts = segments + 2;
+        const posArray = new Float32Array(numVerts * 3);
+        lateralGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        
+        const indices = [];
+        for (let i = 1; i <= segments; i++) {
+            indices.push(0, i, i + 1);
+        }
+        lateralGeo.setIndex(indices);
+        const lateralMesh = new THREE.Mesh(lateralGeo, mainMat);
+        
+        const edgePos = new Float32Array((segments + 4) * 3);
+        const lateralEdgeGeo = new THREE.BufferGeometry();
+        lateralEdgeGeo.setAttribute('position', new THREE.BufferAttribute(edgePos, 3));
+        const lateralEdges = new THREE.Line(lateralEdgeGeo, edgeMat);
+        
+        const baseGeo = new THREE.CircleGeometry(radius, 32);
+        const baseMesh = new THREE.Mesh(baseGeo, mainMat);
+        const baseEdges = new THREE.LineSegments(new THREE.EdgesGeometry(baseGeo), edgeMat);
+        baseMesh.add(baseEdges);
+        
+        group.add(lateralMesh); group.add(baseMesh); group.add(lateralEdges);
+        group.userData.lateralMesh = lateralMesh; group.userData.baseMesh = baseMesh; group.userData.lateralEdges = lateralEdges;
+        
+        this.update(group, 0); 
+        return group;
+    },
+    
+    update: function(group, ratio) {
+        const r = group.userData.r; const h = group.userData.h; const s = group.userData.s; const segments = 32;
+        const pos = group.userData.lateralMesh.geometry.attributes.position.array;
+        const epos = group.userData.lateralEdges.geometry.attributes.position.array;
+        
+        pos[0] = 0; pos[1] = h/2; pos[2] = 0; // Tepe noktası
+        for (let i = 0; i <= segments; i++) {
+            const alpha = Math.PI - (i / segments) * (2 * Math.PI); 
+            const x3 = r * Math.sin(alpha); const y3 = -h / 2; const z3 = r * Math.cos(alpha); // 3D Hali
+            
+            const theta = (2 * Math.PI * r) / s; 
+            const sectorAngle = (alpha / Math.PI) * (theta / 2); 
+            const x2 = -s * Math.sin(sectorAngle); const y2 = h / 2 - s * Math.cos(sectorAngle); const z2 = 0; // 2D Açınım Hali
+            
+            const x = x3 * (1 - ratio) + x2 * ratio; const y = y3 * (1 - ratio) + y2 * ratio; const z = z3 * (1 - ratio) + z2 * ratio;
+            
+            const vIdx = (i + 1) * 3; pos[vIdx] = x; pos[vIdx + 1] = y; pos[vIdx + 2] = z;
+            if (i === 0) { epos[0] = 0; epos[1] = h/2; epos[2] = 0; epos[3] = x; epos[4] = y; epos[5] = z; }
+            const eIdx = (i + 1) * 3; epos[eIdx] = x; epos[eIdx + 1] = y; epos[eIdx + 2] = z;
+            if (i === segments) { epos[eIdx + 3] = 0; epos[eIdx + 4] = h/2; epos[eIdx + 5] = 0; }
+        }
+        group.userData.lateralMesh.geometry.attributes.position.needsUpdate = true;
+        group.userData.lateralMesh.geometry.computeVertexNormals();
+        group.userData.lateralEdges.geometry.attributes.position.needsUpdate = true;
+        
+        const baseMesh = group.userData.baseMesh;
+        const cbY = (-h/2) * (1 - ratio) + (h/2 - s - r) * ratio; // Kapağın menteşe gibi inmesi
+        baseMesh.position.set(0, cbY, 0);
+        baseMesh.rotation.set((Math.PI / 2) * (1 - ratio), 0, 0); // Kapağın dönmesi
+    }
+};// =========================================================
+// 🚨 ÖZEL KONİ AÇINIM MOTORU (Piramite Dönüşmeyi Engeller)
+// =========================================================
+window.CustomConeEngine = {
+    create: function(radius, height, mainMat, edgeMat) {
+        const group = new THREE.Group();
+        group.userData.isCustomCone = true;
+        group.userData.r = radius;
+        group.userData.h = height;
+        group.userData.s = Math.hypot(radius, height);
+
+        const segments = 32;
+        const lateralGeo = new THREE.BufferGeometry();
+        const numVerts = segments + 2;
+        const posArray = new Float32Array(numVerts * 3);
+        lateralGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        
+        const indices = [];
+        for (let i = 1; i <= segments; i++) {
+            indices.push(0, i, i + 1);
+        }
+        lateralGeo.setIndex(indices);
+        const lateralMesh = new THREE.Mesh(lateralGeo, mainMat);
+        
+        const edgePos = new Float32Array((segments + 4) * 3);
+        const lateralEdgeGeo = new THREE.BufferGeometry();
+        lateralEdgeGeo.setAttribute('position', new THREE.BufferAttribute(edgePos, 3));
+        const lateralEdges = new THREE.Line(lateralEdgeGeo, edgeMat);
+        
+        const baseGeo = new THREE.CircleGeometry(radius, 32);
+        const baseMesh = new THREE.Mesh(baseGeo, mainMat);
+        const baseEdges = new THREE.LineSegments(new THREE.EdgesGeometry(baseGeo), edgeMat);
+        baseMesh.add(baseEdges);
+        
+        group.add(lateralMesh); group.add(baseMesh); group.add(lateralEdges);
+        group.userData.lateralMesh = lateralMesh; group.userData.baseMesh = baseMesh; group.userData.lateralEdges = lateralEdges;
+        
+        this.update(group, 0); 
+        return group;
+    },
+    
+    update: function(group, ratio) {
+        const r = group.userData.r; const h = group.userData.h; const s = group.userData.s; const segments = 32;
+        const pos = group.userData.lateralMesh.geometry.attributes.position.array;
+        const epos = group.userData.lateralEdges.geometry.attributes.position.array;
+        
+        pos[0] = 0; pos[1] = h/2; pos[2] = 0; // Tepe noktası
+        for (let i = 0; i <= segments; i++) {
+            const alpha = Math.PI - (i / segments) * (2 * Math.PI); 
+            const x3 = r * Math.sin(alpha); const y3 = -h / 2; const z3 = r * Math.cos(alpha); // 3D Hali
+            
+            const theta = (2 * Math.PI * r) / s; 
+            const sectorAngle = (alpha / Math.PI) * (theta / 2); 
+            const x2 = -s * Math.sin(sectorAngle); const y2 = h / 2 - s * Math.cos(sectorAngle); const z2 = 0; // 2D Açınım Hali
+            
+            const x = x3 * (1 - ratio) + x2 * ratio; const y = y3 * (1 - ratio) + y2 * ratio; const z = z3 * (1 - ratio) + z2 * ratio;
+            
+            const vIdx = (i + 1) * 3; pos[vIdx] = x; pos[vIdx + 1] = y; pos[vIdx + 2] = z;
+            if (i === 0) { epos[0] = 0; epos[1] = h/2; epos[2] = 0; epos[3] = x; epos[4] = y; epos[5] = z; }
+            const eIdx = (i + 1) * 3; epos[eIdx] = x; epos[eIdx + 1] = y; epos[eIdx + 2] = z;
+            if (i === segments) { epos[eIdx + 3] = 0; epos[eIdx + 4] = h/2; epos[eIdx + 5] = 0; }
+        }
+        group.userData.lateralMesh.geometry.attributes.position.needsUpdate = true;
+        group.userData.lateralMesh.geometry.computeVertexNormals();
+        group.userData.lateralEdges.geometry.attributes.position.needsUpdate = true;
+        
+        const baseMesh = group.userData.baseMesh;
+        const cbY = (-h/2) * (1 - ratio) + (h/2 - s - r) * ratio; // Kapağın menteşe gibi inmesi
+        baseMesh.position.set(0, cbY, 0);
+        baseMesh.rotation.set((Math.PI / 2) * (1 - ratio), 0, 0); // Kapağın dönmesi
+    }
+};
+
+
 window.Scene3D = {
     container: null, scene: null, camera: null, renderer: null, labelElement: null,
     isInit: false, activeTool: 'none', version: "3.4 - KUSURSUZ ÇİZİM",
@@ -7036,10 +7187,15 @@ window.Scene3D = {
     animate: function () {
         requestAnimationFrame(() => window.Scene3D.animate());
 
-        if (this.scene && window.Foldable3D) {
+        if (this.scene) {
             this.scene.children.forEach(mesh => {
                 if (mesh.userData && mesh.userData.strokeData) {
-                    window.Foldable3D.updateUnfold(mesh, mesh.userData.strokeData.openRatio || 0);
+                    // 🚨 KONİ ÇÖZÜMÜ: Koni ise kendi motoruyla canlandır, değilse diğerleriyle
+                    if (mesh.userData.isCustomCone && window.CustomConeEngine) {
+                        window.CustomConeEngine.update(mesh, mesh.userData.strokeData.openRatio || 0);
+                    } else if (window.Foldable3D) {
+                        window.Foldable3D.updateUnfold(mesh, mesh.userData.strokeData.openRatio || 0);
+                    }
                 }
             });
         }
@@ -7252,8 +7408,10 @@ window.Scene3D = {
             const edgeMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 });
 
             let solidShape = null;
-            // 🚨 KONİ HATASI ÇÖZÜMÜ: Koniyi açınım motorundan gizle ki piramide dönüşmesin!
-            if (window.Foldable3D && this.activeTool !== 'pyramid_cone') {
+            // 🚨 KONİ ÇÖZÜMÜ: Koniyi özel motorla aç ki piramide dönüşmesin!
+            if (this.activeTool === 'pyramid_cone' && window.CustomConeEngine) {
+                solidShape = window.CustomConeEngine.create(finalRadius, finalRadius * 2, mainMaterial, edgeMaterial);
+            } else if (window.Foldable3D) {
                 solidShape = window.Foldable3D.createFoldableGroup(this.activeTool, finalRadius, mainMaterial, edgeMaterial);
             }
             if (!solidShape) {
@@ -7267,7 +7425,10 @@ window.Scene3D = {
             solidShape.position.copy(this.startPoint || new THREE.Vector3(0, 0, 0));
 
             // 🚨 ÇİZİM TAMAMLANDIĞINDA İZOMETRİK DURUŞ: Ön, Üst ve Sağ yüzlerin görünmesi için
-            if (this.activeTool.startsWith('prism_') || this.activeTool.startsWith('pyramid_')) {
+            if (this.activeTool === 'pyramid_cone') {
+                solidShape.rotation.z = 0; // Koni dik dursun ki açılınca yamuk görünmesin
+                solidShape.rotation.x = 0;
+            } else if (this.activeTool.startsWith('prism_') || this.activeTool.startsWith('pyramid_')) {
                 // -Math.PI/6 (-30 derece) döndürüldüğünde Ön yüz daha geniş, Sağ yüz dar görünür (Klasik 3D görünüm)
                 solidShape.rotation.z = -Math.PI / 6;
                 solidShape.rotation.x = 0;
@@ -7375,8 +7536,10 @@ window.Scene3D = {
         const edgeMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 });
 
         let solidShape = null;
-        // 🚨 KONİ HATASI ÇÖZÜMÜ: Ağdan gelen koni de piramide dönüşmesin!
-        if (window.Foldable3D && strokeData.shapeType !== 'pyramid_cone') {
+        // 🚨 KONİ ÇÖZÜMÜ: Ağdan gelen koniyi de özel motorla çiz!
+        if (strokeData.shapeType === 'pyramid_cone' && window.CustomConeEngine) {
+            solidShape = window.CustomConeEngine.create(strokeData.width / 30, (strokeData.width / 30) * 2, mainMaterial, edgeMaterial);
+        } else if (window.Foldable3D) {
             solidShape = window.Foldable3D.createFoldableGroup(strokeData.shapeType, strokeData.width / 30, mainMaterial, edgeMaterial);
         }
         if (!solidShape) {
