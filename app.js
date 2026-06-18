@@ -7326,7 +7326,6 @@ window.Scene3D = {
             this.lastMousePos = { x, y };
             this.updateHandlePositions();
             
-            // 🚨 1. ÇÖZÜM: Yeşil butonla döndürürken açıyı PC'ye gönder!
             if (this.currentMesh.userData && this.currentMesh.userData.strokeData) {
                 const sd = this.currentMesh.userData.strokeData;
                 sd.rotationX = this.currentMesh.rotation.x;
@@ -7342,13 +7341,29 @@ window.Scene3D = {
             this.currentMesh.scale.set(newScale, newScale, newScale);
             this.updateHandlePositions();
             
-            // 🚨 2. ÇÖZÜM: Pembe butonla boyutlandırırken MÜHÜRLÜ değerleri de büyüt ve ağa gönder!
             if (this.currentMesh.userData && this.currentMesh.userData.strokeData) {
                 const sd = this.currentMesh.userData.strokeData;
-                sd.width = (this.currentMesh.userData.baseSize * newScale) * 30;
-                sd.height = sd.width;
-                sd.originalW = sd.width;
-                sd.originalH = sd.height;
+                const canvasElm = document.getElementById('drawing-canvas');
+                const myCh = canvasElm ? canvasElm.height : window.innerHeight;
+                
+                // 🚨 KUSURSUZ HD BOYUT HESABI (Şeklin devasa olmasını kökünden engeller)
+                const pixelPerUnit = myCh / 30;
+                const newGercekPx = (this.currentMesh.userData.baseSize * 2 * newScale) * pixelPerUnit;
+                
+                // Şekil büyürken merkezinin kaymaması için X ve Y'yi koruyoruz
+                const cx = (sd.originalX !== undefined ? sd.originalX : sd.x) + ((sd.originalW || sd.width) / 2);
+                const cy = (sd.originalY !== undefined ? sd.originalY : sd.y) + ((sd.originalH || sd.height) / 2);
+                
+                sd.width = newGercekPx;
+                sd.height = newGercekPx;
+                sd.originalW = newGercekPx;
+                sd.originalH = newGercekPx;
+                
+                sd.x = cx - (newGercekPx / 2);
+                sd.y = cy - (newGercekPx / 2);
+                sd.originalX = sd.x;
+                sd.originalY = sd.y;
+                
                 if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'sekil_guncelle', stroke: sd });
                 if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes();
             }
@@ -7369,19 +7384,26 @@ window.Scene3D = {
                 this.currentMesh.position.addVectors(intersectPoint, this.dragOffset);
                 this.updateHandlePositions();
 
-                // 🚨 3. ÇÖZÜM: Ekranda taşınırken MÜHÜRLÜ (originalX) koordinatları da kilitle ve ağa gönder!
                 if (this.currentMesh.userData && this.currentMesh.userData.strokeData) {
                     const sd = this.currentMesh.userData.strokeData;
                     sd.pos3D = { x: this.currentMesh.position.x, y: this.currentMesh.position.y, z: this.currentMesh.position.z };
 
+                    // 🚨 TERS-HD MATEMATİĞİ (Ekrandaki 3D pozisyonu HD piksele çevirir, zıplamayı imkansızlaştırır)
                     const vec = this.currentMesh.position.clone();
                     vec.project(this.camera);
-                    const canvasEl = document.getElementById('drawing-canvas');
-                    const w = canvasEl ? (canvasEl.width / 2) : (window.innerWidth / 2);
-                    const h = canvasEl ? (canvasEl.height / 2) : (window.innerHeight / 2);
-                    sd.x = ((vec.x * w) + w) - (sd.width / 2);
-                    sd.y = (-(vec.y * h) + h) - (sd.height / 2);
                     
+                    const canvasEl = document.getElementById('drawing-canvas');
+                    const myCw = canvasEl ? canvasEl.width : window.innerWidth;
+                    const myCh = canvasEl ? canvasEl.height : window.innerHeight;
+                    
+                    const cx = ((vec.x + 1) / 2) * myCw;
+                    const cy = ((1 - vec.y) / 2) * myCh;
+                    
+                    const ow = sd.originalW || sd.width;
+                    const oh = sd.originalH || sd.height;
+                    
+                    sd.x = cx - (ow / 2);
+                    sd.y = cy - (oh / 2);
                     sd.originalX = sd.x;
                     sd.originalY = sd.y;
 
