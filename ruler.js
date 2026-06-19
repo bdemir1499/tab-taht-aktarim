@@ -416,7 +416,7 @@ window.RulerTool = {
         this.drawCtx.moveTo(0, 4); 
         this.drawCtx.lineTo(handleX, 4); 
         this.drawCtx.strokeStyle = '#FFFFFF'; 
-        this.drawCtx.lineWidth = 3; 
+        this.drawCtx.lineWidth = 4; 
         this.drawCtx.stroke();
 // 👇👇👇 İŞTE CANLI YAYIN KANCASI BURADA (En Sonda) 👇👇👇
         if (typeof window.broadcastPreview === 'function') {
@@ -484,7 +484,7 @@ window.RulerTool = {
                 p1: p1,
                 p2: p2,
                 color: window.isToolThemeBlack ? '#000000' : window.currentLineColor, 
-                width: 3,
+                width: 4,
                 lengthLabel: cmText, 
                 lengthLabelPos: midPoint,
                 isPhysicalTool: true,

@@ -331,7 +331,7 @@ window.AciolcerTool = {
         this.previewCtx.moveTo(cx, cy);
         this.previewCtx.lineTo(currPos.x, currPos.y);
         this.previewCtx.strokeStyle = '#FFFFFF';
-        this.previewCtx.lineWidth = 3; this.previewCtx.setLineDash([5, 5]);
+        this.previewCtx.lineWidth = 4; this.previewCtx.setLineDash([5, 5]);
         this.previewCtx.stroke(); this.previewCtx.setLineDash([]);
         const gdx = currPos.x - cx; const gdy = currPos.y - cy;
         const rad = -this.state.angle * Math.PI / 180;
@@ -412,7 +412,7 @@ window.AciolcerTool = {
                 p1, 
                 p2, 
                 color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
-                width: 3, 
+                width: 4, 
                 label1: l1, 
                 label2: l2,
                 isPhysicalTool: true,

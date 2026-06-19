@@ -393,7 +393,7 @@ window.PergelTool = {
         this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
         this.previewCtx.beginPath();
         this.previewCtx.arc(this.state.pivot.x, this.state.pivot.y, this.state.radius, this.state.startAngle * (Math.PI / 180), this.state.rotation * (Math.PI / 180), false);
-        this.previewCtx.strokeStyle = "rgba(255, 0, 255, 0.7)"; this.previewCtx.lineWidth = 3; this.previewCtx.stroke();
+        this.previewCtx.strokeStyle = "rgba(255, 0, 255, 0.7)"; this.previewCtx.lineWidth = 4; this.previewCtx.stroke();
     },
     
    // --- 3. FİNAL ÇİZİM (CANLI REFERANS, ID VE AĞA AKTARIM) ---
@@ -429,7 +429,7 @@ window.PergelTool = {
                 startAngle: this.state.startAngle, 
                 endAngle: this.state.rotation, 
                 color: window.isToolThemeBlack ? '#000000' : window.currentLineColor,
-                width: 3,
+                width: 4,
                 label: centerLabel,
                 isPhysicalTool: true,
                 id: Date.now() + Math.random() // <--- ZOMBİ ÇİZİMLERİ BİTİREN KİMLİK

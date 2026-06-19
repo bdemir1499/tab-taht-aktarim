@@ -384,7 +384,7 @@ window.GonyeTool = {
         this.drawCtx.moveTo(4, this.state.height); 
         this.drawCtx.lineTo(4, endY_local); 
         this.drawCtx.strokeStyle = '#FFFFFF'; 
-        this.drawCtx.lineWidth = 3; 
+        this.drawCtx.lineWidth = 4; 
         this.drawCtx.stroke();
 // 👇👇👇 CANLI YAYIN KANCASI 👇👇👇
         if (typeof window.broadcastPreview === 'function') {
@@ -451,7 +451,7 @@ window.GonyeTool = {
                 p1, 
                 p2, 
                 color: window.isToolThemeBlack ? '#000000' : window.currentLineColor, 
-                width: 3, 
+                width: 4, 
                 label1, 
                 label2, 
                 lengthLabel: cmText, 
