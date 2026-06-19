@@ -5800,7 +5800,14 @@ function setupConnectionEvents() {
         if (stroke.p3) { stroke.p3.x = mapX(stroke.p3.x); stroke.p3.y = mapY(stroke.p3.y); }
         
         if (stroke.type === 'text' && stroke.fontSize) stroke.fontSize *= scale;
-        if (stroke.baseWidth && !isLineType) stroke.baseWidth *= scale;
+        if (stroke.baseWidth) stroke.baseWidth *= scale;
+        
+        // 🚨 ÇİZGİ KALINLIĞI ZIRHI: Eğer bu bir çizgi aracı (segment, line, ray, polygon vs.) ise
+        // bounding box'ı olmadığı için (x undefined'dir) yukarıdaki bloklarda width ölçeklenmez.
+        // O yüzden çizgi kalınlığını temsil eden width değerini burada doğrudan ekran oranına göre büyütüyoruz.
+        if (stroke.width !== undefined && stroke.x === undefined) {
+            stroke.width *= scale;
+        }
     };
 
     window.adaptStrokeToScreen = function (stroke, senderW, senderH, senderCw, senderCh, data) {
@@ -5846,31 +5853,31 @@ function setupConnectionEvents() {
         if (stroke.path) stroke.path.forEach(p => { p.x = mapX(p.x); p.y = mapY(p.y); });
         if (stroke.points) stroke.points.forEach(p => { p.x = mapX(p.x); p.y = mapY(p.y); });
 
-        if (stroke.x !== undefined && stroke.width !== undefined && !isLineType) {
+        if (stroke.x !== undefined && stroke.width !== undefined) {
             const center_x = mapX(stroke.x + stroke.width / 2);
             stroke.width *= scale;
             stroke.x = center_x - stroke.width / 2;
         } else if (stroke.x !== undefined) {
             stroke.x = mapX(stroke.x);
-            if (stroke.width !== undefined && !isLineType) stroke.width *= scale;
+            if (stroke.width !== undefined) stroke.width *= scale;
         }
 
-        if (stroke.y !== undefined && stroke.height !== undefined && !isLineType) {
+        if (stroke.y !== undefined && stroke.height !== undefined) {
             const center_y = mapY(stroke.y + stroke.height / 2);
             stroke.height *= scale;
             stroke.y = center_y - stroke.height / 2;
         } else if (stroke.y !== undefined) {
             stroke.y = mapY(stroke.y);
-            if (stroke.height !== undefined && !isLineType) stroke.height *= scale;
+            if (stroke.height !== undefined) stroke.height *= scale;
         }
 
         // 🚨 2. AĞ SENKRON ZIRHI: Mühürlü "original" değerleri PC çözünürlüğüne çevir! (Zıplamayı engeller)
-        if (stroke.originalX !== undefined && stroke.originalW !== undefined && !isLineType) {
+        if (stroke.originalX !== undefined && stroke.originalW !== undefined) {
             const orig_center_x = mapX(stroke.originalX + stroke.originalW / 2);
             stroke.originalW *= scale;
             stroke.originalX = orig_center_x - stroke.originalW / 2;
         }
-        if (stroke.originalY !== undefined && stroke.originalH !== undefined && !isLineType) {
+        if (stroke.originalY !== undefined && stroke.originalH !== undefined) {
             const orig_center_y = mapY(stroke.originalY + stroke.originalH / 2);
             stroke.originalH *= scale;
             stroke.originalY = orig_center_y - stroke.originalH / 2;
