@@ -7074,8 +7074,8 @@ window.CustomConeEngine = {
             const qOpenAbsolute = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
             
             // Dış grubun dinamik rotasyonunu değil, varsayılan rotasyonunu kullanıyoruz. 
-            // Koniler başlangıçta hiçbir rotasyon olmadan (0,0,0) ekleniyor.
-            const defaultOuterQ = new THREE.Quaternion().identity();
+            // Koniler başlangıçta X ve Z ekseninde -30 derece (-Math.PI/6) döndürülerek ekleniyor.
+            const defaultOuterQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 6, 0, -Math.PI / 6));
             const qOuterInverse = defaultOuterQ.invert();
             const qOpenTarget = qOuterInverse.multiply(qOpenAbsolute);
             
@@ -7452,13 +7452,11 @@ window.Scene3D = {
             solidShape.position.copy(this.startPoint || new THREE.Vector3(0, 0, 0));
 
             // 🚨 ÇİZİM TAMAMLANDIĞINDA İZOMETRİK DURUŞ: Ön, Üst ve Sağ yüzlerin görünmesi için
-            // 🚨 ÇİZİM TAMAMLANDIĞINDA İZOMETRİK DURUŞ: Ön, Üst ve Sağ yüzlerin görünmesi için
-            if (this.activeTool === 'pyramid_cone') {
-                // Koninin dönüş ve eğim animasyonu CustomConeEngine içinde hallediliyor, burada dokunmuyoruz.
-            } else if (this.activeTool.startsWith('prism_') || this.activeTool.startsWith('pyramid_')) {
+            if (this.activeTool === 'pyramid_cone' || this.activeTool.startsWith('prism_') || this.activeTool.startsWith('pyramid_')) {
                 // -Math.PI/6 (-30 derece) döndürüldüğünde Ön yüz daha geniş, Sağ yüz dar görünür (Klasik 3D görünüm)
                 solidShape.rotation.z = -Math.PI / 6;
-                solidShape.rotation.x = 0;
+                // Koni için kameraya tam dik bakmaması adına X ekseninde de eğim veriyoruz ki taban elips görünsün
+                solidShape.rotation.x = -Math.PI / 6;
             }
 
             this.scene.add(solidShape);
