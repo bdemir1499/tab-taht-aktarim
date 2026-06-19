@@ -311,8 +311,12 @@ window.Foldable3D = {
         // Şekil açıldıkça tam karşıdan görünmesi için rotasyonu otomatik olarak düzelt
         const inner = group.userData.innerGroup;
         if (inner) {
-            // Perspektif yanılgısını (kameranın aşağıdan bakması) önlemek için şekli hafif geriye (yukarı) yatırıyoruz: 0.25 radyan
-            const tiltOffset = 0.25; 
+            // Perspektif yanılgısını (kameranın aşağıdan bakması) önlemek için prizmalarda şekli hafif geriye (yukarı) yatırıyoruz: 0.25 radyan
+            // Ancak piramitlerin tam karşıdan görünmesi istendiği için onlarda bu eğimi sıfırlıyoruz.
+            let tiltOffset = 0.25; 
+            if (group.userData.shapeType && group.userData.shapeType.startsWith('pyramid_')) {
+                tiltOffset = 0;
+            }
 
             // Her iki şekil türü de Y ekseninde inşa edilip X ekseninde 90 derece döndürülerek dik hale getirilir.
             const qClosed = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);

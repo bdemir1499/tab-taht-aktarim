@@ -6958,11 +6958,11 @@ if (smartCanvas) {
 // =========================================================
 window.CustomConeEngine = {
     create: function(radius, height, mainMat, edgeMat) {
-        const group = new THREE.Group();
-        group.userData.isCustomCone = true;
-        group.userData.r = radius;
-        group.userData.h = height;
-        group.userData.s = Math.hypot(radius, height);
+        const innerGroup = new THREE.Group();
+        innerGroup.userData.isCustomCone = true;
+        innerGroup.userData.r = radius;
+        innerGroup.userData.h = height;
+        innerGroup.userData.s = Math.hypot(radius, height);
 
         const segments = 32;
         const lateralGeo = new THREE.BufferGeometry();
@@ -6994,20 +6994,26 @@ window.CustomConeEngine = {
         const baseEdges = new THREE.LineSegments(new THREE.EdgesGeometry(baseGeo), edgeMat);
         baseMesh.add(baseEdges);
         
-        group.add(lateralMesh); group.add(baseMesh); group.add(lateralEdges);
-        group.userData.lateralMesh = lateralMesh; group.userData.baseMesh = baseMesh; group.userData.lateralEdges = lateralEdges;
+        innerGroup.add(lateralMesh); innerGroup.add(baseMesh); innerGroup.add(lateralEdges);
+        innerGroup.userData.lateralMesh = lateralMesh; innerGroup.userData.baseMesh = baseMesh; innerGroup.userData.lateralEdges = lateralEdges;
         
-        this.update(group, 0); 
-        return group;
+        const outerGroup = new THREE.Group();
+        outerGroup.userData = innerGroup.userData;
+        outerGroup.userData.innerGroup = innerGroup;
+        outerGroup.add(innerGroup);
+        
+        this.update(outerGroup, 0); 
+        return outerGroup;
     },
     
     update: function(group, ratio) {
-        const r = group.userData.r; 
-        const h = group.userData.h; 
-        const s = group.userData.s; 
+        const innerGroup = group.userData.innerGroup || group;
+        const r = innerGroup.userData.r; 
+        const h = innerGroup.userData.h; 
+        const s = innerGroup.userData.s; 
         const segments = 32;
-        const pos = group.userData.lateralMesh.geometry.attributes.position.array;
-        const epos = group.userData.lateralEdges.geometry.attributes.position.array;
+        const pos = innerGroup.userData.lateralMesh.geometry.attributes.position.array;
+        const epos = innerGroup.userData.lateralEdges.geometry.attributes.position.array;
         
         // 🚨 2. ÇÖZÜM: Motordan "rotation" (eğim) komutlarını tamamen SİLDİK. 
         // Artık koni ekranın üstüne bakarak dimdik duracak ve Yeşil Taşıma Butonu kusursuz çalışacak!
@@ -7047,16 +7053,31 @@ window.CustomConeEngine = {
         const lastIdx = (segments + 2) * 3;
         epos[lastIdx] = apexX; epos[lastIdx + 1] = apexY; epos[lastIdx + 2] = apexZ;
         
-        group.userData.lateralMesh.geometry.attributes.position.needsUpdate = true;
-        group.userData.lateralMesh.geometry.computeVertexNormals();
-        group.userData.lateralEdges.geometry.attributes.position.needsUpdate = true;
+        innerGroup.userData.lateralMesh.geometry.attributes.position.needsUpdate = true;
+        innerGroup.userData.lateralMesh.geometry.computeVertexNormals();
+        innerGroup.userData.lateralEdges.geometry.attributes.position.needsUpdate = true;
         
         // 🚨 4. ÇÖZÜM: Kapağın (tabanın) menteşe gibi arkadan aşağı doğru bir kapı misali açılması
-        const baseMesh = group.userData.baseMesh;
+        const baseMesh = innerGroup.userData.baseMesh;
         const hingeY = r * (1 - ratio);
         const hingeZ = (-h / 2) * (1 - ratio) + (h / 2 - s) * ratio;
         baseMesh.position.set(0, hingeY, hingeZ);
         baseMesh.rotation.x = (Math.PI / 2) * ratio; // 0'dan (düz) başlayarak ekrana doğru sarkıp tam daire olur
+
+        // 🚨 5. ÇÖZÜM: Koninin açılırken tam karşıdan (XY düzleminden) görünmesi için rotasyonu otomatik düzelt
+        if (group.userData.innerGroup) {
+            // Koninin açık hali XZ düzlemindedir (y=0). Kameranın görmesi için onu X ekseninde 90 derece döndürerek XY düzlemine (kameraya karşı) dikmeliyiz.
+            const qClosed = new THREE.Quaternion().identity(); // Kapalıyken (ratio=0) kullanıcının verdiği rotasyona dokunma
+            
+            // XZ düzlemindeki şekli XY düzlemine yatırmak için X ekseninde 90 derece rotasyon gerekir:
+            const qOpenAbsolute = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+            
+            // Dış grubun rotasyonunu iptal edip, mutlak olarak qOpenAbsolute hedefine ulaşmak için:
+            const qOuterInverse = group.quaternion.clone().invert();
+            const qOpenTarget = qOuterInverse.multiply(qOpenAbsolute);
+            
+            innerGroup.quaternion.copy(qClosed).slerp(qOpenTarget, ratio);
+        }
     }
 };
 
