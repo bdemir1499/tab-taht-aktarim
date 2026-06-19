@@ -3657,7 +3657,12 @@ canvas.addEventListener('pointerup', (e) => {
             tempCtx.imageSmoothingEnabled = true;
             tempCtx.imageSmoothingQuality = 'high';
 
-            tempCtx.drawImage(canvas, x, y, w, h, 0, 0, w, h);
+            const dprX = canvas.width / canvas.getBoundingClientRect().width;
+            const dprY = canvas.height / canvas.getBoundingClientRect().height;
+            const bgCanvas = document.getElementById('bg-canvas');
+            if (bgCanvas) tempCtx.drawImage(bgCanvas, x * dprX, y * dprY, w * dprX, h * dprY, 0, 0, w, h);
+            tempCtx.drawImage(canvas, x * dprX, y * dprY, w * dprX, h * dprY, 0, 0, w, h);
+            
             const finalImage = tempCanvas.toDataURL('image/png', 1.0);
 
             const newImgStroke = {
@@ -3822,21 +3827,18 @@ canvas.addEventListener('pointerup', (e) => {
                 tempCtx.closePath();
                 tempCtx.clip();
 
-                const bgLayer = document.getElementById('pdf-canvas') || document.querySelector('.pdf-page-canvas');
-
                 // Kaliteyi artır
                 tempCtx.imageSmoothingEnabled = true;
                 tempCtx.imageSmoothingQuality = 'high';
 
-                if (bgLayer) {
-                    const dprCanvasX = canvas.width / canvas.getBoundingClientRect().width;
-                    const dprCanvasY = canvas.height / canvas.getBoundingClientRect().height;
-
-                    const sX = (bgLayer.width / bgLayer.offsetWidth) / dprCanvasX;
-                    const sY = (bgLayer.height / bgLayer.offsetHeight) / dprCanvasY;
-                    tempCtx.drawImage(bgLayer, minX * sX, minY * sY, w * sX, h * sY, 0, 0, w, h);
+                const dprX = canvas.width / canvas.getBoundingClientRect().width;
+                const dprY = canvas.height / canvas.getBoundingClientRect().height;
+                const bgCanvas = document.getElementById('bg-canvas');
+                
+                if (bgCanvas) {
+                    tempCtx.drawImage(bgCanvas, minX * dprX, minY * dprY, w * dprX, h * dprY, 0, 0, w, h);
                 }
-                tempCtx.drawImage(canvas, minX, minY, w, h, 0, 0, w, h);
+                tempCtx.drawImage(canvas, minX * dprX, minY * dprY, w * dprX, h * dprY, 0, 0, w, h);
                 tempCtx.restore();
 
                 const finalImage = tempCanvas.toDataURL('image/png', 1.0);
