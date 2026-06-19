@@ -103,7 +103,7 @@ window.PolygonTool = {
                 radius: radius, 
                 rotation: rotation, 
                 color: window.currentLineColor, // <-- KRİTİK EKLENTİ (Renk)
-                width: 3, // <-- KRİTİK EKLENTİ (Kalınlık)
+                width: 4, // <-- KRİTİK EKLENTİ (Kalınlık)
                 fillColor: 'rgba(0, 0, 0, 0.2)', 
                 label: centerLabel
             });
@@ -147,7 +147,7 @@ window.PolygonTool = {
                 startAngle: 0,
                 endAngle: 359.99, 
                 color: window.currentLineColor, // <-- KRİTİK EKLENTİ (Renk)
-                width: 3, // <-- KRİTİK EKLENTİ (Kalınlık)
+                width: 4, // <-- KRİTİK EKLENTİ (Kalınlık)
                 label: centerLabel
             });
             

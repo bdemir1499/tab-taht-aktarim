@@ -802,7 +802,7 @@ let initialDistance = 0;          // Başlangıç parmak mesafesi (zoom için)
 let initialScale = 0;             // Başlangıçta seçili nesnenin genişliği
 let initialCenter = { x: 0, y: 0 }; // İki parmağın merkez noktası (pan için)
 let currentPenColor = '#FFFFFF';
-let currentPenWidth = 3;
+let currentPenWidth = 4;
 window.currentLineColor = '#FFFFFF'; // Varsayılan Renk: BEYAZ
 const SNAP_THRESHOLD = 10;
 let returnToSnapshot = false; // İşlem bitince geri dönülecek mi? 
@@ -1159,7 +1159,7 @@ function redrawAllStrokes() {
             const p = stroke.payload;
             ctx.save();
             ctx.strokeStyle = '#FF0000'; // Kırmızı
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 4;
             ctx.setLineDash([5, 5]); // Kesikli
 
             if (p.tool === 'pen' && p.path) {
@@ -1383,7 +1383,7 @@ function redrawAllStrokes() {
             ctx.moveTo(stroke.p1.x, stroke.p1.y);
             ctx.lineTo(stroke.p2.x, stroke.p2.y);
             ctx.strokeStyle = stroke.color;
-            ctx.lineWidth = stroke.width || 3;
+            ctx.lineWidth = stroke.width || 4;
             ctx.lineCap = 'round';
             ctx.stroke();
             drawLabel(stroke.label1, stroke.p1, '#FF69B4');
@@ -1418,7 +1418,7 @@ function redrawAllStrokes() {
                 ctx.fillStyle = stroke.fillColor || 'rgba(0, 0, 0, 0.2)';
                 ctx.fill();
                 ctx.strokeStyle = stroke.color;
-                ctx.lineWidth = stroke.width || 3;
+                ctx.lineWidth = stroke.width || 4;
                 ctx.lineCap = 'round'; ctx.lineJoin = 'round';
                 ctx.stroke();
 
@@ -1557,7 +1557,7 @@ function redrawAllStrokes() {
             ctx.beginPath();
             ctx.rect(-stroke.width / 2, -stroke.height / 2, stroke.width, stroke.height);
             ctx.strokeStyle = stroke.color;
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 4;
             ctx.stroke();
 
             // 2. Kenar Uzunluklarını Yazdır (Önizlemedeki gibi kalıcı olur)
@@ -1627,7 +1627,7 @@ function redrawAllStrokes() {
             }
 
             ctx.strokeStyle = stroke.color;
-            ctx.lineWidth = stroke.width || 3;
+            ctx.lineWidth = stroke.width || 4;
             ctx.lineCap = 'round';
             ctx.stroke();
 
@@ -3583,18 +3583,18 @@ canvas.addEventListener('pointerup', (e) => {
         let strokeObj = null;
         const cizgiRengi = window.isToolThemeBlack ? '#000000' : (window.currentLineColor || '#FFFFFF');
 
-        if (isDrawingLine) strokeObj = { type: 'straightLine', p1: lineStartPoint, p2: finalPos, color: cizgiRengi, width: 3 };
+        if (isDrawingLine) strokeObj = { type: 'straightLine', p1: lineStartPoint, p2: finalPos, color: cizgiRengi, width: 4 };
         else if (isDrawingInfinityLine) {
             const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
-            strokeObj = { type: 'line', p1: lineStartPoint, p2: finalPos, color: cizgiRengi, width: 3, label1: l1, label2: l2 };
+            strokeObj = { type: 'line', p1: lineStartPoint, p2: finalPos, color: cizgiRengi, width: 4, label1: l1, label2: l2 };
         }
         else if (isDrawingSegment) {
             const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
-            strokeObj = { type: 'segment', p1: lineStartPoint, p2: finalPos, color: cizgiRengi, width: 3, label1: l1, label2: l2 };
+            strokeObj = { type: 'segment', p1: lineStartPoint, p2: finalPos, color: cizgiRengi, width: 4, label1: l1, label2: l2 };
         }
         else if (isDrawingRay) {
             const l1 = nextPointChar; const l2 = advanceChar(l1); nextPointChar = advanceChar(l2);
-            strokeObj = { type: 'ray', p1: lineStartPoint, p2: finalPos, color: cizgiRengi, width: 3, label1: l1, label2: l2 };
+            strokeObj = { type: 'ray', p1: lineStartPoint, p2: finalPos, color: cizgiRengi, width: 4, label1: l1, label2: l2 };
         }
 
         if (strokeObj) {
@@ -3762,7 +3762,7 @@ canvas.addEventListener('pointerup', (e) => {
                 else {
                     const safePenStroke = {
                         type: 'pen', id: lastStroke.id, color: lastStroke.color || '#000000',
-                        baseWidth: lastStroke.baseWidth || 3, width: lastStroke.width || lastStroke.baseWidth || 3,
+                        baseWidth: lastStroke.baseWidth || 4, width: lastStroke.width || lastStroke.baseWidth || 4,
                         isBackground: false,
                         path: lastStroke.path.map(p => ({ x: Math.round(p.x), y: Math.round(p.y), p: Number((p.p || 1).toFixed(2)) }))
                     };
