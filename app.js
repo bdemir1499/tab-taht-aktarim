@@ -7069,8 +7069,9 @@ window.CustomConeEngine = {
             // Koninin açık hali XZ düzlemindedir (y=0). Kameranın görmesi için onu X ekseninde 90 derece döndürerek XY düzlemine (kameraya karşı) dikmeliyiz.
             const qClosed = new THREE.Quaternion().identity(); // Kapalıyken (ratio=0) kullanıcının verdiği rotasyona dokunma
             
-            // XZ düzlemindeki şekli XY düzlemine yatırmak için X ekseninde 90 derece rotasyon gerekir:
-            const qOpenAbsolute = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+            // XZ düzlemindeki şekli XY düzlemine yatırmak için X ekseninde -90 derece rotasyon gerekir:
+            // Böylece tepe noktası (Z ekseninin pozitif tarafı) ekranın üstüne (Y eksenine) gelir!
+            const qOpenAbsolute = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
             
             // Dış grubun dinamik rotasyonunu değil, varsayılan rotasyonunu kullanıyoruz. 
             // Koniler başlangıçta hiçbir rotasyon olmadan (0,0,0) ekleniyor.
