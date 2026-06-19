@@ -3657,11 +3657,9 @@ canvas.addEventListener('pointerup', (e) => {
             tempCtx.imageSmoothingEnabled = true;
             tempCtx.imageSmoothingQuality = 'high';
 
-            const dprX = canvas.width / canvas.getBoundingClientRect().width;
-            const dprY = canvas.height / canvas.getBoundingClientRect().height;
             const bgCanvas = document.getElementById('bg-canvas');
-            if (bgCanvas) tempCtx.drawImage(bgCanvas, x * dprX, y * dprY, w * dprX, h * dprY, 0, 0, w, h);
-            tempCtx.drawImage(canvas, x * dprX, y * dprY, w * dprX, h * dprY, 0, 0, w, h);
+            if (bgCanvas) tempCtx.drawImage(bgCanvas, x, y, w, h, 0, 0, w, h);
+            tempCtx.drawImage(canvas, x, y, w, h, 0, 0, w, h);
             
             const finalImage = tempCanvas.toDataURL('image/png', 1.0);
 
@@ -3831,14 +3829,11 @@ canvas.addEventListener('pointerup', (e) => {
                 tempCtx.imageSmoothingEnabled = true;
                 tempCtx.imageSmoothingQuality = 'high';
 
-                const dprX = canvas.width / canvas.getBoundingClientRect().width;
-                const dprY = canvas.height / canvas.getBoundingClientRect().height;
                 const bgCanvas = document.getElementById('bg-canvas');
-                
                 if (bgCanvas) {
-                    tempCtx.drawImage(bgCanvas, minX * dprX, minY * dprY, w * dprX, h * dprY, 0, 0, w, h);
+                    tempCtx.drawImage(bgCanvas, minX, minY, w, h, 0, 0, w, h);
                 }
-                tempCtx.drawImage(canvas, minX * dprX, minY * dprY, w * dprX, h * dprY, 0, 0, w, h);
+                tempCtx.drawImage(canvas, minX, minY, w, h, 0, 0, w, h);
                 tempCtx.restore();
 
                 const finalImage = tempCanvas.toDataURL('image/png', 1.0);
