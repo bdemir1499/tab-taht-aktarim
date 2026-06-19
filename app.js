@@ -3284,7 +3284,7 @@ canvas.addEventListener('pointermove', (e) => {
         // 🚨 KESİN ÇÖZÜM: "Taşı" modundayken de şeklin hareket etmesi için 3D motoruna izin verdik.
         if (window.Scene3D.isDragging || window.Scene3D.isDrawing || window.Scene3D.isRotatingShape) {
             window.Scene3D.onMove(rawX, rawY);
-            return;
+            if (!window.Scene3D.isDragging) return; // Taşıma işlemi için 2D motoruna devam etmesine izin ver
         }
     }
 
@@ -3520,6 +3520,7 @@ canvas.addEventListener('pointerup', (e) => {
     if (window.Scene3D && window.Scene3D.isInit) {
         if (window.Scene3D.isDragging || window.Scene3D.isDrawing || window.Scene3D.isRotatingShape) {
             const wasDrawing = window.Scene3D.isDrawing;
+            const wasDragging = window.Scene3D.isDragging;
             window.Scene3D.onUp();
 
             if (wasDrawing) {
@@ -3533,7 +3534,7 @@ canvas.addEventListener('pointerup', (e) => {
 
                 if (typeof window.sendNetworkData === 'function') window.sendNetworkData({ type: 'onizleme_bitir' });
             }
-            return;
+            if (!wasDragging) return; // Taşıma işlemi için 2D motoruna devam etmesine izin ver
         }
     }
 
