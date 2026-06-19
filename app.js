@@ -3128,8 +3128,9 @@ canvas.addEventListener('pointerdown', (e) => {
     // --- 🚨 KÖPRÜ 1: 3D MOTORUNA DEVRET (HIRSIZLIK KORUMALI) ---
     if (window.Scene3D && window.Scene3D.isInit && !butonYakalandi) {
         if (currentTool === 'move' || currentTool === 'select') {
-            const is3DHit = window.Scene3D.onDown(rawX, rawY);
-            if (is3DHit) return;
+            window.Scene3D.onDown(rawX, rawY);
+            // 🚨 ÇÖZÜM: 3D şekil seçildiğinde erken dönüş YAPMIYORUZ. 
+            // 2D motorunun da isMoving, dragStartPos gibi taşıma değişkenlerini başlatmasına izin veriyoruz!
         }
         // SADECE "draw_3d" ile başlayan 3D araçları seçiliyse 3D motoruna izin ver!
         else if (currentTool && currentTool.startsWith('draw_3d_')) {
