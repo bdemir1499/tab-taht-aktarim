@@ -324,8 +324,11 @@ window.Foldable3D = {
             // Açıldığında tam karşıdan (ve hafif yukarıdan) görünmesi için mutlak hedef rotasyon
             const qOpenAbsolute = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2 - tiltOffset);
             
-            // Dış grubun rotasyonunu iptal etmek için tersini alıp hedefle çarpıyoruz
-            const qOuterInverse = group.quaternion.clone().invert();
+            // Dış grubun dinamik rotasyonunu değil, sadece başlangıçtaki varsayılan rotasyonunu ters çeviriyoruz.
+            // Böylece açıldığında "tam karşıdan" görünmesini sağlıyoruz ancak kullanıcının kendi yaptığı döndürmeleri SİLMİYORUZ.
+            // Prizmalar ve Piramitler başlangıçta Z ekseninde -30 derece (-Math.PI / 6) dönük olarak ekleniyor.
+            const defaultOuterQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -Math.PI / 6));
+            const qOuterInverse = defaultOuterQ.invert();
             const qOpenTarget = qOuterInverse.multiply(qOpenAbsolute);
             
             // Kapalıyken izometrik duruşta kal, açıldıkça kameraya dön

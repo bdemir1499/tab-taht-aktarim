@@ -7072,8 +7072,10 @@ window.CustomConeEngine = {
             // XZ düzlemindeki şekli XY düzlemine yatırmak için X ekseninde 90 derece rotasyon gerekir:
             const qOpenAbsolute = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
             
-            // Dış grubun rotasyonunu iptal edip, mutlak olarak qOpenAbsolute hedefine ulaşmak için:
-            const qOuterInverse = group.quaternion.clone().invert();
+            // Dış grubun dinamik rotasyonunu değil, varsayılan rotasyonunu kullanıyoruz. 
+            // Koniler başlangıçta hiçbir rotasyon olmadan (0,0,0) ekleniyor.
+            const defaultOuterQ = new THREE.Quaternion().identity();
+            const qOuterInverse = defaultOuterQ.invert();
             const qOpenTarget = qOuterInverse.multiply(qOpenAbsolute);
             
             innerGroup.quaternion.copy(qClosed).slerp(qOpenTarget, ratio);
