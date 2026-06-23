@@ -5557,15 +5557,41 @@ if (isTablet) {
 }
 // --- 3. BAĞLANTI İSTEK DİNLEYİCİSİ (KAPI ZİLİ) ---
 myPeer.on('connection', function (conn) {
-    // 🚨 KRİTİK GÜVENLİK YAMASI: ŞİFRE (PIN) KONTROLÜ ZORUNLULUĞU 🚨
-    // Eskiden şifre sadece tablet arayüzünde kozmetik olarak duruyordu, PC doğrulamıyordu.
-    // Artık metadata ile gelen şifre PC'nin şifresiyle %100 eşleşmek zorunda.
+    // 🚨 KRİTİK GÜVENLİK YAMASI: ŞİFRE (PIN) KONTROLÜ ZORUNLULUĞU VE KABA KUVVET (BRUTE-FORCE) KORUMASI 🚨
+    if (!window.bannedPeers) window.bannedPeers = {};
+    if (!window.failedAttempts) window.failedAttempts = {};
+
+    const peerId = conn.peer;
+
+    // Eğer IP/Cihaz engelliyse süresinin dolup dolmadığına bak (5 dakika)
+    if (window.bannedPeers[peerId]) {
+        if (Date.now() - window.bannedPeers[peerId] < 5 * 60 * 1000) {
+            console.warn(`🔒 Güvenlik İhlali: ${peerId} engelli! Deneme reddedildi.`);
+            setTimeout(() => conn.close(), 100);
+            return;
+        } else {
+            delete window.bannedPeers[peerId];
+            window.failedAttempts[peerId] = 0;
+        }
+    }
+
     if (!conn.metadata || conn.metadata.password !== window.sessionPassword) {
         console.warn("🔒 Güvenlik İhlali: Hatalı şifre denemesi reddedildi!", conn.peer);
+        
+        window.failedAttempts[peerId] = (window.failedAttempts[peerId] || 0) + 1;
+        if (window.failedAttempts[peerId] >= 3) {
+            window.bannedPeers[peerId] = Date.now();
+            console.warn(`🔒 Güvenlik İhlali: ${peerId} 3 hatalı deneme yaptı. 5 DAKİKA ENGELLENDİ!`);
+        }
+
         // Karşı tarafa hemen red gönderip bağlantıyı kopartıyoruz
         setTimeout(() => conn.close(), 500);
         return; // Modal penceresini bile gösterme (Öğretmeni rahatsız etme)
     }
+
+    // Doğru girdiyse eski hataları sıfırla
+    delete window.failedAttempts[peerId];
+
 
     console.log("Bir cihaz bağlanmak istiyor (Şifre Doğrulandı):", conn.peer);
 
@@ -6332,6 +6358,13 @@ if (!data || !data.type) return;
 
         // --- C) FİZİKSEL ARAÇLAR VE DİĞER FONKSİYONLAR ---
         if (data.type === 'arac_senkron') {
+            // 🚨 GÜVENLİK YAMASI: Sadece izin verilen araçlara CSS müdahalesi yapılabilir
+            const allowedSelectors = ['.yuzen-kopya-container'];
+            if (!allowedSelectors.includes(data.selector)) {
+                console.warn("🔒 Güvenlik İhlali: İzin verilmeyen CSS müdahalesi engellendi!", data.selector);
+                return;
+            }
+
             const el = document.querySelector(data.selector);
             if (el) {
                 if (data.display !== undefined) el.style.display = data.display;
