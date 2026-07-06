@@ -2261,10 +2261,7 @@ function setActiveTool(tool) {
     infinityLineButton.classList.remove('active');
     segmentButton.classList.remove('active');
     rayButton.classList.remove('active');
-    rulerButton.classList.remove('active');
-    gonyeButton.classList.remove('active');
-    aciolcerButton.classList.remove('active');
-    pergelButton.classList.remove('active');
+    // Fiziksel araç butonlarının aktifliği bağımsız yönetilir
     polygonButton.classList.remove('active');
     circleButton.classList.remove('active');
     moveButton.classList.remove('active');
@@ -2345,11 +2342,7 @@ function setActiveTool(tool) {
     window.tempPolygonData = null;
     polygonPreviewLabel.classList.add('hidden');
 
-    // Fiziksel Araçları gizle ve CSS sınıflarını KESİN OLARAK kapat
-    if (window.RulerTool) { window.RulerTool.hide(); const el = document.querySelector('.ruler-container'); if (el) { el.classList.add('hidden'); el.style.display = 'none'; el.style.zIndex = "-1"; } }
-    if (window.GonyeTool) { window.GonyeTool.hide(); const el = document.querySelector('.gonye-container'); if (el) { el.classList.add('hidden'); el.style.display = 'none'; el.style.zIndex = "-1"; } }
-    if (window.AciolcerTool) { window.AciolcerTool.hide(); const el = document.querySelector('.aciolcer-container'); if (el) { el.classList.add('hidden'); el.style.display = 'none'; el.style.zIndex = "-1"; } }
-    if (window.PergelTool) { window.PergelTool.hide(); const el = document.getElementById('compass-container'); if (el) { el.classList.add('hidden'); el.style.display = 'none'; el.style.zIndex = "-1"; } }
+    // Fiziksel araçlar bağımsız çalıştığı için setActiveTool içerisinde gizlenmez.
 
     if (snapIndicator) snapIndicator.style.display = 'none';
 
@@ -2430,45 +2423,13 @@ function setActiveTool(tool) {
     // --- DİĞER ARAÇLAR ---
     // --- DİĞER ARAÇLAR ---
     else if (tool === 'ruler') {
-        rulerButton.classList.add('active');
-        if (window.RulerTool) {
-            window.RulerTool.show();
-            const el = document.querySelector('.ruler-container');
-            if (el) { el.classList.remove('hidden'); el.style.display = 'flex'; el.style.zIndex = "9999"; }
-        }
+        togglePhysicalTool('ruler');
     } else if (tool === 'gonye') {
-        gonyeButton.classList.add('active');
-        if (window.GonyeTool) {
-            window.GonyeTool.show();
-            const el = document.querySelector('.gonye-container');
-            if (el) { el.classList.remove('hidden'); el.style.display = 'flex'; el.style.zIndex = "9999"; }
-        }
+        togglePhysicalTool('gonye');
     } else if (tool === 'aciolcer') {
-        aciolcerButton.classList.add('active');
-        if (window.AciolcerTool) {
-            window.AciolcerTool.show();
-            const el = document.querySelector('.aciolcer-container');
-            if (el) { el.classList.remove('hidden'); el.style.display = 'block'; el.style.zIndex = "9999"; }
-        }
+        togglePhysicalTool('aciolcer');
     } else if (tool === 'pergel') {
-        pergelButton.classList.add('active');
-        if (window.PergelTool) {
-            window.PergelTool.show();
-            const el = document.getElementById('compass-container');
-            if (el) { el.classList.remove('hidden'); el.style.display = 'block'; el.style.zIndex = "9999"; }
-
-            if (window.PergelTool.state) {
-                setTimeout(() => {
-                    // 🚨 HATALI DEĞERLER DÜZELTİLDİ (Sadece Radius ve 0 Derece)
-                    window.PergelTool.state.rotation = 0;
-                    window.PergelTool.state.radius = 150;
-
-                    if (typeof window.PergelTool.updateTransform === 'function') window.PergelTool.updateTransform();
-                    if (typeof window.araclariAgaGonder === 'function') window.araclariAgaGonder();
-                }, 100);
-            }
-            if (window.bringToolToFront) window.bringToolToFront(el || window.PergelTool.pergelElement);
-        }
+        togglePhysicalTool('pergel');
     }
 
     else if (tool.startsWith('draw_polygon_')) {
@@ -2496,9 +2457,49 @@ eraserButton.addEventListener('click', () => setActiveTool(currentTool === 'eras
 
 
 // --- FİZİKSEL ARAÇ BUTONLARI KESİN ÇÖZÜMÜ (TABLET ZIRHI) ---
-const araciBaslat = (aracAdi) => {
-    setActiveTool(currentTool === aracAdi ? 'none' : aracAdi);
+function togglePhysicalTool(aracAdi) {
+    let toolObj = null, el = null, btn = null, isDisplayBlock = false;
+    if (aracAdi === 'ruler') { toolObj = window.RulerTool; el = document.querySelector('.ruler-container'); btn = rulerButton; }
+    if (aracAdi === 'gonye') { toolObj = window.GonyeTool; el = document.querySelector('.gonye-container'); btn = gonyeButton; }
+    if (aracAdi === 'aciolcer') { toolObj = window.AciolcerTool; el = document.querySelector('.aciolcer-container'); btn = aciolcerButton; isDisplayBlock = true; }
+    if (aracAdi === 'pergel') { toolObj = window.PergelTool; el = document.getElementById('compass-container'); btn = pergelButton; isDisplayBlock = true; }
+
+    if (!toolObj || !el) return;
+
+    const isCurrentlyVisible = el.style.display !== 'none' && !el.classList.contains('hidden');
+
+    if (isCurrentlyVisible) {
+        // Gizle
+        toolObj.hide();
+        el.classList.add('hidden');
+        el.style.display = 'none';
+        el.style.zIndex = "-1";
+        if (btn) btn.classList.remove('active');
+    } else {
+        // Göster
+        toolObj.show();
+        el.classList.remove('hidden');
+        el.style.display = isDisplayBlock ? 'block' : 'flex';
+        el.style.zIndex = "9999";
+        if (btn) btn.classList.add('active');
+
+        if (aracAdi === 'pergel' && toolObj.state) {
+            setTimeout(() => {
+                toolObj.state.rotation = 0;
+                toolObj.state.radius = 150;
+                if (typeof toolObj.updateTransform === 'function') toolObj.updateTransform();
+                if (typeof window.araclariAgaGonder === 'function') window.araclariAgaGonder();
+            }, 100);
+        }
+
+        if (window.bringToolToFront) window.bringToolToFront(el || (toolObj ? toolObj.pergelElement || toolObj.rulerElement || toolObj.gonyeElement || toolObj.aciolcerElement : null));
+    }
+
     setTimeout(() => { if (typeof window.araclariAgaGonder === 'function') window.araclariAgaGonder(); }, 50);
+}
+
+const araciBaslat = (aracAdi) => {
+    togglePhysicalTool(aracAdi);
 };
 
 const butonBagla = (btn, aracAdi) => {
