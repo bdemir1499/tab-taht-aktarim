@@ -1531,18 +1531,6 @@ function redrawAllStrokes() {
                 ctx.strokeStyle = '#00FFCC'; ctx.lineWidth = 2; ctx.setLineDash([5, 5]);
                 ctx.strokeRect(-stroke.width / 2, -stroke.height / 2, stroke.width, stroke.height);
                 ctx.setLineDash([]);
-
-                // Döndürme (Yeşil) Butonu
-                const rotY = -stroke.height / 2 - 40;
-                ctx.fillStyle = '#0F0'; ctx.beginPath(); ctx.arc(0, rotY, 15, 0, Math.PI * 2); ctx.fill();
-                ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
-                ctx.font = "bold 16px Arial"; ctx.fillStyle = "#FFF"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("↻", 0, rotY - 1);
-
-                // Boyutlandırma (Pembe) Butonu
-                const resX = stroke.width / 2 + 20; const resY = stroke.height / 2 + 20;
-                ctx.fillStyle = '#F0F'; ctx.beginPath(); ctx.arc(resX, resY, 15, 0, Math.PI * 2); ctx.fill();
-                ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke();
-                ctx.fillText("⤢", resX, resY);
                 ctx.restore();
             }
         }
@@ -7131,6 +7119,7 @@ window.Scene3D = {
     init: function () {
         if (this.isInit) return;
         if (typeof THREE === 'undefined') { setTimeout(() => { window.Scene3D.init(); }, 500); return; }
+        this.isInit = true;
 
         this.raycaster = new THREE.Raycaster();
         this.mouse = new THREE.Vector2();
@@ -7177,11 +7166,21 @@ window.Scene3D = {
             btn.innerHTML = isRotate ? '↻' : '⤡';
         };
 
+        if (this.rotateHandleBtn && this.rotateHandleBtn.parentNode) {
+            this.rotateHandleBtn.parentNode.removeChild(this.rotateHandleBtn);
+        }
+        if (this.resizeHandleBtn && this.resizeHandleBtn.parentNode) {
+            this.resizeHandleBtn.parentNode.removeChild(this.resizeHandleBtn);
+        }
+        document.querySelectorAll('.scene3d-rotate-btn, .scene3d-resize-btn').forEach(btn => btn.remove());
+
         this.rotateHandleBtn = document.createElement('div');
+        this.rotateHandleBtn.className = 'scene3d-rotate-btn';
         styleBtn(this.rotateHandleBtn, true);
         document.body.appendChild(this.rotateHandleBtn);
 
         this.resizeHandleBtn = document.createElement('div');
+        this.resizeHandleBtn.className = 'scene3d-resize-btn';
         styleBtn(this.resizeHandleBtn, false);
         document.body.appendChild(this.resizeHandleBtn);
 
@@ -7219,7 +7218,6 @@ window.Scene3D = {
             window.addEventListener(evt, () => { if (this.isRotatingHandle || this.isResizingHandle) this.onUp(); });
         });
 
-        this.isInit = true;
         this.animate();
     },
 
@@ -7231,8 +7229,10 @@ window.Scene3D = {
         }
         const vec = this.currentMesh.position.clone();
         vec.project(this.camera);
-        const w = window.innerWidth / 2, h = window.innerHeight / 2;
-        const px = (vec.x * w) + w, py = -(vec.y * h) + h;
+        const canvasEl = document.getElementById('drawing-canvas');
+        const rect = canvasEl ? canvasEl.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+        const w = rect.width / 2, h = rect.height / 2;
+        const px = rect.left + (vec.x * w) + w, py = rect.top + (-(vec.y * h) + h);
 
         this.handles.center = { x: px, y: py };
 
