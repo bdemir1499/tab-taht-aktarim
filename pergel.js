@@ -330,6 +330,14 @@ window.PergelTool = {
         this.interactionMode = 'none';
         if (window.audio_draw) { window.audio_draw.pause(); window.audio_draw.currentTime = 0; }
         if (this.previewCtx) this.previewCtx.clearRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
+        // Yeni pivot noktasını eski kalem ucu pozisyonuna al (sivri uç ve kalem ucu yer değiştirsin)
+        const PI_RAD = Math.PI / 180;
+        const oldPenX = this.state.pivot.x + this.state.radius * Math.cos(this.state.rotation * PI_RAD);
+        const oldPenY = this.state.pivot.y + this.state.radius * Math.sin(this.state.rotation * PI_RAD);
+
+        this.state.pivot.x = oldPenX;
+        this.state.pivot.y = oldPenY;
+
         this.state.isFlipped = !this.state.isFlipped;
         if (this.state.isFlipped) {
             this.leftLeg.appendChild(this.penTip); this.leftLeg.appendChild(this.penResizeHandle);
@@ -339,7 +347,7 @@ window.PergelTool = {
             this.rightLeg.appendChild(this.penTip); this.rightLeg.appendChild(this.penResizeHandle);
         }
 
-        // 🚨 KESİN ÇÖZÜM: İğne sabit kalır, sadece kalem ucu 180 derece karşıya zıplar!
+        // Rotasyonu da 180 derece çevirerek pergelin görsel olarak aynı konumda kalmasını sağla
         this.state.rotation = (this.state.rotation + 180) % 360; 
         this.state.previousDrawAngle = this.state.rotation;
         this.state.startAngle = this.state.rotation;
