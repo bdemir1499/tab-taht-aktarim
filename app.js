@@ -4229,17 +4229,18 @@ function addNewImageToCanvas(img, isPDF = false, pcKordinatlari = null) {
             // Bu sayede "boşluğa tıklama" zorunluluğu ortadan kalkar ve PDF anında görünür!
             setTimeout(() => { if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes(); }, 150);
 
-            // 🚨 NİHAİ ÇÖZÜM: PC zaten PDF'i kendi çiziyor, 20MB resmi yollama! Sadece koordinatları yolla!
-            if (!pcKordinatlari && typeof isConnected !== 'undefined' && isConnected) {
-        window.sendNetworkData({
-            type: 'arka_plan_resmi_aktar',
-            imgData: img.src,
-            isPDF: isPDF,
-            kordinatlar: { x: newStroke.x, y: newStroke.y, width: newStroke.width, height: newStroke.height },
-            canvasW: canvas.width,
-            canvasH: canvas.height
-        });
-    }
+            // 🚨 NİHAİ ÇÖZÜM: PC zaten PDF'i kendi çiziyor, 20MB resmi yollama!
+            // SADECE normal resim yüklendiyse (isPDF false ise) resmi PC'ye yolla.
+            if (!pcKordinatlari && typeof isConnected !== 'undefined' && isConnected && !isPDF) {
+                window.sendNetworkData({
+                    type: 'arka_plan_resmi_aktar',
+                    imgData: img.src,
+                    isPDF: isPDF,
+                    kordinatlar: { x: newStroke.x, y: newStroke.y, width: newStroke.width, height: newStroke.height },
+                    canvasW: canvas.width,
+                    canvasH: canvas.height
+                });
+            }
 
     // 🚨 KESİN ÇÖZÜM: Yükleme işleminden sonra Taşı butonunun kendi kendine aktif olmasını engellemek için aracı Kalem'e sıfırla.
     if (typeof setActiveTool === 'function') setActiveTool('pen');
