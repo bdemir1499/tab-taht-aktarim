@@ -7107,16 +7107,16 @@ window.CustomConeEngine = {
 
         // 🚨 5. ÇÖZÜM: Koninin açılırken tam karşıdan (XY düzleminden) görünmesi için rotasyonu otomatik düzelt
         if (group.userData.innerGroup) {
-            // Koninin açık hali XZ düzlemindedir (y=0). Kameranın görmesi için onu X ekseninde 90 derece döndürerek XY düzlemine (kameraya karşı) dikmeliyiz.
+            // Koninin açık hali XZ düzlemindedir (y=0). Kameranın görmesi için onu kameranın (Y=-30, Z=20) açısına tam dikmeliyiz.
             const qClosed = new THREE.Quaternion().identity(); // Kapalıyken (ratio=0) kullanıcının verdiği rotasyona dokunma
             
-            // XZ düzlemindeki şekli XY düzlemine yatırmak için X ekseninde -90 derece rotasyon gerekir:
-            // Böylece tepe noktası (Z ekseninin pozitif tarafı) ekranın üstüne (Y eksenine) gelir!
-            const qOpenAbsolute = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+            // XZ düzlemindeki şekli ekrana tam paralel yatırmak için, Z ekseni ekranın 'üst' noktasına (Y=20, Z=30) gelmeli.
+            // Bunun için gereken kusursuz açı Math.atan2(-20, 30)'dur. (-Math.PI / 2 yani -90 derece sadece düz kamera içindi)
+            const qOpenAbsolute = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.atan2(-20, 30));
             
             // Dış grubun dinamik rotasyonunu değil, varsayılan rotasyonunu kullanıyoruz. 
             // Koniler başlangıçta X ve Z ekseninde -30 derece (-Math.PI/6) döndürülerek ekleniyor.
-            const defaultOuterQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 6, 0, -Math.PI / 6));
+            const defaultOuterQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 6, 0, -Math.PI / 6, 'XYZ'));
             const qOuterInverse = defaultOuterQ.invert();
             const qOpenTarget = qOuterInverse.multiply(qOpenAbsolute);
             
