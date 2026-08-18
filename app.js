@@ -3827,20 +3827,42 @@ canvas.addEventListener('pointerup', (e) => {
 
                 const finalImage = tempCanvas.toDataURL('image/png', 1.0);
 
-                let cx = 0, cy = 0;
-                for (let p of lassoPoints) { cx += p.x; cy += p.y; }
-                cx /= lassoPoints.length; cy /= lassoPoints.length;
-
-                let dx = lassoPoints[0].x - cx; let dy = lassoPoints[0].y - cy;
-                let dist = Math.hypot(dx, dy) || 1;
-                let sampleX = lassoPoints[0].x + (dx / dist) * 10; let sampleY = lassoPoints[0].y + (dy / dist) * 10;
-
                 let detectedColor = (typeof window.isToolThemeBlack !== 'undefined' && window.isToolThemeBlack) ? '#222222' : '#ffffff';
 
                 try {
-                    let pxl = canvas.getContext('2d').getImageData(sampleX, sampleY, 1, 1).data;
-                    if (pxl[3] > 0) detectedColor = `rgba(${pxl[0]}, ${pxl[1]}, ${pxl[2]}, ${pxl[3] / 255})`;
-                } catch (e) { }
+                    const bgCanvas = document.getElementById('bg-canvas');
+                    const bgCtx = bgCanvas ? bgCanvas.getContext('2d') : null;
+                    const mainCtx = canvas.getContext('2d');
+                    
+                    let centerX = (minX + maxX) / 2;
+                    let centerY = (minY + maxY) / 2;
+                    
+                    let samplePoints = [
+                        { x: centerX, y: minY - 5 },
+                        { x: centerX, y: maxY + 5 },
+                        { x: minX - 5, y: centerY },
+                        { x: maxX + 5, y: centerY }
+                    ];
+                    
+                    for (let sp of samplePoints) {
+                        let r = 0, g = 0, b = 0, a = 0;
+                        
+                        let mainData = mainCtx.getImageData(sp.x, sp.y, 1, 1).data;
+                        if (mainData[3] > 0) {
+                            r = mainData[0]; g = mainData[1]; b = mainData[2]; a = mainData[3];
+                        } else if (bgCtx) {
+                            let bgData = bgCtx.getImageData(sp.x, sp.y, 1, 1).data;
+                            if (bgData[3] > 0) {
+                                r = bgData[0]; g = bgData[1]; b = bgData[2]; a = bgData[3];
+                            }
+                        }
+                        
+                        if (a > 0) {
+                            detectedColor = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+                            break;
+                        }
+                    }
+                } catch (e) { console.warn("Renk örnekleme hatası:", e); }
 
                 const maskStroke = { type: 'lasso-mask', points: lassoPoints.map(p => ({ x: p.x, y: p.y })), fillColor: detectedColor, id: Date.now() + Math.random() };
                 drawnStrokes.push(maskStroke);
