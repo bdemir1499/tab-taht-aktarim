@@ -1166,6 +1166,8 @@ function redrawAllStrokes() {
                 // 🚨 Kalem için canlı önizleme kesiksiz ve kendi renginde olmalı!
                 ctx.setLineDash([]);
                 ctx.strokeStyle = p.color || '#FFFFFF';
+                // 🚨 Kalınlık: Gönderilen orijinal kalınlığı (baseWidth) kullan
+                ctx.lineWidth = p.baseWidth || window.currentLineWidth || 3;
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
                 
@@ -3494,7 +3496,7 @@ canvas.addEventListener('pointermove', (e) => {
             window.sendNetworkData({ 
                 type: 'aktif_onizleme', 
                 arac: 'cizim_onizleme', 
-                payload: { tool: 'pen', path: curStroke.path, color: curStroke.color } 
+                payload: { tool: 'pen', path: curStroke.path, color: curStroke.color, baseWidth: curStroke.baseWidth } 
             });
         }
     }
