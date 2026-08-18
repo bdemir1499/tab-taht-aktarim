@@ -3650,6 +3650,25 @@ canvas.addEventListener('pointerup', (e) => {
             if (bgCanvas) tempCtx.drawImage(bgCanvas, x, y, w, h, 0, 0, w, h);
             tempCtx.drawImage(canvas, x, y, w, h, 0, 0, w, h);
             
+            // 🚨 BEYAZ ARKA PLANI ŞEFFAF YAPMA MANTIĞI: 
+            // Kutu kopyası kareli zemine vb. yapıştırıldığında beyazların alttaki çizgileri örtmemesi için
+            try {
+                const imgData = tempCtx.getImageData(0, 0, w, h);
+                const data = imgData.data;
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    // Beyaza çok yakın olan pikselleri (örneğin rgb değeri 240 ve üstü olanları) tam şeffaf (alpha = 0) yapıyoruz
+                    if (r >= 240 && g >= 240 && b >= 240) {
+                        data[i + 3] = 0; 
+                    }
+                }
+                tempCtx.putImageData(imgData, 0, 0);
+            } catch (e) {
+                console.warn("CORS veya resim izni nedeniyle arka plan şeffaflaştırılamadı:", e);
+            }
+
             const finalImage = tempCanvas.toDataURL('image/png', 1.0);
 
             const newImgStroke = {
