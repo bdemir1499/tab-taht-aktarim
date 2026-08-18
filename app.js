@@ -1162,10 +1162,18 @@ function redrawAllStrokes() {
             ctx.lineWidth = 4;
             ctx.setLineDash([5, 5]); // Kesikli
 
-            if (p.tool === 'pen' && p.path) {
+            if (p.tool === 'pen' && p.path && p.path.length > 0) {
+                // 🚨 Kalem için canlı önizleme kesiksiz ve kendi renginde olmalı!
+                ctx.setLineDash([]);
+                ctx.strokeStyle = p.color || '#FFFFFF';
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
                 ctx.beginPath();
                 ctx.moveTo(p.path[0].x, p.path[0].y);
-                for (let i = 1; i < p.path.length; i++) ctx.lineTo(p.path[i].x, p.path[i].y);
+                for (let i = 1; i < p.path.length; i++) {
+                    ctx.lineTo(p.path[i].x, p.path[i].y);
+                }
                 ctx.stroke();
             }
             else if (['straightLine', 'line', 'segment', 'ray'].includes(p.tool) && p.start && p.end) {
@@ -3476,7 +3484,19 @@ canvas.addEventListener('pointermove', (e) => {
 
     if (currentTool === 'pen') {
         const pInfoMove = getPointerInfo(e);
-        drawnStrokes[drawnStrokes.length - 1].path.push({ x: pos.x, y: pos.y, p: pInfoMove.type === 'pen' ? pInfoMove.pressure : 1 }); redrawAllStrokes();
+        const curStroke = drawnStrokes[drawnStrokes.length - 1];
+        curStroke.path.push({ x: pos.x, y: pos.y, p: pInfoMove.type === 'pen' ? pInfoMove.pressure : 1 }); 
+        redrawAllStrokes();
+
+        // 🚨 CANLI ÇİZİM (LIVE INK) AKTARIMI 🚨
+        // Kalem henüz havadayken, yazılan kısmın tamamı saliseler içinde PC'ye fırlatılır
+        if (typeof isConnected !== 'undefined' && isConnected) {
+            window.sendNetworkData({ 
+                type: 'aktif_onizleme', 
+                arac: 'cizim_onizleme', 
+                payload: { tool: 'pen', path: curStroke.path, color: curStroke.color } 
+            });
+        }
     }
 }, { passive: false });
 
@@ -4053,39 +4073,47 @@ function updatePageLabel() {
 async function renderPDFPage(num) {
     if (!currentPDF) return;
 
-    const page = await currentPDF.getPage(num);
-
-    // --- BURASI DEĞİŞTİ: OTOMATİK VE YÜKSEK ÇÖZÜNÜRLÜK AYARI ---
-    const dpr = window.devicePixelRatio || 1;
-    const KALITE_CARPANI = 2; // Daha güvenli bir katsayı (3 çok yüksekti, donanıma çarpıyordu)
-    const hdScale = dpr * KALITE_CARPANI;
-
-    let viewport = page.getViewport({ scale: hdScale });
-
-    // GÜVENLİK ZIRHI: Mobil ve bazı PC tarayıcılarında canvas limiti 4096px'dir.
-    // Eğer sayfa çok büyükse (örneğin 5000px), ölçeği güvenli bir sınıra zorla düşür!
-    // Bu sayede "sayfa yarım geldi" veya "canvas dondu" hatalarını KÖKÜNDEN önleriz!
-    if (viewport.height > 3500 || viewport.width > 3500) {
-        const maxDim = Math.max(viewport.height, viewport.width);
-        const safeScale = hdScale * (3500 / maxDim);
-        viewport = page.getViewport({ scale: safeScale });
+    // 🚨 BEYAZ EKRAN VE DONMA ÇÖZÜMÜ: Hızlı sayfa değişimlerinde PDF motorunun tıkanmasını engelle
+    if (window.currentRenderTask) {
+        try { window.currentRenderTask.cancel(); } catch(e){}
     }
-    // -----------------------------------------------------------
 
-    const tempCanvas = document.createElement('canvas');
-    const tempCtx = tempCanvas.getContext('2d');
-    tempCanvas.height = viewport.height;
-    tempCanvas.width = viewport.width;
+    try {
+        const page = await currentPDF.getPage(num);
 
-    // --- BURASI EKLENDİ: YAZI KENARLARINI KESKİNLEŞTİRME FİLTRESİ ---
-    tempCtx.imageSmoothingEnabled = true;
-    tempCtx.imageSmoothingQuality = 'high';
-    // ----------------------------------------------------------------
+        // --- BURASI DEĞİŞTİ: OTOMATİK VE YÜKSEK ÇÖZÜNÜRLÜK AYARI ---
+        const dpr = window.devicePixelRatio || 1;
+        const KALITE_CARPANI = 2; // Daha güvenli bir katsayı (3 çok yüksekti, donanıma çarpıyordu)
+        const hdScale = dpr * KALITE_CARPANI;
 
-    await page.render({
-        canvasContext: tempCtx,
-        viewport: viewport
-    }).promise;
+        let viewport = page.getViewport({ scale: hdScale });
+
+        // GÜVENLİK ZIRHI: Mobil ve bazı PC tarayıcılarında canvas limiti 4096px'dir.
+        // Eğer sayfa çok büyükse (örneğin 5000px), ölçeği güvenli bir sınıra zorla düşür!
+        // Bu sayede "sayfa yarım geldi" veya "canvas dondu" hatalarını KÖKÜNDEN önleriz!
+        if (viewport.height > 3500 || viewport.width > 3500) {
+            const maxDim = Math.max(viewport.height, viewport.width);
+            const safeScale = hdScale * (3500 / maxDim);
+            viewport = page.getViewport({ scale: safeScale });
+        }
+        // -----------------------------------------------------------
+
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCanvas.height = viewport.height;
+        tempCanvas.width = viewport.width;
+
+        // --- BURASI EKLENDİ: YAZI KENARLARINI KESKİNLEŞTİRME FİLTRESİ ---
+        tempCtx.imageSmoothingEnabled = true;
+        tempCtx.imageSmoothingQuality = 'high';
+        // ----------------------------------------------------------------
+
+        window.currentRenderTask = page.render({
+            canvasContext: tempCtx,
+            viewport: viewport
+        });
+
+        await window.currentRenderTask.promise;
 
     const img = new Image();
     img.onload = () => {
@@ -4120,9 +4148,15 @@ async function renderPDFPage(num) {
     const sayfaResmi = tempCanvas.toDataURL('image/png', 1.0);
     img.src = sayfaResmi;
 
-
     if (pageCountLabel) pageCountLabel.innerText = `Sayfa: ${num} / ${totalPDFPages}`;
-
+    
+    } catch (e) {
+        if (e.name === 'RenderingCancelledException') {
+            console.log("Hızlı sayfa değişimi nedeniyle önceki çizim iptal edildi.");
+        } else {
+            console.warn("PDF Render hatası:", e);
+        }
+    }
 }
 
 
