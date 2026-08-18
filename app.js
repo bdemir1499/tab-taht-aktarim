@@ -4215,6 +4215,11 @@ if (toolColorBtn) {
                 el.classList.remove('tool-black-theme');
             }
         });
+
+        // 🚨 SİNKRONİZASYON: Tema değişimini diğer cihazlara (PC'ye) bildir
+        if (typeof window.sendNetworkData === 'function' && typeof isConnected !== 'undefined' && isConnected) {
+            window.sendNetworkData({ type: 'fiziksel_arac_temasi', isBlackTheme: isBlackTheme });
+        }
     });
 }
 
@@ -6830,6 +6835,24 @@ if (!data || !data.type) return;
             selectedItem = null;
             window.selectedItem = null;
             if (window.redrawAllStrokes) window.redrawAllStrokes();
+        }
+
+        // 🚨 SİNKRONİZASYON: Fiziksel Araç Teması (Siyah/Neon) PC'ye yansıtılıyor
+        if (data.type === 'fiziksel_arac_temasi') {
+            window.isToolThemeBlack = data.isBlackTheme;
+            const elements = document.querySelectorAll('.ruler-container, .gonye-container, .aciolcer-container, #compass-container');
+            elements.forEach(el => {
+                if (data.isBlackTheme) {
+                    el.classList.add('tool-black-theme');
+                } else {
+                    el.classList.remove('tool-black-theme');
+                }
+            });
+            // PC'deki butonun metnini de senkronize et
+            const colorBtn = document.getElementById('btn-tool-color');
+            if (colorBtn) {
+                colorBtn.innerText = data.isBlackTheme ? "Araç Rengi: Neon" : "Araç Rengi: Siyah";
+            }
         }
     } // <--- processData fonksiyonu TAM BURADA kusursuzca kapanır
 
