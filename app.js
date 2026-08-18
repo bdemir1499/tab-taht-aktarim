@@ -4108,6 +4108,10 @@ async function renderPDFPage(num) {
         // --- BURASI EKLENDİ: YAZI KENARLARINI KESKİNLEŞTİRME FİLTRESİ ---
         tempCtx.imageSmoothingEnabled = true;
         tempCtx.imageSmoothingQuality = 'high';
+        
+        // JPEG formatında arka planın siyah çıkmasını önlemek için beyaz zemin
+        tempCtx.fillStyle = '#FFFFFF';
+        tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
         // ----------------------------------------------------------------
 
         window.currentRenderTask = page.render({
@@ -4147,7 +4151,8 @@ async function renderPDFPage(num) {
     };
 
     // 🚨 İŞTE 2. ADIMDAKİ DEĞİŞİKLİĞİN YAPILDIĞI YER BURASI 🚨
-    const sayfaResmi = tempCanvas.toDataURL('image/png', 1.0);
+    // Ağı felç eden 20MB PNG yerine %80 kalite JPEG (1MB altı) kullanarak donmayı ve yarım yüklemeyi bitiriyoruz!
+    const sayfaResmi = tempCanvas.toDataURL('image/jpeg', 0.8);
     img.src = sayfaResmi;
 
     if (pageCountLabel) pageCountLabel.innerText = `Sayfa: ${num} / ${totalPDFPages}`;
@@ -4229,9 +4234,9 @@ function addNewImageToCanvas(img, isPDF = false, pcKordinatlari = null) {
             // Bu sayede "boşluğa tıklama" zorunluluğu ortadan kalkar ve PDF anında görünür!
             setTimeout(() => { if (typeof window.redrawAllStrokes === 'function') window.redrawAllStrokes(); }, 150);
 
-            // 🚨 NİHAİ ÇÖZÜM: PC zaten PDF'i kendi çiziyor, 20MB resmi yollama!
-            // SADECE normal resim yüklendiyse (isPDF false ise) resmi PC'ye yolla.
-            if (!pcKordinatlari && typeof isConnected !== 'undefined' && isConnected && !isPDF) {
+            // 🚨 PC'nin donanımı zayıf olduğu için ve PDF kitap gönderimi önceden kapatıldığı için, 
+            // Tablet her halükarda çizdiği hafifletilmiş JPEG sayfayı PC'ye göndermek zorunda!
+            if (!pcKordinatlari && typeof isConnected !== 'undefined' && isConnected) {
                 window.sendNetworkData({
                     type: 'arka_plan_resmi_aktar',
                     imgData: img.src,
