@@ -318,6 +318,12 @@ window.Foldable3D = {
                 // Piramitler prizmalardan farklı olarak yerel XZ düzleminde açılır.
                 // Kameraya doğru (zemine) yatması için hedef açının Math.PI olması gerekir.
                 targetAngleX = Math.PI;
+                
+                // Koni için özel: Daire diliminin eliptik (geriye yatık) görünmemesi için
+                // kameranın Y=-30, Z=20 açısına tam dik olacak şekilde offset veriyoruz. Math.atan2(20, 30) ≈ 0.588
+                if (group.userData.shapeType === 'pyramid_cone') {
+                    tiltOffset = -0.588; 
+                }
             }
 
             // Her iki şekil türü de Y ekseninde inşa edilip X ekseninde 90 derece döndürülerek dik hale getirilir.
