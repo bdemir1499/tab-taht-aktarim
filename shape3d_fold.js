@@ -322,7 +322,7 @@ window.Foldable3D = {
                 // Koni için özel: Daire diliminin eliptik (geriye yatık) görünmemesi için
                 // kameranın Y=-30, Z=20 açısına tam dik olacak şekilde offset veriyoruz. Math.atan2(20, 30) ≈ 0.588
                 if (group.userData.shapeType === 'pyramid_cone') {
-                    tiltOffset = -0.588; 
+                    tiltOffset = 0.588; 
                 }
             }
 
