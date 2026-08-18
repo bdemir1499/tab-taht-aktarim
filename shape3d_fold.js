@@ -318,28 +318,26 @@ window.Foldable3D = {
                 // Piramitler prizmalardan farklı olarak yerel XZ düzleminde açılır.
                 // Kameraya doğru (zemine) yatması için hedef açının Math.PI olması gerekir.
                 targetAngleX = Math.PI;
-                
-                // Koni için özel: Daire diliminin eliptik görünmemesi ve tabanın kusursuz bir daire olması için
-                // kameranın Y=-30, Z=20 açısına tam dik olması gerekiyor. 
-                // Ayrıca app.js'de koniye özel verilen başlangıç X eğimi (-Math.PI/6) qOuterInverse tarafından sıfırlanmadığı için 
-                // o eğimi de hesaba katarak tam karşıdan bakışı sağlayacak kusursuz matematiksel offset değerini giriyoruz.
-                if (group.userData.shapeType === 'pyramid_cone') {
-                    tiltOffset = Math.PI - (Math.atan2(20, -30) + Math.PI / 6); 
-                }
             }
 
-            // Her iki şekil türü de Y ekseninde inşa edilip X ekseninde 90 derece döndürülerek dik hale getirilir.
             const qClosed = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
-            
-            // Açıldığında tam karşıdan (ve hafif yukarıdan) görünmesi için mutlak hedef rotasyon
-            const qOpenAbsolute = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), targetAngleX - tiltOffset);
-            
-            // Dış grubun dinamik rotasyonunu değil, sadece başlangıçtaki varsayılan rotasyonunu ters çeviriyoruz.
-            // Böylece açıldığında "tam karşıdan" görünmesini sağlıyoruz ancak kullanıcının kendi yaptığı döndürmeleri SİLMİYORUZ.
-            // Prizmalar ve Piramitler başlangıçta Z ekseninde -30 derece (-Math.PI / 6) dönük olarak ekleniyor.
-            const defaultOuterQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -Math.PI / 6));
-            const qOuterInverse = defaultOuterQ.invert();
-            const qOpenTarget = qOuterInverse.multiply(qOpenAbsolute);
+            let qOpenTarget;
+
+            if (group.userData.shapeType === 'pyramid_cone') {
+                // KONİ İÇİN KESİN ÇÖZÜM:
+                // Kameraya (Y=-30, Z=20) tam dik bakması için X ekseninde atan2(20, -30) dönmesi gerekir.
+                const qOpenAbsolute = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.atan2(20, -30));
+                
+                // Koninin app.js'den gelen gerçek başlangıç eğimleri: X = -30, Z = -30.
+                // Sadece Z'yi değil, her ikisini de tersine çevirmeliyiz ki eğim kalmasın.
+                const coneOuterQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 6, 0, -Math.PI / 6, 'XYZ'));
+                qOpenTarget = coneOuterQ.invert().multiply(qOpenAbsolute);
+            } else {
+                // Prizmalar ve Diğer Piramitler için mevcut çalışan mantık:
+                const qOpenAbsolute = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), targetAngleX - tiltOffset);
+                const defaultOuterQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -Math.PI / 6));
+                qOpenTarget = defaultOuterQ.invert().multiply(qOpenAbsolute);
+            }
             
             // Kapalıyken izometrik duruşta kal, açıldıkça kameraya dön
             inner.quaternion.copy(qClosed).slerp(qOpenTarget, openRatio);
