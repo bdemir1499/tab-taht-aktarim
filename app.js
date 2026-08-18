@@ -5615,15 +5615,26 @@ const askeriKalkan = {
 if (isTablet) {
     myPeer = new Peer(askeriKalkan);
     myPeer.on('open', (id) => { console.log("Tablet Peer Hazır. Kimliğim:", id); });
+    myPeer.on('error', (err) => { alert("Tablet Bağlantı Hatası: " + err); });
 } else {
     myPeer = new Peer(myRoomCode, askeriKalkan);
     window.sessionPassword = Math.floor(1000 + Math.random() * 9000).toString();
+    
+    // Geçici olarak ekrana yükleniyor yazalım ki uygulamanın çökmediğini görelim
+    const idSaha = document.getElementById('my-peer-id');
+    const pinSaha = document.getElementById('my-pin-code');
+    if (idSaha) idSaha.innerText = "Bağlanıyor...";
+    if (pinSaha) pinSaha.innerText = "...";
+
     myPeer.on('open', (id) => {
         console.log("Tahta Peer Hazır. Oda Kodu:", id);
-        const idSaha = document.getElementById('my-peer-id');
-        const pinSaha = document.getElementById('my-pin-code');
         if (idSaha) idSaha.innerText = id;
         if (pinSaha) pinSaha.innerText = window.sessionPassword;
+    });
+    
+    myPeer.on('error', (err) => { 
+        if (idSaha) idSaha.innerText = "Sunucu Hatası!"; 
+        alert("Ücretsiz Sunucuya (PeerJS) şu an ulaşılamıyor. Lütfen sayfayı 1 dakika sonra yenileyin. Hata: " + err.type); 
     });
 }
 // --- 3. BAĞLANTI İSTEK DİNLEYİCİSİ (KAPI ZİLİ) ---
