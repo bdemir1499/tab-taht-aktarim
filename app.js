@@ -6109,6 +6109,14 @@ function setupConnectionEvents() {
                     if (p.start) { p.start.x = mapX(p.start.x); p.start.y = mapY(p.start.y); }
                     if (p.end) { p.end.x = mapX(p.end.x); p.end.y = mapY(p.end.y); }
                     if (p.radius !== undefined) p.radius *= scale;
+                    
+                    // 🚨 CANLI ÇİZİM ADAPTASYONU: Tablet çözünürlüğündeki kalem hareketlerini PC'ye oranla!
+                    if (p.tool === 'pen' && p.path) {
+                        for (let pt of p.path) {
+                            if (pt.x !== undefined) pt.x = mapX(pt.x);
+                            if (pt.y !== undefined) pt.y = mapY(pt.y);
+                        }
+                    }
                 }
                 d.ignoreAdapt = true;
             }
