@@ -319,10 +319,12 @@ window.Foldable3D = {
                 // Kameraya doğru (zemine) yatması için hedef açının Math.PI olması gerekir.
                 targetAngleX = Math.PI;
                 
-                // Koni için özel: Daire diliminin eliptik (geriye yatık) görünmemesi için
-                // kameranın Y=-30, Z=20 açısına tam dik olacak şekilde offset veriyoruz. Math.atan2(20, 30) ≈ 0.588
+                // Koni için özel: Daire diliminin eliptik görünmemesi ve tabanın kusursuz bir daire olması için
+                // kameranın Y=-30, Z=20 açısına tam dik olması gerekiyor. 
+                // Ayrıca app.js'de koniye özel verilen başlangıç X eğimi (-Math.PI/6) qOuterInverse tarafından sıfırlanmadığı için 
+                // o eğimi de hesaba katarak tam karşıdan bakışı sağlayacak kusursuz matematiksel offset değerini giriyoruz.
                 if (group.userData.shapeType === 'pyramid_cone') {
-                    tiltOffset = 0.588; 
+                    tiltOffset = Math.PI - (Math.atan2(20, -30) + Math.PI / 6); 
                 }
             }
 
