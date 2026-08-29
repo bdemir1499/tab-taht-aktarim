@@ -4633,8 +4633,26 @@ window.addEventListener('orientationchange', () => {
     setTimeout(lockScreenSize, 300);
 });
 
-// KRİTİK NOKTA: 'resize' eventini (adres çubuğu hareketlerini) DİNLEMİYORUZ!
-// Böylece adres çubuğu kaybolsa/çıksa bile sayfa esnemez, çizgiler zıplamaz.
+// 3. EBA Tam Ekran / Pencere Boyutu Degisimi Icin Akilli Resize Dinleyici
+// Adres cubugu yuzunden olan ufak oynamalari (sayfa ziplamasini) engeller, ama gercek tam ekran gecislerini (EBA) yakalar!
+let sonEkranGenislik = window.innerWidth;
+let sonEkranYukseklik = window.innerHeight;
+
+window.addEventListener('resize', () => {
+    const yeniGenislik = window.innerWidth;
+    const yeniYukseklik = window.innerHeight;
+    
+    // Genislik degistiyse KESINLIKLE gercek bir boyut degisimi vardir (EBA Tam Ekran vb.)
+    // VEYA yukseklik 80 pikselden fazla degistiyse (Adres cubugundan daha buyuk bir degisim)
+    if (Math.abs(yeniGenislik - sonEkranGenislik) > 10 || Math.abs(yeniYukseklik - sonEkranYukseklik) > 80) {
+        sonEkranGenislik = yeniGenislik;
+        sonEkranYukseklik = yeniYukseklik;
+        setTimeout(() => {
+            lockScreenSize();
+            if (typeof setupCanvasResolution === 'function') setupCanvasResolution();
+        }, 150);
+    }
+});
 
 // =======================================================
 // CANLANDIR (SNAPSHOT) - TABLET/PC UYUMLU YÜZEN KOPYA
